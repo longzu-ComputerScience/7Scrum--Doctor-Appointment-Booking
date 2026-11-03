@@ -40,3 +40,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !/.env.example
+
+
+# Monorepo: keep local installs, build output and credentials out of Git
+**/node_modules/
+**/.next/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.pyc
+**/.env
+**/.env.*
+!**/.env.example

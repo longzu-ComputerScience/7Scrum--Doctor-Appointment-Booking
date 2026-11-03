@@ -1,49 +1,73 @@
 # 7Scrum — Doctor Appointment Booking
 
-A 48-hour MVP for doctor discovery and appointment booking, built with **Next.js (TypeScript)**, **Supabase**, and **Vercel**.
+48-hour scheduling MVP with **Next.js frontend**, **FastAPI backend**, **Supabase PostgreSQL/Auth**, and **Vercel deployment**.
 
-## Core workflow
-1. Search using a natural-language request (AI-assisted if a server-side API key is configured) or browse doctors.
-2. Receive verified doctor + clinic cards from the database, never invented AI names.
-3. Select a doctor and see their available time slots.
-4. Submit a booking. A PostgreSQL RPC enforces atomic slot reservation.
-5. Authenticated clinic staff view appointments and advance their status.
+## Repository structure
 
-**Safety:** This is a scheduling tool, not a medical diagnosis service. Use synthetic patient and doctor data for the demo.
+- `frontend/` — Next.js 16 + TypeScript. UI, Supabase Auth login for clinic staff, and an API reverse proxy. **No business/API Route Handlers**.
+- `backend/` — FastAPI + Python 3.12. Doctor search, AI tool calling, slot availability, atomic booking via PostgreSQL RPC, clinic-staff authorization.
+- `supabase/` — PostgreSQL schema and fictional seed catalog.
+- `docs/` — API contract, user stories, team workflow, Definition of Done and release evidence.
+- `.github/workflows/ci.yml` — independent Node and Python checks.
 
-## Quick start
-```bash
-npm install
-cp .env.example .env.local
+## Local setup
+
+### 1. Backend
+
+```powershell
+cd backend
+Copy-Item .env.example .env
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
+uvicorn index:app --reload --port 8000
+```
+
+Use `source .venv/bin/activate` on macOS/Linux. Backend is available at `http://127.0.0.1:8000/api/health` and API docs at `/docs`.
+
+### 2. Frontend (second terminal)
+
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm ci
 npm run dev
 ```
-On PowerShell: `Copy-Item .env.example .env.local`.
 
-- Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` using a Supabase project.
-- Apply `supabase/migrations/001_init.sql` then `supabase/seed.sql` in the Supabase SQL editor.
-- Optionally set `OPENAI_API_KEY` to enable tool-calling search. Without it, keyword search remains available.
-- For staff access, create a Supabase Auth user and insert its auth user ID into `staff_members` with the clinic ID.
-- Deploy to Vercel and set the same environment variables in project settings. **Never place the service-role key or OpenAI key in NEXT_PUBLIC variables.**
+Visit `http://localhost:3000`. Next.js proxies `/api/*` to FastAPI using the server-side `BACKEND_URL` variable, default `http://127.0.0.1:8000`. UI fetch calls are unchanged.
 
-Without database credentials, the public catalog shows labeled **demo data**, but **bookings are disabled** rather than silently faked.
+### 3. Supabase
 
-## Development
-```bash
+For real booking, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in **backend/.env**, apply `supabase/migrations/001_init.sql`, then `supabase/seed.sql` through Supabase SQL Editor. Create a staff user in Supabase Auth and insert its ID into `staff_members` as described in the seed file.
+
+Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` **only** in frontend for staff authentication. The service role key is always backend-only.
+
+If Supabase is not configured, the doctor catalog and slot previews use fictional demo data and booking responds with HTTP 503 (never a fake success). An optional `OPENAI_API_KEY` in the backend enables AI-assisted doctor search; keyword fallback works without it.
+
+## Tests
+
+```powershell
+cd frontend
 npm run lint
 npx tsc --noEmit
 npm run build
+
+cd ../backend
+python -m pytest -q
+python -m ruff check .
 ```
-See [API Contract](docs/API_CONTRACT.md), [Team Workflow](docs/TEAM_WORKFLOW.md), and GitHub Issues. Open feature branches + PRs; avoid pushing features directly to main.
 
-## Team ownership
-| Role | Scope |
-|---|---|
-| Tech Lead | Architecture, Supabase, AI endpoint, API, integration |
-| UI 1 | Patient search + recommendation cards |
-| UI 2 | Booking + staff dashboard |
-| BA 1 | User journeys, scope, acceptance criteria |
-| BA 2 | Data specification, seed dataset, demo story |
-| QA | Test plan, API/UI regression, bug triage |
+Live Supabase double-booking, staff Auth, Vercel deployment and OpenAI calls require real credentials and dedicated integration testing before release.
 
-## MVP non-goals
-Medical diagnosis, complex triage, multi-agent orchestration, EHR integration, external calendar sync, payment, and real clinic deployment.
+## Deploy on Vercel
+
+Create **two Vercel projects from the same GitHub repository**:
+
+1. FastAPI project: Root Directory `backend`; framework FastAPI (auto-detected from `index.py` / requirements). Add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, optional `OPENAI_API_KEY`, `CORS_ORIGINS`.
+2. Next.js project: Root Directory `frontend`; set `BACKEND_URL=https://<backend-domain>` (do not add `/api`), plus the frontend's public Supabase settings. Deploy the backend before building the frontend.
+
+No deployment is performed by the repository refactor itself.
+
+## Team workflow
+
+One issue per branch/PR. Before work, read `docs/USER_STORIES.md`, `docs/DEFINITION_OF_DONE.md`, `docs/TEAM_WORKFLOW.md`, `docs/API_CONTRACT.md` and GitHub issues. Release readiness and human/PO sign-off are tracked in `docs/RELEASE_CHECKLIST.md`. Never commit API keys or actual patient information. The assistant is a scheduling/search aid, **not a diagnostic service**.

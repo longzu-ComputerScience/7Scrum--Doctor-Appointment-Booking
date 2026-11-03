@@ -12,13 +12,16 @@ on conflict(id) do nothing;
 
 insert into public.rooms(id, clinic_id, name) values
 ('40000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','Room A1'),
+('40000000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000001','Room A2'),
 ('40000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002','Room B1')
 on conflict(id) do nothing;
 
 -- Upcoming slots in Vietnam timezone. Re-run daily if you need fresh sample slots.
 insert into public.appointment_slots(doctor_id,clinic_id,room_id,start_at,end_at)
 select d.id,d.clinic_id,
-       case when d.clinic_id = '20000000-0000-4000-8000-000000000001'::uuid
+       case when d.id = '10000000-0000-4000-8000-000000000003'::uuid
+            then '40000000-0000-4000-8000-000000000003'::uuid
+            when d.clinic_id = '20000000-0000-4000-8000-000000000001'::uuid
             then '40000000-0000-4000-8000-000000000001'::uuid
             else '40000000-0000-4000-8000-000000000002'::uuid end,
        ((date_trunc('day', now() at time zone 'Asia/Ho_Chi_Minh') + make_interval(days => day_offset, hours => hour_of_day)) at time zone 'Asia/Ho_Chi_Minh'),

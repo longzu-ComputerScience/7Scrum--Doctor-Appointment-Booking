@@ -1,31 +1,28 @@
-# Two-Day Sprint — Team Workflow
+# 48-hour Sprint — Monorepo Teams
 
 ## Ownership
-- Tech Lead: architecture, Supabase, AI integration, API contracts, CI and review.
-- UI Developer 1: patient search, doctor cards, responsive behavior and error states.
-- UI Developer 2: doctor booking, appointment form and clinic dashboard.
-- BA 1: workflow, requirements, P0/P1 backlog and acceptance criteria.
-- BA 2: data dictionary, synthetic doctors/clinics/slots and demo script.
-- Tester: test plan, concurrent bookings, API negative paths, accessibility and regression.
 
-## Branches / PRs
-Each issue gets a feature branch from main (e.g. feat/issue-5-doctor-search).
-Open one PR per issue, link the issue, explain changes and attach screenshots when relevant.
-Review against acceptance criteria; avoid direct feature pushes to main.
-Never commit secrets or patient data. Rebase/fetch latest main before integration.
+- Tech Lead: `backend/app/`, `supabase/`, API contracts, shared CI/deploy integration and PR review.
+- UI 1: `frontend/src/app/page.tsx` and patient discovery/cards, filters, states.
+- UI 2: `frontend/src/app/doctors/[id]/book/` and `frontend/src/app/staff/`, slot/booking UX and clinic dashboard.
+- BA 1: product scope, patient+staff user stories, acceptance criteria and safety language.
+- BA 2: data dictionary, test fixtures, synthetic seed catalog and demo scenario.
+- QA: `backend/tests/`, API negative paths, DB concurrency proof, UI regression and release checklist.
 
-## 48-hour checkpoints (elapsed time, include breaks)
-H0–3: approve user flow, database schema and API contract.
-H3–16: implementation by UI/Tech Lead in parallel; BA prepare seed/demo; QA prepare tests.
-H16–24: first vertical slice, search -> doctor -> slot -> booking in Supabase.
-H24–32: clinic staff status update, AI fallback, refinements.
-H32–40: regression, conflict/security testing.
-H40–48: Vercel deployment, demo rehearsal and buffer.
+## Branch and review rules
 
-## Done
-- acceptance criteria checked,
-- no high-severity open bugs,
-- npm run lint, npx tsc --noEmit and npm run build pass,
-- appointment stored in Supabase; double booking blocked,
-- staff membership enforced server-side,
-- UX includes loading/empty/error states.
+One issue → feature branch → PR. Tech Lead owns shared API/schema changes; UI commits must respect `docs/API_CONTRACT.md`. Do not push feature work directly to main. CI runs separate frontend/backend jobs for each PR.
+
+**Frontend:** `cd frontend; npm ci; npm run lint; npx tsc --noEmit; npm run build`.
+
+**Backend:** `cd backend; pip install -r requirements-dev.txt; pytest -q; ruff check .`.
+
+## Milestones
+
+H0–3: agree user journeys and API schema; H3–16: independent UI/backend work; H16–24: first real booking vertical slice; H24–32: clinic staff and AI fallback; H32–40: QA/regression/security; H40–48: deployment and demo buffer. Include breaks.
+
+## Definition of Done and review
+
+Use `docs/DEFINITION_OF_DONE.md` as the **single source of truth**, `docs/USER_STORIES.md` for US-01 through US-06 acceptance criteria, and `docs/RELEASE_CHECKLIST.md` for release gates and PO decision.
+
+AI-generated drafts **must** receive explicit confirmation from a named Dev Team reviewer; record the reviewer in each PR or issue. CI green is not a substitute for PO acceptance.
