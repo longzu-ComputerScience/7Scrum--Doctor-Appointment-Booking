@@ -1,41 +1,26 @@
-# API Contract — 7Scrum MVP
+# FastAPI HTTP Contract — 7Scrum MVP
 
-All responses are JSON. Failure responses contain an error string.
+**Owner:** `backend/app/` (Python). **Consumer:** `frontend/src/` (TypeScript). The frontend uses same-origin `/api/*` requests; Next.js rewrites these to FastAPI via `BACKEND_URL`.
 
-## Search
-GET /api/doctors?specialty=&district=&keyword=
-Response: { doctors: Doctor[], demoMode: boolean }
+Interactive backend OpenAPI docs: `http://127.0.0.1:8000/docs`.
 
-POST /api/assistant
-Request: { message: string } (2–800 characters)
-Response: { doctors: Doctor[], filters: { specialty, district, keyword }, usedAI: boolean, demoMode: boolean, urgent: boolean, message: string }
+| Method / Path | Purpose | Response |
+|---|---|---|
+| GET /api/health | Health check | `{status: 'ok', databaseConfigured: boolean}` |
+| GET /api/doctors?specialty=&district=&keyword= | Filter doctors | `{doctors: Doctor[], demoMode: boolean}` |
+| GET /api/doctors/:id | Doctor/clinic detail | `{doctor: Doctor, demoMode: boolean}` |
+| GET /api/doctors/:id/slots | Upcoming available slots | `{slots: Slot[], demoMode: boolean}` |
+| POST /api/assistant | Natural-language search | `{doctors, filters, usedAI, demoMode, urgent, message}` |
+| POST /api/appointments | Atomic booking via RPC | HTTP 201: `{appointmentId, bookingReference, status: 'requested'}` |
+| GET /api/staff/appointments | Authorized clinic bookings | `{appointments: StaffAppointment[]}` |
+| PATCH /api/appointments/:id | Staff appointment status change | `{appointment: {id, status}}` |
 
-AI tool calling extracts filters only. The backend searches the real catalog. No hallucinated doctor records are displayed. Without OPENAI_API_KEY, simple keyword filtering is available. This MVP implements single-turn search, not full conversational memory.
+**Assistant body:** `{message: string}` (2–800 characters). AI only extracts search filters and does not fabricate doctors or create appointments.
 
-Doctor properties: id, name, specialty, bio, clinicId, clinicName, clinicAddress, district.
+**Booking body:** `{slotId: UUID, patientName: string, patientPhone: string, notes?: string}`. HTTP 409 when slot already occupied, 503 when Supabase is not configured or unavailable; invalid input HTTP 422 (FastAPI/Pydantic). Slot list is not a reservation. UI should refetch on 409.
 
-## Doctor & Slots
-GET /api/doctors/:id -> { doctor: Doctor, demoMode: boolean }
-GET /api/doctors/:id/slots -> { slots: AppointmentSlot[], demoMode: boolean }
-Slot properties: id, doctorId, clinicId, startAt, endAt, roomName.
-Timestamps are ISO UTC; display in Asia/Ho_Chi_Minh. A listed slot is not reserved.
+**Staff:** Supabase Auth Bearer JWT sent in `Authorization` header. Backend verifies user and clinic membership before reading or changing appointments. Transitions: requested → confirmed → checked_in → completed; cancellation permitted before completion. HTTP 401/403/404/409 for expected auth/status errors.
 
-## Booking
-POST /api/appointments
-Request: { slotId: UUID, patientName: string, patientPhone: string, notes?: string }
-201 Created: { appointmentId, bookingReference, status: "requested" }
-400 Invalid input
-409 Slot conflict (frontend should reload available slots)
-503 Supabase not configured / unavailable
-A PostgreSQL partial unique index is the final double-booking guard.
+**Data:** doctor id, name, specialty, bio, clinicId, clinicName, clinicAddress, district. Slots include id, doctorId, clinicId, startAt, endAt, roomName. All timestamps ISO with timezone; frontend displays Asia/Ho_Chi_Minh.
 
-## Staff
-GET /api/staff/appointments with Authorization: Bearer <Supabase Auth access token>
-Response: { appointments: [{ id, patientName, patientPhone, doctorName, clinicName, startAt, status }] }
-PATCH /api/appointments/:id with same Authorization header
-Body: { status: "confirmed" | "checked_in" | "completed" | "cancelled" }
-Status flow: requested -> confirmed -> checked_in -> completed; cancellation is permitted before completion.
-Auth errors 401/403, invalid transition or concurrency 409.
-
-## Privacy & Security
-Never expose SUPABASE_SERVICE_ROLE_KEY or OPENAI_API_KEY in frontend. No real patient history in demo. Before production, add abuse prevention/rate limiting, consent, privacy/retention policy, audit logs, and independent security review.
+**Security:** Backend owns `SUPABASE_SERVICE_ROLE_KEY` and `OPENAI_API_KEY`; never expose either in the frontend. Use only fictional demo provider/patient data. Before production, implement rate-limits, abuse controls, privacy/retention policies, incident response, and audit logs.

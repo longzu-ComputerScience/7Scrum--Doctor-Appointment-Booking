@@ -39,6 +39,11 @@ create table if not exists public.appointment_slots (
 );
 create index if not exists slots_doctor_start_idx on public.appointment_slots(doctor_id, start_at);
 
+-- Never allocate the same physical examination room to two doctors at one time.
+create unique index if not exists slots_room_start_unique
+  on public.appointment_slots(room_id, start_at) where room_id is not null;
+
+
 create table if not exists public.appointments (
   id uuid primary key default gen_random_uuid(),
   slot_id uuid not null references public.appointment_slots(id),
