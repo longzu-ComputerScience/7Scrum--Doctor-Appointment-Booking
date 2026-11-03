@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
-};
+// Keep the 48-hour MVP simple: dynamic booking routes are not prerendered.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
