@@ -21,6 +21,8 @@ One issue → feature branch → PR. Tech Lead owns shared API/schema changes; U
 
 H0–3: agree user journeys and API schema; H3–16: independent UI/backend work; H16–24: first real booking vertical slice; H24–32: clinic staff and AI fallback; H32–40: QA/regression/security; H40–48: deployment and demo buffer. Include breaks.
 
-## Definition of Done
+## Definition of Done and review
 
-Validated requirements; CI green; no release-blocking defects; genuine appointment stored via Supabase; double booking fails for one of two simultaneous requests; staff role enforced by backend; frontend handles loading, empty, 409, 401/403 and 503 states. Do not call a mock/demo booking successful.
+Use `docs/DEFINITION_OF_DONE.md` as the **single source of truth**, `docs/USER_STORIES.md` for US-01 through US-06 acceptance criteria, and `docs/RELEASE_CHECKLIST.md` for release gates and PO decision.
+
+AI-generated drafts **must** receive explicit confirmation from a named Dev Team reviewer; record the reviewer in each PR or issue. CI green is not a substitute for PO acceptance.

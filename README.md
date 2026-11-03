@@ -7,7 +7,7 @@
 - `frontend/` — Next.js 16 + TypeScript. UI, Supabase Auth login for clinic staff, and an API reverse proxy. **No business/API Route Handlers**.
 - `backend/` — FastAPI + Python 3.12. Doctor search, AI tool calling, slot availability, atomic booking via PostgreSQL RPC, clinic-staff authorization.
 - `supabase/` — PostgreSQL schema and fictional seed catalog.
-- `docs/` — HTTP contract and team workflow.
+- `docs/` — API contract, user stories, team workflow, Definition of Done and release evidence.
 - `.github/workflows/ci.yml` — independent Node and Python checks.
 
 ## Local setup
@@ -70,4 +70,4 @@ No deployment is performed by the repository refactor itself.
 
 ## Team workflow
 
-One issue per branch/PR. Read `docs/TEAM_WORKFLOW.md`, `docs/API_CONTRACT.md` and GitHub issues before editing shared API or database files. Never commit API keys or actual patient information. The assistant is a scheduling/search aid, **not a diagnostic service**.
+One issue per branch/PR. Before work, read `docs/USER_STORIES.md`, `docs/DEFINITION_OF_DONE.md`, `docs/TEAM_WORKFLOW.md`, `docs/API_CONTRACT.md` and GitHub issues. Release readiness and human/PO sign-off are tracked in `docs/RELEASE_CHECKLIST.md`. Never commit API keys or actual patient information. The assistant is a scheduling/search aid, **not a diagnostic service**.
