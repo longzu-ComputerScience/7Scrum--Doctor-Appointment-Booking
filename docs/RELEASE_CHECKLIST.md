@@ -4,8 +4,8 @@
 
 | Gate | Current evidence | Status |
 | --- | --- | --- |
-| FastAPI and Next.js code separated | PR #17 | Implemented, requires review/merge |
-| Frontend / backend CI | GitHub Actions latest run for PR #17 | Previously passed; rerun after modifications |
+| FastAPI and Next.js code separated | PR #17 and its latest main-branch commit | Technical changes verified; human review still required |
+| Frontend / backend CI | GitHub Actions run on the exact current main commit | Verify latest green run before release |
 | Doctor search and sample slot API | Local cross-service smoke test | Demo-only verified |
 | Symptom entry, review and edit | US-01/02 acceptance criteria | Needs QA acceptance |
 | Live Supabase booking and concurrency | Database credentials and real concurrent requests | Not verified |
