@@ -1,21 +1,16 @@
-# PO work breakdown → active TODAY issues (2026-11-04)
+# Bảng theo dõi công việc — đúng 6 issue, TODAY US-02 + US-03
 
-**Product source:** [PO SMART HOSPITAL, tab t.0](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?pli=1&tab=t.0#heading=h.a4pni6r8dmg8). **Technical target:** [API_CONTRACT_V2.md](API_CONTRACT_V2.md), [DATA_DICTIONARY.md](DATA_DICTIONARY.md), [schema_v2.sql](../supabase/schema_v2.sql); see [DOCS_GUIDE.md](DOCS_GUIDE.md) for unresolved differences.
+Nguồn: [PRD Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i), [API Contract V2](API_CONTRACT_V2.md), [Data Dictionary](DATA_DICTIONARY.md), [Implementation notes](DOCS_GUIDE.md).
 
-The PO's DEV-01..09 tasks are **illustrative**, not extra User Stories or separate issues to reopen. The active board consists of **five `[TODAY-US2]` issues (#3, #5, #9, #25, #26) and six `[TODAY-US3]` issues (#31–#36)**. Existing FE2 US-02 #7 is closed after PR #27 merged.
+| Vai trò | Issue hiện hành | Tận dụng US-02/PR đã có | Việc nối tiếp theo PRD mới |
+| --- | --- | --- | --- |
+| BE1 | **#31** | #3, PR #29; PR #38 SQL doctor_accounts | Migration mới weekly hours/patient profiles/notifications, generated slots, 3 status, booking+notification atomic |
+| BE2 | **#32** | #26, PR #28; PR #39/#40 Doctor API/auth | Patient JWT/booking auto-confirm; Doctor recurring schedule, derived calendar, updates/conflicts, notifications APIs |
+| FE1 | **#33** | #5, PR #30 Doctor List | Patient Auth + profile, Doctor invite registration/login, Dashboard/upcoming/notifications; kết nối Doctor List thật |
+| FE2 | **#34** | #7 (đã đóng), PR #27 Booking Modal | Weekly editor reuse registration/dashboard, Patient 30-min calendar + realtime; booking response/errors |
+| Tester | **#35** | #9 booking QA | E2E Auth, schedule, booking/concurrency, conflicts, status, notification/realtime |
+| Lead | **#36** | #25, review #27–#30/#38–#40 | Final API contract + migration/ownership/PR integration, US-01, review và PO acceptance |
 
-| PO task / responsibility | Story | Active tracking |
-| --- | --- | --- |
-| DEV-01 Shared data / environment | Shared | BE1 #3 → #31; Lead #25 → #36 |
-| DEV-02 Staff schedule input UI | US-03 | FE2 **#34** |
-| DEV-03 Save and retrieve availability | US-03 | BE2 **#32**, DB support BE1 **#31** |
-| DEV-04 Conversation UI | US-01 | Existing code; **Lead #36 must verify/assign remaining work** (no active dedicated US-01 issue) |
-| DEV-05 Specialty suggestion and safety | US-01 | Existing code; **Lead #36 must verify/assign remaining work** |
-| DEV-06 Doctor discovery and slots | US-02 | FE1 **#5**, BE2 **#26**; FE2 #7/PR #27 already merged |
-| DEV-07 Booking and double-book prevention | US-02 | BE1 **#3**, BE2 **#26**, Tester **#9**; FE2 #7/PR #27 already merged |
-| DEV-08 Staff confirmed appointments | US-03 | FE1 **#33**, BE2 **#32** |
-| DEV-09 Integration, QA, demo and PO acceptance | Shared | Tester **#9** → **#35**; Lead **#25** → **#36** |
+**Các issue #3, #5, #9, #25, #26 và #7 đóng để gộp**, không có nghĩa các AC mới đã đạt. Không tạo issue P0 thứ bảy trong hôm nay. Các issue #21/#22/#8/#19 đã đóng là lịch sử Clinic Staff, **không** còn dependency cho Doctor workflow.
 
-**Historical handoff:** old US-03 #21→#32, #22→#34, #8→#33, #19→#35. They are **closed as superseded, not verified complete**. Other closed BA/P1/E2E issues are historical; their necessary PO acceptance requirements remain in the active Lead/Tester release gates, not in a second active backlog.
-
-**Dependencies:** BE1 V2 database/migration #31 ↔ BE2 doctor-scoped staff APIs #32 → FE2 #34 / FE1 #33 → Tester #35 → Lead #36 and PO review. Reuse finished US-02 pieces but **do not assume #3/#26/#5/#9 are complete** merely because a PR merged. US-01 must join the final end-to-end flow. V2 booking is initially `requested`; staff confirmation and PO sign-off are separate gates.
+**Thứ tự:** BE1/BE2 thống nhất DB RPC + API Contract → FE1/FE2 tích hợp (song song UI) → Tester chạy shared DB/E2E → Lead review và demo. Xem [EXECUTION_ORDER](EXECUTION_ORDER.md).
