@@ -1,4 +1,5 @@
 import type { AppointmentSlot, Doctor } from "@/lib/types";
+import { doctorForDisplay } from "@/lib/doctor-display";
 
 const timeZone = "Asia/Ho_Chi_Minh";
 const keyFormatter = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -39,5 +40,5 @@ export async function loadBookingData(doctorId: string, signal?: AbortSignal) {
   const slots = available.slots.filter((slot) => slot.doctorId === doctorId &&
     new Date(slot.startAt).getTime() > now && new Date(slot.endAt).getTime() > new Date(slot.startAt).getTime())
     .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
-  return { doctor: doc.doctor, slots, demo: doc.demoMode || available.demoMode };
+  return { doctor: doctorForDisplay(doc.doctor), slots, demo: doc.demoMode || available.demoMode };
 }

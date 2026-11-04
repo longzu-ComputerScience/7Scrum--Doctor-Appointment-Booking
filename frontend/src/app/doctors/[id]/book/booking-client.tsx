@@ -149,6 +149,9 @@ export default function BookingClient({ doctorId, intercepted = false }: { docto
   }
 
   const selectedSlot = slots.find((slot) => slot.id === slotId);
+  const bookingHint = demo
+    ? "Online booking is unavailable in demo mode. These times are for preview only, and your details will not be submitted."
+    : !selectedSlot ? "Select an available time to continue." : "";
   const daySlots = slots.filter((slot) => dateKey(slot.startAt) === selectedDate);
   const fields = [
     { key: "name" as const, id: "patient-name", label: "Full name", value: name, setter: setName, autoComplete: "name", maxLength: 100, placeholder: "Enter your full name" },
@@ -178,6 +181,11 @@ export default function BookingClient({ doctorId, intercepted = false }: { docto
       ) : (
         <>
           <header className={styles.heading}>
+            {!intercepted && (
+              <button type="button" className={styles.backLink} onClick={close} aria-label="Return to patient dashboard">
+                <BookingIcon name="left" /> <span>Back to dashboard</span>
+              </button>
+            )}
             <p className={styles.eyebrow}>CHOOSE YOUR VISIT</p>
             <h1 id="booking-title" tabIndex={-1}>Book an appointment</h1>
             <p className={styles.description}>Choose a date and time that works for you. Let Carely connect you with your doctor.</p>
@@ -238,8 +246,9 @@ export default function BookingClient({ doctorId, intercepted = false }: { docto
                     {selectedSlot && <p><BookingIcon name="clock" /><span>{formatTime(selectedSlot.startAt)} – {formatTime(selectedSlot.endAt)} (UTC+7)</span></p>}
                     <p><BookingIcon name="pin" /><span>{doctor.clinicAddress}</span></p>
                   </div>
-                  <button className={styles.primary} type="submit" disabled={!selectedSlot || submitting || demo}>
-                    {submitting ? <><span className={styles.spinner} /> Confirming…</> : <>Confirm appointment <BookingIcon name="arrow" /></>}
+                  {bookingHint && <p id="booking-availability" className={styles.notice} role="status">{bookingHint}</p>}
+                  <button className={styles.primary} type="submit" disabled={!selectedSlot || submitting || demo} aria-describedby={bookingHint ? "booking-availability" : undefined}>
+                    {submitting ? <><span className={styles.spinner} /> Confirming…</> : demo ? "Booking unavailable in demo" : <>Confirm appointment <BookingIcon name="arrow" /></>}
                   </button>
                   <p className={styles.footerNote}>{submitting ? "We are checking and saving your appointment. Please wait for confirmation." : "No payment is collected at this step. Availability is checked again when you confirm."}</p>
                 </section>

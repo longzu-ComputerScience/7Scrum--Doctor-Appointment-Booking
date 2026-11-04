@@ -26,6 +26,8 @@
 .dialog :is(button, input, textarea, a, [tabindex]):focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 .dialog :is(input, textarea, button) { scroll-margin: 20px; }
 .heading { padding-right: 36px; margin-bottom: 24px; }
+.backLink { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; color: var(--primary-dark); font-size: 13px; font-weight: 700; padding: 0 0 12px; cursor: pointer; border-radius: 6px; transition: color 150ms ease; }
+.backLink:hover { color: var(--primary); text-decoration: underline; }
 .eyebrow { margin: 0; color: var(--primary-dark); font-size: 11px; font-weight: 700; letter-spacing: .14em; }
 .description { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.6; }
 .iconButton { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink); }
