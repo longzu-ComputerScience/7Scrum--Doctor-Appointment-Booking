@@ -241,6 +241,12 @@ class ScheduleConflict(BaseModel):
     conflicts: list[ConflictingAppointment] = Field(min_length=1)
 
 
+def _reject_nul(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("NUL characters are not allowed")
+    return value
+
+
 class RegistrationInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -252,17 +258,22 @@ class RegistrationInput(BaseModel):
     def normalize_email(cls, value: object) -> object:
         return value.strip().lower() if isinstance(value, str) else value
 
+    validate_text = field_validator("email", "password")(_reject_nul)
+
 
 class PatientRegistrationInput(RegistrationInput):
     name: str = Field(min_length=2, max_length=100)
     phone: str = Field(pattern=r"^\+?[0-9 ()-]{9,20}$")
 
     normalize_text = field_validator("name", "phone", mode="before")(_normalize_text)
+    validate_name = field_validator("name")(_reject_nul)
     validate_phone_digits = field_validator("phone")(_validate_phone_digits)
 
 
 class DoctorRegistrationInput(RegistrationInput, WeeklyIntervals):
     invitationCode: str = Field(min_length=1, max_length=128, repr=False)
+
+    validate_invitation = field_validator("invitationCode")(_reject_nul)
 
 
 class PatientRegistrationResponse(BaseModel):

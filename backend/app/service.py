@@ -366,7 +366,9 @@ def _complete_registration(client: Any, user_id: str, rpc: str, params: dict):
         code = getattr(exc, "code", None)
         # A transport failure can arrive after commit. Deleting in that case could
         # remove a valid account and leave a consumed invitation.
-        if code in RPC_ERRORS or code in ("PGRST202", "PT503"):
+        # SQLSTATE classes 22 and 23 are data and integrity errors that abort the RPC.
+        rejected_data = isinstance(code, str) and len(code) == 5 and code.startswith(("22", "23"))
+        if rejected_data or code in RPC_ERRORS or code in ("PGRST202", "PT503"):
             try:
                 client.auth.admin.delete_user(user_id)
             except Exception:
@@ -404,9 +406,14 @@ def register_doctor(payload: DoctorRegistrationInput) -> dict:
     result = _complete_registration(client, user_id, "complete_doctor_registration", {
         "p_invite_code": payload.invitationCode, "p_intervals": _rpc_intervals(payload.weeklyIntervals),
     })
-    with _database_operation("Registration unavailable"):
+    try:
         (row,) = result
-        return {"doctorId": UUID(row["doctor_id"])}
+        doctor_id = UUID(str(row["doctor_id"]))
+        UUID(str(row["schedule_version_id"]))
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.error("Unexpected doctor registration result for Auth user %s", user_id)
+        raise HTTPException(503, "Registration unavailable") from exc
+    return {"doctorId": doctor_id}
 
 
 def get_doctor_schedule(token: str) -> dict:
