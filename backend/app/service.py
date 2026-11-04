@@ -12,8 +12,7 @@ from fastapi import HTTPException
 from typing import Any
 
 from app.config import is_database_configured
-from app.demo import DEMO_DOCTORS, demo_slots
-from app.schemas import ALLOWED_TRANSITIONS, BookingInput, StaffSlotInput
+from app.schemas import ALLOWED_TRANSITIONS, BookingInput, BookingResponse, StaffSlotInput
 
 
 def get_client() -> Any:
@@ -51,6 +50,22 @@ def _doctor_from_record(row: dict) -> dict:
     }
 
 
+def _active_doctors_query(client: Any) -> Any:
+    return (
+        client.table("doctors")
+        .select("id,name,specialty,bio,clinic_id,clinics!inner(name,address,district,active)")
+        .eq("active", True)
+        .eq("clinics.active", True)
+    )
+
+
+def _require_active_doctor(client: Any, doctor_id: UUID) -> dict:
+    rows = _active_doctors_query(client).eq("id", str(doctor_id)).limit(1).execute().data
+    if not rows:
+        raise HTTPException(404, "Doctor not found")
+    return rows[0]
+
+
 ALIASES = {
     "dermatology": "Da liễu",
     "cardiology": "Tim mạch",
@@ -60,6 +75,7 @@ ALIASES = {
 
 
 def doctor_matches(doctor: dict, specialty: str = "", district: str = "", keyword: str = "") -> bool:
+    specialty = specialty.strip()
     mapped_specialty = ALIASES.get(specialty.lower(), specialty)
     if mapped_specialty and _normalize(mapped_specialty) not in _normalize(doctor["specialty"]):
         return False
@@ -77,51 +93,62 @@ def search_doctors(
     district: str | None = None,
     keyword: str | None = None,
 ) -> dict:
-    if not is_database_configured():
-        doctors = DEMO_DOCTORS
-        demo_mode = True
-    else:
-        try:
-            result = (
-                get_client()
-                .table("doctors")
-                .select("id,name,specialty,bio,clinic_id,clinics!inner(name,address,district,active)")
-                .eq("active", True)
-                .eq("clinics.active", True)
-                .limit(100)
-                .execute()
-            )
-            doctors = [_doctor_from_record(record) for record in result.data]
-        except Exception as exc:
-            raise HTTPException(503, "Doctor catalog unavailable") from exc
-        demo_mode = False
-    matches = [
-        doctor
-        for doctor in doctors
-        if doctor_matches(doctor, specialty or "", district or "", keyword or "")
-    ]
-    return {"doctors": matches, "demoMode": demo_mode}
+    """Filter the active v1 catalog before limiting the public result to 100.
+
+    Scan ordered pages because accent-insensitive matching is implemented in
+    Python, without requiring a schema change from the database owner.
+    """
+    matches = []
+    last_id = None
+    try:
+        client = get_client()
+        while len(matches) < 100:
+            query = _active_doctors_query(client)
+            if last_id is not None:
+                query = query.gt("id", last_id)
+            rows = query.order("id").limit(100).execute().data
+            if not rows:
+                break
+            # Supabase can return fewer rows than requested on any page.
+            last_id = rows[-1]["id"]
+            for record in rows:
+                doctor = _doctor_from_record(record)
+                if doctor_matches(doctor, specialty or "", district or "", keyword or ""):
+                    matches.append(doctor)
+                    if len(matches) == 100:
+                        break
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Doctor catalog unavailable") from exc
+    return {"doctors": matches, "demoMode": False}
 
 
 def get_doctor(doctor_id: UUID) -> dict:
-    result = search_doctors()
-    doctor = next((d for d in result["doctors"] if d["id"] == str(doctor_id)), None)
-    if not doctor:
-        raise HTTPException(404, "Doctor not found")
-    return {"doctor": doctor, "demoMode": result["demoMode"]}
+    try:
+        doctor = _require_active_doctor(get_client(), doctor_id)
+        return {"doctor": _doctor_from_record(doctor), "demoMode": False}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Doctor catalog unavailable") from exc
 
 
 def get_slots(doctor_id: UUID) -> dict:
-    if not is_database_configured():
-        return {"slots": demo_slots(doctor_id), "demoMode": True}
     try:
+        client = get_client()
+        doctor = _require_active_doctor(client, doctor_id)
+        # The empty embed filters out slots with non-cancelled bookings before LIMIT.
         rows = (
-            get_client()
+            client
             .table("appointment_slots")
-            .select("id,doctor_id,clinic_id,start_at,end_at,rooms(name),appointments(status)")
+            .select("id,doctor_id,clinic_id,start_at,end_at,rooms(name),appointments()")
             .eq("doctor_id", str(doctor_id))
+            .eq("clinic_id", str(doctor["clinic_id"]))
             .eq("is_published", True)
             .gt("start_at", datetime.now(timezone.utc).isoformat())
+            .neq("appointments.status", "cancelled")
+            .is_("appointments", "null")
             .order("start_at")
             .limit(100)
             .execute()
@@ -129,8 +156,6 @@ def get_slots(doctor_id: UUID) -> dict:
         )
         slots = []
         for item in rows:
-            if any(booking["status"] != "cancelled" for booking in item.get("appointments", [])):
-                continue
             room = _one(item.get("rooms"))
             slots.append(
                 {
@@ -143,13 +168,18 @@ def get_slots(doctor_id: UUID) -> dict:
                 }
             )
         return {"slots": slots, "demoMode": False}
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(503, "Slots unavailable") from exc
 
 
 def create_booking(payload: BookingInput) -> dict:
-    client = get_client()
     try:
+        client = get_client()
+        # The V1 and V2 RPCs have the same signature, but V1 can write a confirmed booking.
+        if os.getenv("BOOKING_RPC_V2_READY") != "true":
+            raise HTTPException(503, "Booking V2 is not ready")
         response = (
             client.rpc(
                 "create_appointment",
@@ -162,21 +192,39 @@ def create_booking(payload: BookingInput) -> dict:
             )
             .execute()
         )
+    except HTTPException:
+        raise
     except Exception as exc:
-        # PostgreSQL RPC raises P0001 for missing, already reserved or stale slots.
-        if getattr(exc, "code", None) in ("P0001", "23505"):
+        code = getattr(exc, "code", None)
+        message = getattr(exc, "message", "") or ""
+        slot_rejected = code == "P0001" and message in (
+            "Slot unavailable", "Slot already booked", "Slot is unavailable", "Slot is already booked",
+        )
+        slot_conflict = code == "23505" and '"appointments_one_active_per_slot"' in message
+        if slot_rejected or slot_conflict:
             raise HTTPException(409, "Slot is no longer available") from exc
         raise HTTPException(503, "Booking service unavailable") from exc
 
-    value = response.data
-    record = value[0] if isinstance(value, list) and value else value
-    if not isinstance(record, dict) or not record.get("appointment_id"):
-        raise HTTPException(409, "Slot is no longer available")
-    return {
-        "appointmentId": record["appointment_id"],
-        "bookingReference": record["booking_reference"],
-        "status": "confirmed",
-    }
+    try:
+        (record,) = response.data
+        # The RPC result has no status. Verify the stored status before returning 201.
+        rows = (
+            client.table("appointments")
+            .select("status")
+            .eq("id", record["appointment_id"])
+            .limit(1)
+            .execute()
+            .data
+        )
+        booking = BookingResponse(
+            appointmentId=record["appointment_id"],
+            bookingReference=record["booking_reference"],
+            status=rows[0]["status"],
+        )
+    except Exception as exc:
+        raise HTTPException(503, "Booking result unavailable") from exc
+
+    return booking.model_dump(mode="json")
 
 
 def authorized_staff(token: str) -> tuple[Any, list[str]]:
