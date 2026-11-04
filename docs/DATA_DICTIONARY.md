@@ -156,7 +156,9 @@ Một slot tối đa một appointment **khác cancelled**. requested/confirmed/
 | `doctor_id` | `uuid` | NN, PK ghép, FK → `doctors.id` | Không có | Không trả API | Bác sĩ user được quản lý lịch |
 | `created_at` | `timestamptz` | NN | `now()` | Không trả API | Thời điểm cấp membership |
 
-PK (user_id, doctor_id), không trùng cặp. Một user quản lý nhiều doctor và ngược lại. Không có role/staff_id/clinic_id. Mọi membership cùng quyền đọc/chuyển status lịch doctor được gán; không có quyền quản trị hồ sơ, chứng chỉ, slot hoặc điểm qua API MVP.
+PK (user_id, doctor_id), không trùng cặp. Một user quản lý nhiều doctor và ngược lại. Không có role/staff_id/clinic_id. Mọi membership cùng quyền đọc và chuyển status lịch của doctor được gán.
+
+Phần mở rộng US-03 ở Issue #31 đề xuất cho membership tạo slot công bố của doctor được gán qua `create_staff_slot`. Quyền này có hiệu lực sau khi migration được duyệt và áp dụng. BE2 lấy user ID từ JWT đã xác thực. Phạm vi mở rộng chỉ gồm tạo slot, còn chỉnh sửa hoặc xóa slot và quản lý hồ sơ, chứng chỉ, rating nằm ngoài thao tác này. Xem [bàn giao SQL #31](../supabase/STAFF_SLOTS_V2.md).
 
 ## 4. Status cố định và bước chuyển
 
