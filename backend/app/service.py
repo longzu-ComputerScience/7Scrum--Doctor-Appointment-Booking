@@ -12,7 +12,6 @@ from fastapi import HTTPException
 from typing import Any
 
 from app.config import is_database_configured
-from app.demo import demo_slots
 from app.schemas import ALLOWED_TRANSITIONS, BookingInput, StaffSlotInput
 
 
@@ -58,6 +57,13 @@ def _active_doctors_query(client: Any) -> Any:
         .eq("active", True)
         .eq("clinics.active", True)
     )
+
+
+def _require_active_doctor(client: Any, doctor_id: UUID) -> dict:
+    rows = _active_doctors_query(client).eq("id", str(doctor_id)).limit(1).execute().data
+    if not rows:
+        raise HTTPException(404, "Doctor not found")
+    return rows[0]
 
 
 ALIASES = {
@@ -120,10 +126,8 @@ def search_doctors(
 
 def get_doctor(doctor_id: UUID) -> dict:
     try:
-        rows = _active_doctors_query(get_client()).eq("id", str(doctor_id)).limit(1).execute().data
-        if not rows:
-            raise HTTPException(404, "Doctor not found")
-        return {"doctor": _doctor_from_record(rows[0]), "demoMode": False}
+        doctor = _require_active_doctor(get_client(), doctor_id)
+        return {"doctor": _doctor_from_record(doctor), "demoMode": False}
     except HTTPException:
         raise
     except Exception as exc:
@@ -131,16 +135,20 @@ def get_doctor(doctor_id: UUID) -> dict:
 
 
 def get_slots(doctor_id: UUID) -> dict:
-    if not is_database_configured():
-        return {"slots": demo_slots(doctor_id), "demoMode": True}
     try:
+        client = get_client()
+        doctor = _require_active_doctor(client, doctor_id)
+        # The empty embed filters out slots with non-cancelled bookings before LIMIT.
         rows = (
-            get_client()
+            client
             .table("appointment_slots")
-            .select("id,doctor_id,clinic_id,start_at,end_at,rooms(name),appointments(status)")
+            .select("id,doctor_id,clinic_id,start_at,end_at,rooms(name),appointments()")
             .eq("doctor_id", str(doctor_id))
+            .eq("clinic_id", str(doctor["clinic_id"]))
             .eq("is_published", True)
             .gt("start_at", datetime.now(timezone.utc).isoformat())
+            .neq("appointments.status", "cancelled")
+            .is_("appointments", "null")
             .order("start_at")
             .limit(100)
             .execute()
@@ -148,8 +156,6 @@ def get_slots(doctor_id: UUID) -> dict:
         )
         slots = []
         for item in rows:
-            if any(booking["status"] != "cancelled" for booking in item.get("appointments", [])):
-                continue
             room = _one(item.get("rooms"))
             slots.append(
                 {
@@ -162,6 +168,8 @@ def get_slots(doctor_id: UUID) -> dict:
                 }
             )
         return {"slots": slots, "demoMode": False}
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(503, "Slots unavailable") from exc
 
