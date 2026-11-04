@@ -1,26 +1,47 @@
 """HTTP payload contracts. Frontend uses camelCase property names."""
 import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AfterValidator, AwareDatetime, BaseModel, BeforeValidator, ConfigDict, Field, field_validator, model_validator,
+)
 
 
 UtcDatetime = Annotated[AwareDatetime, AfterValidator(lambda value: value.astimezone(timezone.utc))]
 
 
+def _parse_date(value: object) -> date:
+    if isinstance(value, str) and len(value) == 10:
+        parsed = date.fromisoformat(value)
+        if parsed.isoformat() == value:
+            return parsed
+    raise ValueError("Use YYYY-MM-DD")
+
+
+CalendarDate = Annotated[date, BeforeValidator(_parse_date)]
+
+
 class Doctor(BaseModel):
-    """Public v1 catalog fields; never expose complete database records."""
+    """Public catalog fields."""
 
     id: UUID
     name: str
     specialty: str
     bio: str
-    clinicId: UUID
-    clinicName: str
-    clinicAddress: str
+    address: str
     district: str
+    certificates: list["Certificate"]
+    rating: float | None
+    ratingCount: int
+
+
+class Certificate(BaseModel):
+    name: str
+    issuer: str
+    issuedYear: int | None = None
+    credentialUrl: str | None = None
 
 
 class DoctorListResponse(BaseModel):
@@ -33,17 +54,15 @@ class DoctorDetailResponse(BaseModel):
     demoMode: bool
 
 
-class AppointmentSlot(BaseModel):
+class AvailableSlot(BaseModel):
     id: UUID
     doctorId: UUID
-    clinicId: UUID
-    startAt: str
-    endAt: str
-    roomName: str | None
+    startAt: UtcDatetime
+    endAt: UtcDatetime
 
 
 class SlotListResponse(BaseModel):
-    slots: list[AppointmentSlot]
+    slots: list[AvailableSlot]
     demoMode: bool
 
 
@@ -58,22 +77,20 @@ class DoctorProfileResponse(BaseModel):
     doctor: DoctorProfile
 
 
-class DoctorAppointment(BaseModel):
-    id: UUID
-    slotId: UUID
-    doctorId: UUID
-    doctorName: str
+AppointmentStatus = Literal["confirmed", "completed", "cancelled"]
+
+
+class DoctorAppointment(AvailableSlot):
     patientName: str
     patientPhone: str
-    startAt: UtcDatetime
-    status: Literal["confirmed", "checked_in", "completed", "cancelled"]
+    status: AppointmentStatus
 
 
 class DoctorAppointmentListResponse(BaseModel):
     appointments: list[DoctorAppointment]
 
 
-DoctorAppointmentStatusTarget = Literal["checked_in", "completed", "cancelled"]
+DoctorAppointmentStatusTarget = Literal["completed", "cancelled"]
 
 
 class DoctorAppointmentStatusInput(BaseModel):
@@ -91,12 +108,7 @@ class DoctorAppointmentStatusResponse(BaseModel):
     appointment: DoctorAppointmentStatusResult
 
 
-class DoctorSlot(BaseModel):
-    id: UUID
-    doctorId: UUID
-    startAt: UtcDatetime
-    endAt: UtcDatetime
-    isPublished: bool
+class DoctorSlot(AvailableSlot):
     available: bool
 
 
@@ -104,8 +116,12 @@ class DoctorSlotListResponse(BaseModel):
     slots: list[DoctorSlot]
 
 
+class ManualDoctorSlot(DoctorSlot):
+    isPublished: bool
+
+
 class DoctorSlotCreateResponse(BaseModel):
-    slot: DoctorSlot
+    slot: ManualDoctorSlot
 
 
 class DoctorSlotInput(BaseModel):
@@ -136,6 +152,18 @@ class AssistantInput(BaseModel):
     message: str = Field(min_length=2, max_length=800)
 
 
+def _normalize_text(value: object) -> object:
+    if isinstance(value, str):
+        return unicodedata.normalize("NFC", value).strip()
+    return value
+
+
+def _validate_phone_digits(phone: str) -> str:
+    if sum("0" <= char <= "9" for char in phone) < 9:
+        raise ValueError("Patient phone must contain at least 9 ASCII digits")
+    return phone
+
+
 class BookingInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -144,25 +172,152 @@ class BookingInput(BaseModel):
     patientPhone: str = Field(strict=True, pattern=r"^\+?[0-9 ()-]{9,20}$")
     notes: str = Field(default="", strict=True, max_length=500)
 
-    @field_validator("slotId", "patientName", "patientPhone", "notes", mode="before")
-    @classmethod
-    def normalize_text(cls, value: object) -> object:
-        if isinstance(value, str):
-            return unicodedata.normalize("NFC", value).strip()
-        return value
-
-    @field_validator("patientPhone")
-    @classmethod
-    def validate_phone_digits(cls, phone: str) -> str:
-        if sum("0" <= char <= "9" for char in phone) < 9:
-            raise ValueError("Patient phone must contain at least 9 ASCII digits")
-        return phone
+    normalize_text = field_validator("slotId", "patientName", "patientPhone", "notes", mode="before")(_normalize_text)
+    validate_phone_digits = field_validator("patientPhone")(_validate_phone_digits)
 
 
 class BookingResponse(BaseModel):
     appointmentId: UUID
     bookingReference: str = Field(pattern=r"^[0-9A-F]{12}$")
-    status: Literal["requested"]
+    status: Literal["confirmed"]
+
+
+class WorkingInterval(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dayOfWeek: int = Field(strict=True, ge=1, le=7)
+    startTime: str = Field(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
+    endTime: str = Field(pattern=r"^(?:(?:[01][0-9]|2[0-3]):[0-5][0-9]|24:00)$")
+
+    @staticmethod
+    def minutes(value: str) -> int:
+        hour, minute = map(int, value.split(":"))
+        return hour * 60 + minute
+
+    @model_validator(mode="after")
+    def check_duration(self):
+        duration = self.minutes(self.endTime) - self.minutes(self.startTime)
+        if duration < 30 or duration % 30:
+            raise ValueError("Working intervals must be positive multiples of 30 minutes")
+        return self
+
+
+class WeeklyIntervals(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    weeklyIntervals: list[WorkingInterval] = Field(min_length=1, max_length=336)
+
+    @field_validator("weeklyIntervals")
+    @classmethod
+    def check_overlap(cls, intervals: list[WorkingInterval]) -> list[WorkingInterval]:
+        ordered = sorted(intervals, key=lambda item: (item.dayOfWeek, item.startTime))
+        for previous, current in zip(ordered, ordered[1:]):
+            if previous.dayOfWeek == current.dayOfWeek and current.startTime < previous.endTime:
+                raise ValueError("Working intervals on the same day must not overlap")
+        return ordered
+
+
+class ScheduleInput(WeeklyIntervals):
+    effectiveDate: CalendarDate
+
+
+class ScheduleUpdateResponse(BaseModel):
+    effectiveDate: date
+    weeklyIntervals: list[WorkingInterval]
+
+
+class ScheduleResponse(ScheduleUpdateResponse):
+    timezone: Literal["Asia/Ho_Chi_Minh"]
+
+
+class ConflictingAppointment(BaseModel):
+    appointmentId: UUID
+    startAt: UtcDatetime
+    endAt: UtcDatetime
+
+
+class ScheduleConflict(BaseModel):
+    error: Literal["SCHEDULE_CONFLICT"]
+    conflicts: list[ConflictingAppointment] = Field(min_length=1)
+
+
+class RegistrationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(min_length=3, max_length=320, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+    password: str = Field(min_length=8, max_length=72, repr=False)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
+
+
+class PatientRegistrationInput(RegistrationInput):
+    name: str = Field(min_length=2, max_length=100)
+    phone: str = Field(pattern=r"^\+?[0-9 ()-]{9,20}$")
+
+    normalize_text = field_validator("name", "phone", mode="before")(_normalize_text)
+    validate_phone_digits = field_validator("phone")(_validate_phone_digits)
+
+
+class DoctorRegistrationInput(RegistrationInput, WeeklyIntervals):
+    invitationCode: str = Field(min_length=1, max_length=128, repr=False)
+
+
+class PatientRegistrationResponse(BaseModel):
+    userId: UUID
+
+
+class DoctorRegistrationResponse(BaseModel):
+    doctorId: UUID
+
+
+class PatientProfile(BaseModel):
+    id: UUID
+    name: str
+    phone: str
+    email: str
+
+
+class PatientProfileResponse(BaseModel):
+    patient: PatientProfile
+
+
+class DoctorNotification(BaseModel):
+    id: UUID
+    appointmentId: UUID
+    patientName: str
+    startAt: UtcDatetime
+    endAt: UtcDatetime
+    createdAt: UtcDatetime
+    readAt: UtcDatetime | None
+
+
+class DoctorNotificationListResponse(BaseModel):
+    notifications: list[DoctorNotification]
+
+
+class NotificationReadInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    read: Literal[True]
+
+    @field_validator("read", mode="before")
+    @classmethod
+    def require_true(cls, value: object) -> bool:
+        if value is not True:
+            raise ValueError("read must be true")
+        return True
+
+
+class NotificationReadResult(BaseModel):
+    id: UUID
+    readAt: UtcDatetime
+
+
+class NotificationReadResponse(BaseModel):
+    notification: NotificationReadResult
 
 
 class APIErrorResponse(BaseModel):
