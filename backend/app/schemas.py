@@ -1,9 +1,47 @@
 """HTTP payload contracts. Frontend uses camelCase property names."""
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class Doctor(BaseModel):
+    """Public v1 catalog fields; never expose complete database records."""
+
+    id: UUID
+    name: str
+    specialty: str
+    bio: str
+    clinicId: UUID
+    clinicName: str
+    clinicAddress: str
+    district: str
+
+
+class DoctorListResponse(BaseModel):
+    doctors: list[Doctor]
+    demoMode: bool
+
+
+class DoctorDetailResponse(BaseModel):
+    doctor: Doctor
+    demoMode: bool
+
+
+class AppointmentSlot(BaseModel):
+    id: UUID
+    doctorId: UUID
+    clinicId: UUID
+    startAt: str
+    endAt: str
+    roomName: str | None
+
+
+class SlotListResponse(BaseModel):
+    slots: list[AppointmentSlot]
+    demoMode: bool
 
 
 class AssistantInput(BaseModel):
@@ -11,17 +49,36 @@ class AssistantInput(BaseModel):
 
 
 class BookingInput(BaseModel):
-    slotId: UUID
-    patientName: str = Field(min_length=2, max_length=100)
-    patientPhone: str = Field(pattern=r"^\+?[0-9 ()-]{9,20}$")
-    notes: str = Field(default="", max_length=500)
+    model_config = ConfigDict(extra="forbid")
 
-    @field_validator("patientName")
+    slotId: UUID
+    patientName: str = Field(strict=True, min_length=2, max_length=100)
+    patientPhone: str = Field(strict=True, pattern=r"^\+?[0-9 ()-]{9,20}$")
+    notes: str = Field(default="", strict=True, max_length=500)
+
+    @field_validator("slotId", "patientName", "patientPhone", "notes", mode="before")
     @classmethod
-    def validate_patient_name(cls, name: str) -> str:
-        if len(name.strip()) < 2:
-            raise ValueError("Patient name is too short")
-        return name.strip()
+    def normalize_text(cls, value: object) -> object:
+        if isinstance(value, str):
+            return unicodedata.normalize("NFC", value).strip()
+        return value
+
+    @field_validator("patientPhone")
+    @classmethod
+    def validate_phone_digits(cls, phone: str) -> str:
+        if sum("0" <= char <= "9" for char in phone) < 9:
+            raise ValueError("Patient phone must contain at least 9 ASCII digits")
+        return phone
+
+
+class BookingResponse(BaseModel):
+    appointmentId: UUID
+    bookingReference: str = Field(pattern=r"^[0-9A-F]{12}$")
+    status: Literal["requested"]
+
+
+class APIErrorResponse(BaseModel):
+    error: str
 
 
 class StatusInput(BaseModel):
