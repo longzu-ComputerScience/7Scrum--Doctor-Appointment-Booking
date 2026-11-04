@@ -6,6 +6,24 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+class Doctor(BaseModel):
+    """Public v1 catalog fields; never expose complete database records."""
+
+    id: UUID
+    name: str
+    specialty: str
+    bio: str
+    clinicId: UUID
+    clinicName: str
+    clinicAddress: str
+    district: str
+
+
+class DoctorListResponse(BaseModel):
+    doctors: list[Doctor]
+    demoMode: bool
+
+
 class AssistantInput(BaseModel):
     message: str = Field(min_length=2, max_length=800)
 

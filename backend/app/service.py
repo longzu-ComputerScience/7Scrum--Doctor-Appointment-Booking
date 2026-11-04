@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from typing import Any
 
 from app.config import is_database_configured
-from app.demo import DEMO_DOCTORS, demo_slots
+from app.demo import demo_slots
 from app.schemas import ALLOWED_TRANSITIONS, BookingInput, StaffSlotInput
 
 
@@ -51,6 +51,15 @@ def _doctor_from_record(row: dict) -> dict:
     }
 
 
+def _active_doctors_query(client: Any) -> Any:
+    return (
+        client.table("doctors")
+        .select("id,name,specialty,bio,clinic_id,clinics!inner(name,address,district,active)")
+        .eq("active", True)
+        .eq("clinics.active", True)
+    )
+
+
 ALIASES = {
     "dermatology": "Da liễu",
     "cardiology": "Tim mạch",
@@ -60,6 +69,7 @@ ALIASES = {
 
 
 def doctor_matches(doctor: dict, specialty: str = "", district: str = "", keyword: str = "") -> bool:
+    specialty = specialty.strip()
     mapped_specialty = ALIASES.get(specialty.lower(), specialty)
     if mapped_specialty and _normalize(mapped_specialty) not in _normalize(doctor["specialty"]):
         return False
@@ -77,38 +87,47 @@ def search_doctors(
     district: str | None = None,
     keyword: str | None = None,
 ) -> dict:
-    if not is_database_configured():
-        doctors = DEMO_DOCTORS
-        demo_mode = True
-    else:
-        try:
-            result = (
-                get_client()
-                .table("doctors")
-                .select("id,name,specialty,bio,clinic_id,clinics!inner(name,address,district,active)")
-                .eq("active", True)
-                .eq("clinics.active", True)
-                .limit(100)
-                .execute()
-            )
-            doctors = [_doctor_from_record(record) for record in result.data]
-        except Exception as exc:
-            raise HTTPException(503, "Doctor catalog unavailable") from exc
-        demo_mode = False
-    matches = [
-        doctor
-        for doctor in doctors
-        if doctor_matches(doctor, specialty or "", district or "", keyword or "")
-    ]
-    return {"doctors": matches, "demoMode": demo_mode}
+    """Filter the active v1 catalog before limiting the public result to 100.
+
+    Scan ordered pages because accent-insensitive matching is implemented in
+    Python, without requiring a schema change from the database owner.
+    """
+    matches = []
+    last_id = None
+    try:
+        client = get_client()
+        while len(matches) < 100:
+            query = _active_doctors_query(client)
+            if last_id is not None:
+                query = query.gt("id", last_id)
+            rows = query.order("id").limit(100).execute().data
+            if not rows:
+                break
+            # Supabase can return fewer rows than requested on any page.
+            last_id = rows[-1]["id"]
+            for record in rows:
+                doctor = _doctor_from_record(record)
+                if doctor_matches(doctor, specialty or "", district or "", keyword or ""):
+                    matches.append(doctor)
+                    if len(matches) == 100:
+                        break
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Doctor catalog unavailable") from exc
+    return {"doctors": matches, "demoMode": False}
 
 
 def get_doctor(doctor_id: UUID) -> dict:
-    result = search_doctors()
-    doctor = next((d for d in result["doctors"] if d["id"] == str(doctor_id)), None)
-    if not doctor:
-        raise HTTPException(404, "Doctor not found")
-    return {"doctor": doctor, "demoMode": result["demoMode"]}
+    try:
+        rows = _active_doctors_query(get_client()).eq("id", str(doctor_id)).limit(1).execute().data
+        if not rows:
+            raise HTTPException(404, "Doctor not found")
+        return {"doctor": _doctor_from_record(rows[0]), "demoMode": False}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Doctor catalog unavailable") from exc
 
 
 def get_slots(doctor_id: UUID) -> dict:
