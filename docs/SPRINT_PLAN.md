@@ -1,29 +1,21 @@
-# Two-Day Sprint — Dependency-Based Plan
+# Sprint handoff — hoàn thiện US-02 + US-03 hôm nay
 
-**PO source:** SMART HOSPITAL PATIENT APPOINTMENT SYSTEM, section 7. This schedule is a sequencing guide, **not** a fixed hourly assignment. Goal: one end-to-end patient-to-clinic demo.
+**Nguồn:** [Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i), [execution order](EXECUTION_ORDER.md). Đây là **chuỗi phụ thuộc**, không gán giờ cứng hoặc mở lại công việc đã merge.
 
-## Day 1 — Build Core Features
+## Giai đoạn A — freeze target & DB/API
 
-**First half:** confirm Next.js + FastAPI + Supabase approach; check shared API contract and sample data; implement staff schedule input (US-03) and booking UI (US-02) first because availability is a dependency.
+- Lead #36 xác nhận nguồn PRD và **API_CONTRACT_V2.md**. Đã chọn `slotId` generated để tận dụng FE2 booking. BE1 #31 xác minh DB migration/backup; BE2 #32 đối chiếu endpoint với RPC.
+- BE1 triển khai recurring working hours + Doctor/Patient Auth mapping, invitations, materialized 30-minute slots, 3 statuses, atomic appointment/notification (migration mới).
+- BE2 triển khai Doctor GET/PUT schedule theo effectiveDate/409 conflicts, derived availability, Patient-authenticated booking 201 confirmed, notification/upcoming API. Không tiếp tục manual slot creator làm đích.
 
-**Second half:** implement controlled chatbot and specialty mapping (US-01); wire doctor matching to clinic-created availability; integrate booking persistence and confirmation (US-02). Begin vertical-slice testing immediately.
+## Giai đoạn B — FE song song
 
-**Expected outcome:** each major module can run locally; core integration is underway. Avoid postponing staff-created availability to Day 2.
+- FE1 #33: nối Doctor List đã merge → Patient Auth/Profile → Doctor registration/login → dashboard, upcoming và notifications.
+- FE2 #34: reusable weekly editor cho registration/dashboard; chuyển booking modal/calendar PR #27 sang generated slots/realtime, giữ UX đã có, tránh viết lại từ đầu.
 
-## Day 2 — Integrate, Verify, Demo
+## Giai đoạn C — test & review
 
-**First half:** finish US-01 → US-02 → US-03 data flow. Confirm availability synchronization and slot becoming unavailable after booking. Refresh staff confirmed appointments list.
+- Tester #35: Auth role isolation, weekly validation, effective-date conflicts, availability 30-minute, booking race 1×201/1×409, status, atomic notification, realtime reconnect, timezone.
+- Lead #36: review PR/CI, test tích hợp với same Supabase, US-01 chatbot → specialty → doctor, PO demo theo [Acceptance Scenario](ACCEPTANCE_SCENARIO.md).
 
-**Second half:** fix critical defects; verify US AC01–AC06 for each of the three stories; run the six-step Dermatology acceptance scenario and Sprint Review with PO.
-
-**Expected outcome:** one working flow with shared persistent data and documented PO decision.
-
-## Role handoff
-
-- **Tech Lead:** backend FastAPI, Supabase schema/contracts, booking concurrency, merge/integration and optional preview deploy.
-- **UI 1:** chatbot/follow-up/doctor discovery (US-01 and part of US-02).
-- **UI 2:** slot booking and clinic schedule-input UI (US-02 and US-03).
-- **BA 1:** PO scope/AC and acceptance review; **BA 2:** synthetic data/demo script.
-- **Tester:** API negative paths, cross-interface availability checks and six-step E2E; reports defects.
-
-Every work item follows docs/DEFINITION_OF_DONE.md. Prioritize functionality ahead of visual extras and optional infrastructure.
+Không coi file SQL merge hay mock UI là nghiệm thu. Phải có evidence trên cùng DB và quyết định PO.

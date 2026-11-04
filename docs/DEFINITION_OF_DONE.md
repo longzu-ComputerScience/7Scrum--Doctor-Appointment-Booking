@@ -1,26 +1,15 @@
-# Shared Definition of Done — PO-Approved 2-Day MVP
+# Definition of Done — Updated Doctor workflow
 
-**Authority:** Google Doc "SMART HOSPITAL PATIENT APPOINTMENT SYSTEM", sections 8–9 (2026-11-04). **Scope:** only US-01, US-02, US-03 in docs/USER_STORIES.md.
+**Nghiệp vụ:** [Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i); **API** [API_CONTRACT_V2](API_CONTRACT_V2.md); **data** [DATA_DICTIONARY](DATA_DICTIONARY.md). Không đánh dấu Done từ CI/mock đơn thuần.
 
-A User Story is Done only when:
+- [ ] **Auth:** Patient self-register/login/profile + Doctor invitation-register/login/weekly setup; FE/BE phân quyền đúng JWT và doctor_id; không login giả.
+- [ ] **US-01:** chatbot follow-up/specialty/emergency/fallback kết nối Doctor List thật.
+- [ ] **US-02:** Doctor List active/filtered; Patient calendar lấy generated 30-minute slots, đúng múi giờ và realtime; booking lưu thật HTTP 201 `confirmed` + reference; duplicate 409; popup không fake success.
+- [ ] **US-03:** Doctor weekly schedule một/nhiều khoảng giờ theo thứ; auto slot, không manual publish; PUT effectiveDate future và 409 conflicts, giữ mọi confirmed appointment.
+- [ ] **Doctor dashboard:** Upcoming future confirmed, status `confirmed→completed/cancelled`, notification record + realtime/unread/mark-read/persist sau refresh.
+- [ ] **DB integrity:** shared Supabase có migration mới được kiểm chứng, data-preserving cutover, notification + booking atomic, không overlap Doctor/time, ownership đúng Patient/Doctor.
+- [ ] **QA:** test 401/403/404/409/422/503, concurrency, timeout, refresh/reconnect, date/time conversion, notification atomic, schedule conflict; có logs/screenshot/DB evidence.
+- [ ] **Code review:** named human reviewer, FE lint/typecheck/build và BE Ruff/pytest trên integrated commit; không có critical P0 blocker.
+- [ ] **PO:** chạy [Acceptance Scenario](ACCEPTANCE_SCENARIO.md), PO xác nhận kết quả thật; không tự gắn Accepted.
 
-- [ ] All of that story's agreed Acceptance Criteria are satisfied.
-- [ ] Core functionality actually works in the shared demo environment.
-- [ ] Required integration with other stories works (US-03 → US-02; US-01 → US-02; US-02 → US-03).
-- [ ] Basic input validation and error handling are working.
-- [ ] Implementation has received Dev Team review, including all AI-generated code/docs.
-- [ ] No known critical defect blocks the main patient-to-clinic flow.
-- [ ] The feature can be demonstrated to the Product Owner.
-
-**Evidence:** Link issue → PR/commit → test result/demo evidence, including named reviewer for AI-assisted drafts. Passing CI alone is not acceptance. The PO retains the final acceptance decision; no automated system can grant this sign-off.
-
-## Recommended engineering quality gates (not extra product scope)
-
-- [ ] Frontend ESLint/TypeScript/build and backend Ruff/Pytest CI pass.
-- [ ] Patient input, slot creation, duplicate booking, invalid booking and staff permission/error paths verified.
-- [ ] Sample clinic/doctor/specialty data and slot status consistent after refresh; no fake booking success.
-- [ ] Synthetic demo data only, no real medical histories, no publicly exposed backend keys.
-- [ ] Demo works on desktop and a mobile-sized viewport.
-- [ ] Release checklist contains names/links for reviewer and Product Owner sign-off.
-
-**Do not mark the entire MVP Done merely because the codebase and mock tests pass.** Live Supabase integration (or another shared persistent demo DB) and the final dermatology scenario must still be verified.
+Không thêm manual slot publishing, clinic staff admin, patient self-cancel/reschedule, SMS/email, payment hay production deployment cho MVP này.

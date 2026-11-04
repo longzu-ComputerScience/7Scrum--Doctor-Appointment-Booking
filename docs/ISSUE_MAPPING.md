@@ -1,30 +1,16 @@
-# PO Suggested DEV-01..09 → GitHub Issues
+# Bảng theo dõi công việc — đúng 6 issue, TODAY US-02 + US-03
 
-The PO's 9 suggested issues are examples of work breakdown, not another set of User Stories. Reuse existing GitHub issues; preserve 3 approved stories: US-01, US-02, US-03.
+Nguồn: [PRD Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i), [API Contract V2](API_CONTRACT_V2.md), [Data Dictionary](DATA_DICTIONARY.md), [Implementation notes](DOCS_GUIDE.md).
 
-| PO task | Related US | GitHub issue(s) | Primary ownership |
+| Vai trò | Issue hiện hành | Tận dụng US-02/PR đã có | Việc nối tiếp theo PRD mới |
 | --- | --- | --- | --- |
-| DEV-01 Project Setup & Sample Data | Shared | #16 (closed backbone), #2 (test data), #1 (scope) | Lead, BA 2 |
-| DEV-02 Clinic Schedule Input UI | US-03 | #22 | UI 2 |
-| DEV-03 Save & Retrieve Availability | US-03 | #21, #3 | Tech Lead / Backend |
-| DEV-04 Chatbot Conversation Interface | US-01 | #18 | UI 1 |
-| DEV-05 Specialty Suggestion & Safety | US-01 | #4 | Tech Lead / Backend |
-| DEV-06 Doctor Selection & Slots UI | US-02 | #5, #7 | UI 1 and UI 2 |
-| DEV-07 Booking & Duplicate Prevention | US-02 | #7, #3 | UI 2 and Tech Lead |
-| DEV-08 Confirmed Clinic Appointments | US-03 | #8, #19 | UI 2 and QA |
-| DEV-09 Integration, Bug Fixes & Demo | Shared | #9, #10, #13, #20 | QA, BA and Lead |
+| BE1 | **#31** | #3, PR #29; PR #38 SQL doctor_accounts | Migration mới weekly hours/patient profiles/notifications, generated slots, 3 status, booking+notification atomic |
+| BE2 | **#32** | #26, PR #28; PR #39/#40 Doctor API/auth | Patient JWT/booking auto-confirm; Doctor recurring schedule, derived calendar, updates/conflicts, notifications APIs |
+| FE1 | **#33** | #5, PR #30 Doctor List | Patient Auth + profile, Doctor invite registration/login, Dashboard/upcoming/notifications; kết nối Doctor List thật |
+| FE2 | **#34** | #7 (đã đóng), PR #27 Booking Modal | Weekly editor reuse registration/dashboard, Patient 30-min calendar + realtime; booking response/errors |
+| Tester | **#35** | #9 booking QA | E2E Auth, schedule, booking/concurrency, conflicts, status, notification/realtime |
+| Lead | **#36** | #25, review #27–#30/#38–#40 | Final API contract + migration/ownership/PR integration, US-01, review và PO acceptance |
 
-- **P0:** all 3 PO stories and required integration tests. Optional location filtering, visual polish and production deployment remain **P1**.
-- **No task duplications:** UI 2's #22 owns the slot-entry form, while #8 owns the confirmed-appointments view. Backend #21 owns schedule persistence and contract. QA #19 proves slot sync.
-- **Dependencies:** #21 → #22 / #7; #4 → #18 → #5 → #7; #7 → #8 / #19 → #10.
-- Every issue must meet docs/DEFINITION_OF_DONE.md; P0 status is a priority, not evidence of completion.
+**Các issue #3, #5, #9, #25, #26 và #7 đóng để gộp**, không có nghĩa các AC mới đã đạt. Không tạo issue P0 thứ bảy trong hôm nay. Các issue #21/#22/#8/#19 đã đóng là lịch sử Clinic Staff, **không** còn dependency cho Doctor workflow.
 
-## What changed from 2026-11-03
-
-The earlier labels US-01..US-06 have been superseded. In the new PO scope:
-- Former symptom-entry, review and doctor-suggestion stories are consolidated into new **US-01**.
-- Former doctor-profile/booking stories map to new **US-02**.
-- Former clinic booking view maps to new **US-03**; **staff ability to create slots is now mandatory**.
-- Existing appointment cancellation/rescheduling, multi-state clinic workflows, detailed geography filters, and production Vercel are not needed to accept the PO MVP.
-
-Source: PO Google Doc "SMART HOSPITAL PATIENT APPOINTMENT SYSTEM", sections 4, 6, 7 and 9.
+**Thứ tự:** BE1/BE2 thống nhất DB RPC + API Contract → FE1/FE2 tích hợp (song song UI) → Tester chạy shared DB/E2E → Lead review và demo. Xem [EXECUTION_ORDER](EXECUTION_ORDER.md).
