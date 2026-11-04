@@ -1,4 +1,5 @@
 """FastAPI application. Routes preserve the original frontend JSON contract."""
+from typing import Literal
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
@@ -65,9 +66,13 @@ def doctor_me(token: str = Depends(_doctor_token)) -> dict:
 
 
 @app.get("/api/doctor/appointments", response_model=DoctorAppointmentListResponse, responses=DOCTOR_ERRORS)
-def doctor_appointments(response: Response, token: str = Depends(_doctor_token)) -> dict:
+def doctor_appointments(
+    response: Response,
+    token: str = Depends(_doctor_token),
+    view: Literal["upcoming"] | None = Query(None),
+) -> dict:
     response.headers["Cache-Control"] = "no-store"
-    return list_doctor_appointments(token)
+    return list_doctor_appointments(token, upcoming=view == "upcoming")
 
 
 @app.patch(

@@ -298,10 +298,10 @@ def get_doctor_profile(token: str) -> dict:
     return {"doctor": doctor.model_dump(mode="json")}
 
 
-def list_doctor_appointments(token: str) -> dict:
+def list_doctor_appointments(token: str, *, upcoming: bool = False) -> dict:
     client, user_id, doctor = _authorized_doctor(token)
     try:
-        rows = (
+        query = (
             client.table("appointments")
             .select(
                 "id,slot_id,patient_name,patient_phone,status,"
@@ -309,13 +309,21 @@ def list_doctor_appointments(token: str) -> dict:
             )
             .eq("appointment_slots.doctor_id", str(doctor.id))
             .eq("appointment_slots.doctors.auth_user_id", user_id)
-            .in_("status", ["confirmed", "checked_in", "completed", "cancelled"])
-            .order("created_at", desc=True)
-            .order("id", desc=True)
-            .limit(100)
-            .execute()
-            .data
         )
+        if upcoming:
+            query = (
+                query.eq("status", "confirmed")
+                .gt("appointment_slots.start_at", datetime.now(timezone.utc).isoformat())
+                .order("appointment_slots(start_at)")
+                .order("id")
+            )
+        else:
+            query = (
+                query.in_("status", ["confirmed", "checked_in", "completed", "cancelled"])
+                .order("created_at", desc=True)
+                .order("id", desc=True)
+            )
+        rows = query.limit(100).execute().data
         appointments = []
         for row in rows:
             slot = _one(row["appointment_slots"])
