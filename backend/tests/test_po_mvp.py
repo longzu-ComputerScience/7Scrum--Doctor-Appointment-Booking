@@ -88,50 +88,45 @@ def test_schedule_rejects_wrong_clinic_doctor(monkeypatch):
 
 
 def test_new_booking_v2_contract(monkeypatch):
+    # Unit-level RPC contract; database concurrency and notification atomicity
+    # are tested separately against PostgreSQL/Supabase.
     appointment_id = "50000000-0000-4000-8000-000000000001"
     booking_reference = "A1B2C3D4E5F6"
+    patient_id = "40000000-0000-4000-8000-000000000001"
+    slot_id = "30000000-0000-4000-8000-000000000109"
 
     class FakeRPC:
         def execute(self):
             return type("Result", (), {"data": [{
                 "appointment_id": appointment_id,
                 "booking_reference": booking_reference,
+                "status": "confirmed",
+                "start_at": "2026-11-06T02:00:00Z",
+                "end_at": "2026-11-06T02:30:00Z",
             }]})()
-
-    class FakeAppointmentQuery:
-        def select(self, columns):
-            assert columns == "status"
-            return self
-
-        def eq(self, column, value):
-            assert (column, value) == ("id", appointment_id)
-            return self
-
-        def limit(self, count):
-            assert count == 1
-            return self
-
-        def execute(self):
-            return type("Result", (), {"data": [{"status": "requested"}]})()
 
     class FakeClient:
         def rpc(self, name, params):
-            assert name == "create_appointment"
-            assert params["p_patient_name"] == "Demo Patient"
+            assert name == "book_recurring_appointment"
+            assert params == {
+                "p_user_id": patient_id,
+                "p_slot_id": slot_id,
+                "p_notes": "Follow-up",
+            }
             return FakeRPC()
 
-        def table(self, name):
-            assert name == "appointments"
-            return FakeAppointmentQuery()
+    def authenticated_user(token):
+        assert token == "patient-jwt"
+        return FakeClient(), patient_id, "patient@example.test"
 
-    monkeypatch.setenv("BOOKING_RPC_V2_READY", "true")
-    monkeypatch.setattr(service, "get_client", FakeClient)
+    monkeypatch.setattr(service, "_authenticated_user", authenticated_user)
     payload = BookingInput(
-        slotId=UUID("30000000-0000-4000-8000-000000000109"),
+        slotId=UUID(slot_id),
         patientName="Demo Patient", patientPhone="0900000000",
+        notes="Follow-up",
     )
-    assert service.create_booking(payload) == {
+    assert service.create_booking(payload, "patient-jwt") == {
         "appointmentId": appointment_id,
         "bookingReference": booking_reference,
-        "status": "requested",
+        "status": "confirmed",
     }
