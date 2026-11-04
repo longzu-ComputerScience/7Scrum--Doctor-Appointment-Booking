@@ -158,6 +158,12 @@ def _normalize_text(value: object) -> object:
     return value
 
 
+def _reject_nul(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("NUL characters are not allowed")
+    return value
+
+
 def _validate_phone_digits(phone: str) -> str:
     if sum("0" <= char <= "9" for char in phone) < 9:
         raise ValueError("Patient phone must contain at least 9 ASCII digits")
@@ -174,6 +180,7 @@ class BookingInput(BaseModel):
 
     normalize_text = field_validator("slotId", "patientName", "patientPhone", "notes", mode="before")(_normalize_text)
     validate_phone_digits = field_validator("patientPhone")(_validate_phone_digits)
+    validate_notes = field_validator("notes")(_reject_nul)
 
 
 class BookingResponse(BaseModel):
@@ -238,12 +245,6 @@ class ConflictingAppointment(BaseModel):
 class ScheduleConflict(BaseModel):
     error: Literal["SCHEDULE_CONFLICT"]
     conflicts: list[ConflictingAppointment] = Field(min_length=1)
-
-
-def _reject_nul(value: str) -> str:
-    if "\x00" in value:
-        raise ValueError("NUL characters are not allowed")
-    return value
 
 
 class RegistrationInput(BaseModel):
