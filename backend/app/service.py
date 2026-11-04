@@ -118,7 +118,8 @@ def _public_doctor(row: dict) -> dict:
 
 def _public_demo_doctor(row: dict) -> dict:
     return _public_doctor({
-        **row, "address": row["clinicAddress"], "certificates": [], "rating": None, "rating_count": 0,
+        **row, "address": row.get("address") or row.get("clinicAddress", ""),
+        "certificates": [], "rating": None, "rating_count": 0,
     })
 
 
@@ -240,9 +241,10 @@ def get_slots(doctor_id: UUID, start: date | None, end: date | None) -> dict:
     start, end = _availability_range(start, end)
     if not is_database_configured():
         get_doctor(doctor_id)
+        preview = map(AvailableSlot.model_validate, demo_slots(doctor_id))
         slots = [
-            slot for slot in demo_slots(doctor_id)
-            if start <= datetime.fromisoformat(slot["startAt"]).astimezone(SCHEDULE_ZONE).date() <= end
+            slot for slot in preview
+            if start <= slot.startAt.astimezone(SCHEDULE_ZONE).date() <= end
         ]
         return {"slots": slots, "demoMode": True}
 
@@ -498,6 +500,10 @@ def list_doctor_appointments(token: str, *, upcoming: bool = False) -> dict:
             )
             for row in query.limit(100).execute().data
         ]
+    if upcoming:
+        # An appointment can start while the query results are being fetched.
+        now = datetime.now(timezone.utc)
+        appointments = [appointment for appointment in appointments if appointment.startAt > now]
     return {"appointments": appointments}
 
 
