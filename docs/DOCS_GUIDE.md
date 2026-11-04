@@ -8,9 +8,11 @@
 2. **API mục tiêu:** [API_CONTRACT_V2.md](API_CONTRACT_V2.md) — danh sách endpoint, payload, errors, owner. Đã chọn **giữ `slotId` được system sinh tự động** để tối thiểu thay đổi FE2 US-02. Nếu Lead thay đổi quyết định, phải sửa contract và thông báo BE/FE/QA trong PR trước khi triển khai.
 3. **Database mục tiêu:** [DATA_DICTIONARY.md](DATA_DICTIONARY.md) — patient_profiles, doctor_accounts, doctor_working_hours, generated slots, appointments, notifications, invites; migration additive.
 4. **Cơ sở SQL hiện tại:** [schema_v2.sql](../supabase/schema_v2.sql) và [migrations 001–004](../supabase/migrations/). **Chưa đồng nhất với target mới.** `schema_v2.sql` là bootstrap V2 trước recurring schedule, không phải migration lên DB chứa dữ liệu.
-5. **Legacy API:** [API_CONTRACT.md](API_CONTRACT.md) dành để đọc/đối chiếu code cũ; không làm contract P0 mới.
+5. **Legacy API:** [legacy/API_CONTRACT.md](legacy/API_CONTRACT.md) dành để đọc/đối chiếu code cũ; không làm contract P0 mới.
 
-## Ghi nhận trạng thái main tại 2026-11-04 (commit 05a5f52)
+6. **Phối hợp 6 issue:** [TEAM_WORKFLOW.md](TEAM_WORKFLOW.md) — ownership, mapping, execution order, sprint handoff và tránh conflict. Checklist của từng người nằm trong issue #31–#36.
+
+## Baseline trước cập nhật docs: main 2026-11-04 (commit 05a5f52)
 
 - PR #27–#30 (US-02), #38 (doctor_accounts + manual-slot RPC), #39 (Doctor HTTP API), #40 (doctor auth mapping) đã merge; **tận dụng lại**, không giao làm lại.
 - Booking BE: `POST /api/appointments` nhận `slotId` nhưng schema còn `requested`; code Doctor còn `POST /api/doctor/slots` manual và status `checked_in`. FE2 booking modal đã có và kỳ vọng `confirmed`. Staff page/slots legacy vẫn tồn tại. **Code và target đang khác nhau**, BE1/BE2/FE phải tích hợp tuần tự.

@@ -1,6 +1,6 @@
 # API Contract V2 — Target cập nhật theo Doctor recurring schedule
 
-**Nguồn nghiệp vụ:** [Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i) (ưu tiên) và [Requirements PRD](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.qnrlozg520mq) (nền tảng). **Áp dụng:** định hướng FE/BE cho 6 issue #31–#36; **chưa đồng nghĩa API đang chạy trên main**. API hiện hữu đọc tại `backend/app/main.py`; [API_CONTRACT.md](API_CONTRACT.md) là legacy. Xem [DOCS_GUIDE.md](DOCS_GUIDE.md).
+**Nguồn nghiệp vụ:** [Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i) (ưu tiên) và [Requirements PRD](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.qnrlozg520mq) (nền tảng). **Áp dụng:** định hướng FE/BE cho 6 issue #31–#36; **chưa đồng nghĩa API đang chạy trên main**. API hiện hữu đọc tại `backend/app/main.py`; [legacy/API_CONTRACT.md](legacy/API_CONTRACT.md) là legacy. Xem [DOCS_GUIDE.md](DOCS_GUIDE.md).
 
 ## Quyết định tích hợp để giảm thay đổi code US-02
 
