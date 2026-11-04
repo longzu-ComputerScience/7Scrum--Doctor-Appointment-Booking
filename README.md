@@ -1,11 +1,11 @@
 # 7Scrum — Doctor Appointment Booking
 
-48-hour scheduling MVP with **Next.js frontend**, **FastAPI backend**, **Supabase PostgreSQL/Auth**, and **Vercel deployment**.
+48-hour scheduling MVP with **Next.js frontend**, **FastAPI backend** and **Supabase PostgreSQL/Auth**. The PO approved **3 must-have User Stories (US-01/02/03)**; production deployment is optional.
 
 ## Repository structure
 
 - `frontend/` — Next.js 16 + TypeScript. UI, Supabase Auth login for clinic staff, and an API reverse proxy. **No business/API Route Handlers**.
-- `backend/` — FastAPI + Python 3.12. Doctor search, AI tool calling, slot availability, atomic booking via PostgreSQL RPC, clinic-staff authorization.
+- `backend/` — FastAPI + Python 3.12. Controlled chatbot follow-up, doctor search, clinic-created availability, atomic confirmed booking via PostgreSQL RPC, clinic-staff authorization.
 - `supabase/` — PostgreSQL schema and fictional seed catalog.
 - `docs/` — API contract, user stories, team workflow, Definition of Done and release evidence.
 - `.github/workflows/ci.yml` — independent Node and Python checks.
@@ -38,7 +38,7 @@ Visit `http://localhost:3000`. Next.js proxies `/api/*` to FastAPI using the ser
 
 ### 3. Supabase
 
-For real booking, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in **backend/.env**, apply `supabase/migrations/001_init.sql`, then `supabase/seed.sql` through Supabase SQL Editor. Create a staff user in Supabase Auth and insert its ID into `staff_members` as described in the seed file.
+For real booking, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in **backend/.env**, apply `supabase/migrations/001_init.sql`, then `supabase/migrations/002_po_mvp_schedule.sql`, then `supabase/seed.sql` through Supabase SQL Editor. Create a staff user in Supabase Auth and insert its ID into `staff_members` as described in the seed file.
 
 Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` **only** in frontend for staff authentication. The service role key is always backend-only.
 
@@ -71,3 +71,9 @@ No deployment is performed by the repository refactor itself.
 ## Team workflow
 
 One issue per branch/PR. Before work, read `docs/USER_STORIES.md`, `docs/DEFINITION_OF_DONE.md`, `docs/TEAM_WORKFLOW.md`, `docs/API_CONTRACT.md` and GitHub issues. Release readiness and human/PO sign-off are tracked in `docs/RELEASE_CHECKLIST.md`. Never commit API keys or actual patient information. The assistant is a scheduling/search aid, **not a diagnostic service**.
+
+## PO-approved scope (2026-11-04)
+
+**US-01:** symptom chatbot with basic follow-up and specialty suggestion. **US-02:** doctor selection, persistent confirmed booking, double-booking prevention. **US-03:** staff creates slots and sees confirmed patient appointments. Full PO requirements and two-day plan: `docs/USER_STORIES.md`, `docs/SPRINT_PLAN.md`, `docs/ISSUE_MAPPING.md`, `docs/ACCEPTANCE_SCENARIO.md`.
+
+**Important:** Apply both SQL migrations in order. Migration 002 makes bookings immediately confirmed for the demo and protects overlapping slots. The optional controlled chatbot prototype is not a medical diagnosis system.

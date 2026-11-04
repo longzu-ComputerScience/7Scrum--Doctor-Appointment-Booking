@@ -1,53 +1,65 @@
-# User Stories — 7Scrum MVP
+# PO-Approved Product Backlog — 2-day MVP
 
-These six stories reflect the team notes. **Priority:** P0 user journey coverage, but completion must be verified individually. All clinical guidance is limited to specialty discovery, not diagnosis. The PO must confirm that the scope is feasible within the 48-hour sprint.
+**Source of truth:** Google Doc [SMART HOSPITAL PATIENT APPOINTMENT SYSTEM](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit). Read on 2026-11-04.
 
-| ID | Module | User story | Implementation area |
-| --- | --- | --- | --- |
-| US-01 | Symptom Intake | As a patient, I want to enter my symptoms so that the system understands my health concerns. | `frontend/` input, `backend/` query validation |
-| US-02 | Symptom Intake | As a patient, I want to review and edit my symptoms before submitting them. | `frontend/` editable form, client state |
-| US-03 | Smart Doctor Suggestion | As a patient, I want to receive doctor recommendations based on my symptoms so that I can choose a suitable specialist. | `backend/` bounded AI/filter extraction + real catalog, `frontend/` result cards |
-| US-04 | Smart Doctor Suggestion | As a patient, I want to see doctors' profiles and available time slots so that I can make an informed choice. | `frontend/` doctor/clinic page, `backend/` doctor and slot API |
-| US-05 | Appointment Scheduling | As a patient, I want to book an available appointment so that I can avoid unnecessary waiting. | `frontend/` booking UI, `backend/` atomic booking API + Supabase RPC |
-| US-06 | Clinic Sync | As clinic staff, I want confirmed appointments to appear in the clinic's schedule so that bookings can be managed efficiently. | `frontend/` staff dashboard, `backend/` clinic-scoped appointment API |
+**Important:** The previous six-story numbering is superseded. **Only US-01, US-02 and US-03** are approved must-have stories for this 2-day MVP. Technical tasks may be split into multiple GitHub issues; those issue titles must refer to the *new* US IDs.
 
-## Acceptance criteria by story
+## US-01 — AI Symptom Consultation & Specialty Suggestion (P0)
 
-### US-01 — Input symptoms
-- Patient sees a clearly labeled, optional symptom description entry without being required to share sensitive medical history in the demo.
-- Submission rejects empty/oversized text as applicable and displays a clear validation message.
-- The system labels the output as a specialty/doctor suggestion, not a diagnosis.
-- Emergency warning handling does not direct urgent cases to routine appointment booking.
+> As a patient, I want to describe my symptoms and interact with an AI chatbot, so that I can receive guidance and a suitable medical specialty suggestion.
 
-### US-02 — Review/edit before submission
-- Patient can inspect the entered description before submitting and can revise/cancel it without losing data unexpectedly.
-- No AI/API request is sent before explicit submission.
-- The submission displays loading/error states and does not submit twice accidentally.
+- **AC01** Patient enters a supported symptom description using a chatbot interface.
+- **AC02** Chatbot asks at least one basic follow-up question.
+- **AC03** Chatbot suggests a relevant *specialty*, not a diagnosis.
+- **AC04** Suggested specialty is visibly displayed to the patient.
+- **AC05** Recognized emergency-warning indicators lead to urgent assistance guidance, *not* routine recommendation.
+- **AC06** Patient can proceed to doctor selection already filtered by that specialty.
 
-### US-03 — Suggested doctors
-- A natural-language search returns doctor+clinic records that actually exist in the current catalog.
-- Specialty and district filters are applied by the backend, and unsupported symptoms are not diagnosed.
-- A failed/unconfigured AI provider falls back to conservative keyword search with transparent messaging.
-- Empty results do not invent a doctor.
+**Deliverables:** chat UI, follow-up exchange, controlled specialty mapping, result card/continuation to US-02. Scope limited to predefined scenarios; rule-based or controlled conversational demo is permitted, but must be explicitly disclosed in the demo. Existing third-party AI API is optional.
 
-### US-04 — Doctor profile and slots
-- Profile shows name, specialty, clinic/location and the list of currently offered slots from API.
-- The selected doctor ID is preserved when navigating to booking.
-- An empty/no-availability response is clearly shown.
-- Clinic and examination room are differentiated; a room is shown only when assigned.
+## US-02 — Doctor Selection & Appointment Booking (P0)
 
-### US-05 — Book available appointment
-- Patient selects doctor, slot and provides required contact data.
-- Backend validates input and transactionally reserves slot; success returns a booking reference.
-- Concurrent attempts for one slot cannot both create active reservations.
-- An HTTP 409 conflict refreshes available slots; a demo without Supabase never displays fake booking success.
+> As a patient, I want to select a doctor and book an available appointment, so that I can schedule a consultation with a suitable doctor.
 
-### US-06 — Clinic appointment visibility
-- Authorized clinic staff can sign in and see appointments for their own clinic only.
-- Requested/confirmed statuses are distinguishable, and staff can confirm/check in/complete or cancel along allowed transitions.
-- Once confirmed, the appointment is visible in the clinic schedule after refresh.
-- Unauthorized access and invalid state transitions are rejected by FastAPI.
+- **AC01** List doctors matching specialty from US-01.
+- **AC02** Display doctor name and specialty.
+- **AC03** Select doctor; see open dates and time slots from US-03 (not invented).
+- **AC04** Select slot; enter name and phone number.
+- **AC05** Save appointment persistently and show booking confirmation.
+- **AC06** Booked slot is unavailable to other patients; no double booking.
 
-## Traceability and scope
+**Deliverables:** specialty-filtered doctor list, slot/date selector, validated form, confirmed appointment record and confirmation screen. Booking must survive refresh. System confirms appointment immediately for the demo. Patient registration is not required.
 
-Reference GitHub issues in the project backlog for implementation and `docs/DEFINITION_OF_DONE.md` for release gates. Existing search and booking skeletons are **not proof of story completion**. Record test evidence and PO acceptance before closing issues.
+## US-03 — Doctor Schedule Management Dashboard (P0)
+
+> As a clinic staff member, I want to input and manage doctors' available appointment schedules through a dashboard, so that patients can book appointments based on doctor availability.
+
+- **AC01** Authorized test clinic staff see doctors belonging to their clinic.
+- **AC02** Staff select doctor and input future appointment dates/time slots.
+- **AC03** New slots are saved, not merely stored in browser state.
+- **AC04** Staff slots are shown as available in US-02.
+- **AC05** Booked slots appear unavailable on the staff dashboard.
+- **AC06** Staff see confirmed appointments including patient name, doctor, date, time.
+
+**Deliverables:** staff schedule-input form, persisted availability and synced booking status. Advanced editing, multi-role administration and appointment cancellation/rescheduling are NOT part of the required 2-day MVP.
+
+## Critical integration contracts
+
+- **US-03 → US-02:** Staff-created available slot is visible to the patient; unavailable/overlapping slots must not be offered.
+- **US-01 → US-02:** Suggested specialty filters the actual doctor catalog. No invented doctor/schedule data from the LLM.
+- **US-02 → US-03:** Booking is confirmed and stored. The same slot can no longer be booked; refreshed clinic dashboard shows the confirmed appointment.
+- **Minimum shared data:** specialty name/ID (logical catalog key), doctor ID/name/specialty, doctor/time/availability, appointment ID/patient name/phone/doctor/date/time, and chatbot specialty result. Physical database normalization is Tech Lead's choice.
+
+## Outside the approved MVP
+
+No diagnosis or treatment suggestions, custom clinical ML, EMR/EHR, hospital scheduling integration, payments, insurance, notifications, patient accounts, advanced authentication/roles, cancellation or rescheduling, predictive waiting times, advanced ranking or production-grade deployment/security certification.
+
+Existing features outside scope may remain in code temporarily but must **not** block delivery. Do not label them P0. A runnable prototype or accessible demo is required, **not** production deployment.
+
+## GitHub traceability
+
+The PO's suggested tasks DEV-01 through DEV-09 are a *proposed decomposition*, not new user stories. See [ISSUE_MAPPING.md](ISSUE_MAPPING.md) for the mapping to actual GitHub issues and ownership. Do not duplicate an existing task only to match a suggested DEV number.
+
+## Release decision
+
+PO accepts the MVP only after the **dermatology appointment scenario** in [ACCEPTANCE_SCENARIO.md](ACCEPTANCE_SCENARIO.md) passes without critical failure. See [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md).

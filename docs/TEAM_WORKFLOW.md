@@ -1,28 +1,26 @@
-# 48-hour Sprint — Monorepo Teams
+# 7Scrum — Two-Day Developer Handoff
 
-## Ownership
+**Product source:** PO Google Doc "SMART HOSPITAL PATIENT APPOINTMENT SYSTEM" (2026-11-04). The 3 approved stories are in docs/USER_STORIES.md. See docs/SPRINT_PLAN.md for the Day 1/Day 2 sequence and docs/ISSUE_MAPPING.md for mapping to live GitHub issues.
 
-- Tech Lead: `backend/app/`, `supabase/`, API contracts, shared CI/deploy integration and PR review.
-- UI 1: `frontend/src/app/page.tsx` and patient discovery/cards, filters, states.
-- UI 2: `frontend/src/app/doctors/[id]/book/` and `frontend/src/app/staff/`, slot/booking UX and clinic dashboard.
-- BA 1: product scope, patient+staff user stories, acceptance criteria and safety language.
-- BA 2: data dictionary, test fixtures, synthetic seed catalog and demo scenario.
-- QA: `backend/tests/`, API negative paths, DB concurrency proof, UI regression and release checklist.
+## Work boundaries
 
-## Branch and review rules
+- **Tech Lead / Backend** — \`backend/app/\`, \`supabase/\`, API contract, atomic booking, clinic-scoped schedule storage, data integration, code review. Deploy/preview setup only as needed for runnable demo.
+- **UI 1** — \`frontend/src/app/consultation.tsx\` chatbot follow-up, doctor/specialty filter and recommendation list in \`frontend/src/app/page.tsx\`; no backend implementation or AI API key on client.
+- **UI 2** — \`frontend/src/app/staff/\` clinic schedule entry & confirmed bookings and \`frontend/src/app/doctors/[id]/book/\` doctor slots/booking form.
+- **BA 1** — PO stories, Acceptance Criteria, scope and sign-off; **BA 2** — synthetic doctors/specialties/slots, demo evidence.
+- **Tester / QA** — \`backend/tests/\` negative paths and live booking concurrency; 6-step dermatology E2E scenario and defect tracking.
 
-One issue → feature branch → PR. Tech Lead owns shared API/schema changes; UI commits must respect `docs/API_CONTRACT.md`. Do not push feature work directly to main. CI runs separate frontend/backend jobs for each PR.
+**Dependency order:** Staff availability US-03 → patient booking US-02. Start this on Day 1; chatbot US-01 should connect specialty to US-02, not create fictitious doctors.
 
-**Frontend:** `cd frontend; npm ci; npm run lint; npx tsc --noEmit; npm run build`.
+## Git protocol
 
-**Backend:** `cd backend; pip install -r requirements-dev.txt; pytest -q; ruff check .`.
+- Read docs/USER_STORIES.md and docs/API_CONTRACT.md before implementation.
+- One issue → one short-lived branch → PR against \`main\`; avoid two developers editing the same file without coordinating.
+- Reviewer must explicitly approve AI-generated drafts/code. PO approves product scope/acceptance, not individual code changes.
+- Do not commit \`.env\` files or real patient data.
+- Frontend CI: \`cd frontend && npm ci && npm run lint && npx tsc --noEmit && npm run build\`.
+- Backend CI: \`cd backend && pip install -r requirements-dev.txt && python -m ruff check . && python -m pytest -q\`.
 
-## Milestones
+## Shared DoD / release
 
-H0–3: agree user journeys and API schema; H3–16: independent UI/backend work; H16–24: first real booking vertical slice; H24–32: clinic staff and AI fallback; H32–40: QA/regression/security; H40–48: deployment and demo buffer. Include breaks.
-
-## Definition of Done and review
-
-Use `docs/DEFINITION_OF_DONE.md` as the **single source of truth**, `docs/USER_STORIES.md` for US-01 through US-06 acceptance criteria, and `docs/RELEASE_CHECKLIST.md` for release gates and PO decision.
-
-AI-generated drafts **must** receive explicit confirmation from a named Dev Team reviewer; record the reviewer in each PR or issue. CI green is not a substitute for PO acceptance.
+See docs/DEFINITION_OF_DONE.md and docs/ACCEPTANCE_SCENARIO.md. The PO accepts only a functioning 6-step dermatology booking demo with **all 3** approved User Stories; a green CI build or static mock page does not imply acceptance.

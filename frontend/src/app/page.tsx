@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Doctor } from "@/lib/types";
+import { Consultation } from "./consultation";
 
 type SearchResponse = { doctors: Doctor[]; demoMode: boolean; message?: string; urgent?: boolean; usedAI?: boolean; error?: string };
 
@@ -52,6 +53,7 @@ export default function HomePage() {
       </section>
       {demoMode && <div className="muted-note">Demo mode: thông tin bác sĩ/phòng khám chỉ là minh họa; cần cấu hình Supabase để đặt lịch thật.</div>}
       {message && <div className={"muted-note" + (doctors.length === 0 ? " danger" : "")} role="status">{message}</div>}
+      <Consultation />
       <div className="flex-between"><h2>Danh sách bác sĩ ({doctors.length})</h2><span className="subtle">{usedAI ? "AI-assisted filtering" : "Catalog search"}</span></div>
       {loading ? <p className="subtle">Đang tải dữ liệu...</p> : (
         <div className="grid">

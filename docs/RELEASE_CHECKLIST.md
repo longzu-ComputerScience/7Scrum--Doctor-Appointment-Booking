@@ -1,30 +1,32 @@
-# MVP Release / PO Acceptance
+# PO Release / Sprint Review Checklist
 
-**Status: NOT APPROVED — INTEGRATION EVIDENCE PENDING**
+**Current status: NOT ACCEPTED — shared live database and complete E2E evidence pending.**
 
-| Gate | Current evidence | Status |
+**Latest PO spec:** [SMART HOSPITAL PATIENT APPOINTMENT SYSTEM](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit), sections 1–10.
+
+| Gate | Evidence | State |
 | --- | --- | --- |
-| FastAPI and Next.js code separated | PR #17 and its latest main-branch commit | Technical changes verified; human review still required |
-| Frontend / backend CI | GitHub Actions run on the exact current main commit | Verify latest green run before release |
-| Doctor search and sample slot API | Local cross-service smoke test | Demo-only verified |
-| Symptom entry, review and edit | US-01/02 acceptance criteria | Needs QA acceptance |
-| Live Supabase booking and concurrency | Database credentials and real concurrent requests | Not verified |
-| Staff scope and confirmation | Auth and sample clinic testing | Not verified |
-| Mobile and desktop | QA evidence | Not verified |
-| AI draft human review | Named Dev Team reviewer and PR/issue evidence | Not verified |
-| End-to-end demo to PO | Date, PO decision and feedback | Not completed |
-| Vercel frontend/backend integration | Two deployed project URLs and smoke results | Not verified |
+| 3 US/AC and 2-day plan reflected in repo | docs/USER_STORIES.md, docs/SPRINT_PLAN.md | Documented |
+| Controlled follow-up chat and specialty navigation | backend/app/consult.py; frontend/src/app/consultation.tsx | Code implemented; QA pending |
+| Clinic staff input/saved slots | backend/app/service.py + frontend staff schedule component | Code implemented; real DB test pending |
+| Auto-confirm and slot conflict constraints | supabase/migrations/001 + 002; booking RPC | Requires live migration and concurrency test |
+| Clinic booking list and booked availability status | FastAPI staff endpoints + UI | Requires E2E verification |
+| Frontend + backend CI | Linked GitHub Actions run on current main | Must verify after merge |
+| Six-step PO dermatology scenario | docs/ACCEPTANCE_SCENARIO.md | NOT TESTED |
+| Human review of AI-generated code/drafts | Named Dev Team reviewer + PR approval | Pending |
+| PO Sprint Review | PO decision after end-to-end demo | Pending |
 
-## PO sign-off record
+## Handover / Sign-off
 
-- Product Owner:
-- Demo date/time:
-- Demo environment:
-- Stories accepted:
-- Stories rejected / follow-up:
-- Outstanding blockers:
+- Shared Supabase demo project (do **not** paste secrets):
+- Test staff account belongs to fictional clinic:
+- Applied migrations (001 + 002):
+- Runnable prototype/demo URL or local setup:
+- CI run:
+- All 3 US acceptance checklists:
+- Critical defects:
+- Named Dev Team code reviewer:
+- PO demo date/feedback:
 - PO decision (accepted / changes requested):
-- Named Dev Team reviewer of AI-assisted materials:
-- Reviewer evidence (PR/issue link):
 
-Never change a gate to Pass without an identifiable supporting run, test result, reviewer or demo record.
+**Production Vercel deployment is optional**, not a PO release gate. A reproducible locally runnable demo is acceptable.
