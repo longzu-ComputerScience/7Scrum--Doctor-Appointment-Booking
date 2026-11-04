@@ -25,6 +25,25 @@ class DoctorListResponse(BaseModel):
     demoMode: bool
 
 
+class DoctorDetailResponse(BaseModel):
+    doctor: Doctor
+    demoMode: bool
+
+
+class AppointmentSlot(BaseModel):
+    id: UUID
+    doctorId: UUID
+    clinicId: UUID
+    startAt: str
+    endAt: str
+    roomName: str | None
+
+
+class SlotListResponse(BaseModel):
+    slots: list[AppointmentSlot]
+    demoMode: bool
+
+
 class AssistantInput(BaseModel):
     message: str = Field(min_length=2, max_length=800)
 

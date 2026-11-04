@@ -9,8 +9,8 @@ from app.assistant import search_from_message
 from app.consult import consult
 from app.config import allowed_origins, is_database_configured
 from app.schemas import (
-    APIErrorResponse, AssistantInput, BookingInput, BookingResponse, ConsultationInput, DoctorListResponse,
-    StaffSlotInput, StatusInput,
+    APIErrorResponse, AssistantInput, BookingInput, BookingResponse, ConsultationInput, DoctorDetailResponse,
+    DoctorListResponse, SlotListResponse, StaffSlotInput, StatusInput,
 )
 from app.service import (
     create_booking, get_doctor, get_slots, list_staff_appointments,
@@ -54,12 +54,12 @@ def doctors(
     return search_doctors(specialty=specialty, district=district, keyword=keyword)
 
 
-@app.get("/api/doctors/{doctor_id}")
+@app.get("/api/doctors/{doctor_id}", response_model=DoctorDetailResponse)
 def doctor_detail(doctor_id: UUID) -> dict:
     return get_doctor(doctor_id)
 
 
-@app.get("/api/doctors/{doctor_id}/slots")
+@app.get("/api/doctors/{doctor_id}/slots", response_model=SlotListResponse)
 def slots(doctor_id: UUID) -> dict:
     return get_slots(doctor_id)
 
