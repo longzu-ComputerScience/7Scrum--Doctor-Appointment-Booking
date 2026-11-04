@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from typing import Any
 
 from app.config import is_database_configured
-from app.schemas import ALLOWED_TRANSITIONS, BookingInput, StaffSlotInput
+from app.schemas import ALLOWED_TRANSITIONS, BookingInput, BookingResponse, StaffSlotInput
 
 
 def get_client() -> Any:
@@ -175,8 +175,11 @@ def get_slots(doctor_id: UUID) -> dict:
 
 
 def create_booking(payload: BookingInput) -> dict:
-    client = get_client()
     try:
+        client = get_client()
+        # The V1 and V2 RPCs have the same signature, but V1 can write a confirmed booking.
+        if os.getenv("BOOKING_RPC_V2_READY") != "true":
+            raise HTTPException(503, "Booking V2 is not ready")
         response = (
             client.rpc(
                 "create_appointment",
@@ -189,21 +192,39 @@ def create_booking(payload: BookingInput) -> dict:
             )
             .execute()
         )
+    except HTTPException:
+        raise
     except Exception as exc:
-        # PostgreSQL RPC raises P0001 for missing, already reserved or stale slots.
-        if getattr(exc, "code", None) in ("P0001", "23505"):
+        code = getattr(exc, "code", None)
+        message = getattr(exc, "message", "") or ""
+        slot_rejected = code == "P0001" and message in (
+            "Slot unavailable", "Slot already booked", "Slot is unavailable", "Slot is already booked",
+        )
+        slot_conflict = code == "23505" and '"appointments_one_active_per_slot"' in message
+        if slot_rejected or slot_conflict:
             raise HTTPException(409, "Slot is no longer available") from exc
         raise HTTPException(503, "Booking service unavailable") from exc
 
-    value = response.data
-    record = value[0] if isinstance(value, list) and value else value
-    if not isinstance(record, dict) or not record.get("appointment_id"):
-        raise HTTPException(409, "Slot is no longer available")
-    return {
-        "appointmentId": record["appointment_id"],
-        "bookingReference": record["booking_reference"],
-        "status": "confirmed",
-    }
+    try:
+        (record,) = response.data
+        # The RPC result has no status. Verify the stored status before returning 201.
+        rows = (
+            client.table("appointments")
+            .select("status")
+            .eq("id", record["appointment_id"])
+            .limit(1)
+            .execute()
+            .data
+        )
+        booking = BookingResponse(
+            appointmentId=record["appointment_id"],
+            bookingReference=record["booking_reference"],
+            status=rows[0]["status"],
+        )
+    except Exception as exc:
+        raise HTTPException(503, "Booking result unavailable") from exc
+
+    return booking.model_dump(mode="json")
 
 
 def authorized_staff(token: str) -> tuple[Any, list[str]]:

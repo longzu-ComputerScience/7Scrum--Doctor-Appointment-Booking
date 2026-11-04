@@ -8,7 +8,10 @@ from fastapi.responses import JSONResponse
 from app.assistant import search_from_message
 from app.consult import consult
 from app.config import allowed_origins, is_database_configured
-from app.schemas import AssistantInput, BookingInput, StatusInput, ConsultationInput, StaffSlotInput, DoctorListResponse
+from app.schemas import (
+    APIErrorResponse, AssistantInput, BookingInput, BookingResponse, ConsultationInput, DoctorListResponse,
+    StaffSlotInput, StatusInput,
+)
 from app.service import (
     create_booking, get_doctor, get_slots, list_staff_appointments,
     search_doctors, update_status, list_staff_doctors, list_staff_slots, create_staff_slot,
@@ -66,7 +69,15 @@ async def assistant(payload: AssistantInput) -> dict:
     return await search_from_message(payload.message.strip())
 
 
-@app.post("/api/appointments", status_code=201)
+@app.post(
+    "/api/appointments",
+    status_code=201,
+    response_model=BookingResponse,
+    responses={
+        409: {"model": APIErrorResponse, "description": "Slot is no longer available"},
+        503: {"model": APIErrorResponse, "description": "Booking service unavailable"},
+    },
+)
 def book(payload: BookingInput) -> dict:
     return create_booking(payload)
 
