@@ -275,8 +275,8 @@ def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
 
     try:
         rows = (
-            client.table("doctors")
-            .select("id,name,specialty,active")
+            client.table("doctor_accounts")
+            .select("doctors!inner(id,name,specialty,active)")
             .eq("auth_user_id", user_id)
             .limit(2)
             .execute()
@@ -285,7 +285,7 @@ def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
         if not rows:
             raise HTTPException(403, "Doctor access denied")
         (row,) = rows
-        doctor = DoctorProfile.model_validate(row)
+        doctor = DoctorProfile.model_validate(_one(row["doctors"]))
     except HTTPException:
         raise
     except Exception as exc:
@@ -305,10 +305,11 @@ def list_doctor_appointments(token: str, *, upcoming: bool = False) -> dict:
             client.table("appointments")
             .select(
                 "id,slot_id,patient_name,patient_phone,status,"
-                "appointment_slots!inner(doctor_id,start_at,doctors!inner(name))"
+                "appointment_slots!inner("
+                "doctor_id,start_at,doctors!inner(name,doctor_accounts!inner(auth_user_id)))"
             )
             .eq("appointment_slots.doctor_id", str(doctor.id))
-            .eq("appointment_slots.doctors.auth_user_id", user_id)
+            .eq("appointment_slots.doctors.doctor_accounts.auth_user_id", user_id)
         )
         if upcoming:
             query = (
@@ -350,7 +351,7 @@ def update_doctor_appointment_status(
     try:
         rows = (
             client.table("appointments")
-            .select("status,appointment_slots!inner(doctor_id,doctors!inner(auth_user_id))")
+            .select("status,appointment_slots!inner(doctor_id)")
             .eq("id", str(appointment_id))
             .limit(1)
             .execute()
@@ -360,8 +361,7 @@ def update_doctor_appointment_status(
             raise HTTPException(404, "Appointment not found")
         (row,) = rows
         slot = _one(row["appointment_slots"])
-        owner = _one(slot["doctors"])
-        if str(slot["doctor_id"]) != str(doctor.id) or owner["auth_user_id"] != user_id:
+        if str(slot["doctor_id"]) != str(doctor.id):
             raise HTTPException(403, "Doctor access denied")
         current = row["status"]
     except HTTPException:
