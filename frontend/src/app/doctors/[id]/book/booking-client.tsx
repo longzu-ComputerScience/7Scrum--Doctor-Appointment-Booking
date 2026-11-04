@@ -78,7 +78,7 @@ export default function BookingClient({ doctorId }: { doctorId: string }) {
           <p className="subtle">{doctor.bio}</p>
         </div>
         {demo && <div className="muted-note">Demo mode: xem trước slot minh họa; nút xác nhận booking bị tắt cho đến khi cấu hình Supabase.</div>}
-        {success ? <div className="success" role="status"><h2>Đã gửi yêu cầu đặt lịch</h2><p>Mã tham chiếu: <strong>{success}</strong></p><p>Vui lòng lưu mã này. Phòng khám sẽ xác nhận lịch hẹn.</p><Link href="/">Tìm bác sĩ khác</Link></div> : (
+        {success ? <div className="success" role="status"><h2>Đặt lịch đã được xác nhận</h2><p>Mã tham chiếu: <strong>{success}</strong></p><p>Vui lòng lưu mã này và đến phòng khám đúng giờ.</p><Link href="/">Tìm bác sĩ khác</Link></div> : (
           <form className="card column" onSubmit={submit}>
             <h2 style={{ margin: 0 }}>1. Chọn khung giờ</h2>
             <div className="slot-list" role="group" aria-label="Available appointment times">

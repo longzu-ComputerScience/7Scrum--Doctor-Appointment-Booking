@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import type { AppointmentStatus } from "@/lib/types";
+import { ScheduleManager } from "./schedule-manager";
 
 type Row = { id: string; patientName: string; patientPhone: string; doctorName: string; clinicName: string; startAt: string; status: AppointmentStatus };
 const transitions: Partial<Record<AppointmentStatus, AppointmentStatus[]>> = {
@@ -78,6 +79,7 @@ export default function StaffPage() {
         <button className="btn" disabled={busy}>Đăng nhập</button>
       </form> :
       <>
+        <ScheduleManager token={token} />
         <div className="flex-between"><h2>Lịch hẹn ({rows.length})</h2>
           <div><button className="btn secondary" onClick={() => load()} disabled={busy}>Tải lại</button>{" "}
             <button className="btn secondary" onClick={() => client.auth.signOut()}>Đăng xuất</button></div>

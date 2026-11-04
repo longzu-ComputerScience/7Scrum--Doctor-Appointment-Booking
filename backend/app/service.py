@@ -13,7 +13,7 @@ from typing import Any
 
 from app.config import is_database_configured
 from app.demo import DEMO_DOCTORS, demo_slots
-from app.schemas import ALLOWED_TRANSITIONS, BookingInput
+from app.schemas import ALLOWED_TRANSITIONS, BookingInput, StaffSlotInput
 
 
 def get_client() -> Any:
@@ -175,7 +175,7 @@ def create_booking(payload: BookingInput) -> dict:
     return {
         "appointmentId": record["appointment_id"],
         "bookingReference": record["booking_reference"],
-        "status": "requested",
+        "status": "confirmed",
     }
 
 
@@ -274,3 +274,82 @@ def update_status(appointment_id: UUID, requested: str, token: str) -> dict:
     if not result.data:
         raise HTTPException(409, "Appointment changed; reload and retry")
     return {"appointment": result.data[0]}
+
+
+
+def list_staff_doctors(token: str) -> dict:
+    client, clinic_ids = authorized_staff(token)
+    try:
+        data = (
+            client.table("doctors")
+            .select("id,name,specialty,clinic_id,clinics!inner(name,address,district)")
+            .in_("clinic_id", clinic_ids).eq("active", True)
+            .order("name").execute().data
+        )
+    except Exception as exc:
+        raise HTTPException(503, "Cannot load staff doctors") from exc
+    return {"doctors": [_doctor_from_record(record) for record in data]}
+
+
+def list_staff_slots(token: str, doctor_id: UUID | None = None) -> dict:
+    client, clinic_ids = authorized_staff(token)
+    try:
+        query = (
+            client.table("appointment_slots")
+            .select("id,doctor_id,clinic_id,start_at,end_at,appointments(status)")
+            .in_("clinic_id", clinic_ids).gt("start_at", datetime.now(timezone.utc).isoformat())
+            .order("start_at").limit(100)
+        )
+        if doctor_id:
+            query = query.eq("doctor_id", str(doctor_id))
+        rows = query.execute().data
+    except Exception as exc:
+        raise HTTPException(503, "Cannot load clinic schedule") from exc
+    return {"slots": [
+        {
+            "id": row["id"], "doctorId": row["doctor_id"], "clinicId": row["clinic_id"],
+            "startAt": row["start_at"], "endAt": row["end_at"],
+            "available": not any(a["status"] != "cancelled" for a in row.get("appointments", [])),
+        }
+        for row in rows
+    ]}
+
+
+def create_staff_slot(payload: StaffSlotInput, token: str) -> dict:
+
+    client, clinic_ids = authorized_staff(token)
+    try:
+        doctors = (
+            client.table("doctors").select("id,clinic_id,active")
+            .eq("id", str(payload.doctorId)).limit(1).execute().data
+        )
+    except Exception as exc:
+        raise HTTPException(503, "Cannot validate doctor") from exc
+    if not doctors or not doctors[0]["active"] or str(doctors[0]["clinic_id"]) not in clinic_ids:
+        raise HTTPException(403, "Doctor is not in an authorized clinic")
+    clinic_id = str(doctors[0]["clinic_id"])
+    try:
+        response = (
+            client.table("appointment_slots").insert({
+                "doctor_id": str(payload.doctorId),
+                "clinic_id": clinic_id,
+                "room_id": None,
+                "start_at": payload.startAt.isoformat(),
+                "end_at": payload.endAt.isoformat(),
+                "is_published": True,
+            }).execute()
+        )
+    except Exception as exc:
+        if getattr(exc, "code", None) in ("23505", "23P01"):
+            raise HTTPException(409, "Doctor slot overlaps an existing time slot") from exc
+        raise HTTPException(503, "Cannot create clinic slot") from exc
+    if not response.data:
+        raise HTTPException(503, "Slot not saved")
+    slot = response.data[0]
+    return {
+        "slot": {
+            "id": slot["id"], "doctorId": slot["doctor_id"],
+            "clinicId": slot["clinic_id"], "startAt": slot["start_at"],
+            "endAt": slot["end_at"], "available": True,
+        }
+    }

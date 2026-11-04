@@ -6,11 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.assistant import search_from_message
+from app.consult import consult
 from app.config import allowed_origins, is_database_configured
-from app.schemas import AssistantInput, BookingInput, StatusInput
+from app.schemas import AssistantInput, BookingInput, StatusInput, ConsultationInput, StaffSlotInput
 from app.service import (
     create_booking, get_doctor, get_slots, list_staff_appointments,
-    search_doctors, update_status,
+    search_doctors, update_status, list_staff_doctors, list_staff_slots, create_staff_slot,
 )
 
 app = FastAPI(
@@ -87,3 +88,30 @@ def change_appointment(
 async def api_errors(_request, exc: HTTPException):
     # Preserve original Next.js API error shape expected by UI.
     return JSONResponse(status_code=exc.status_code, content={"error": str(exc.detail)})
+
+
+
+@app.post("/api/consult")
+async def consultation(payload: ConsultationInput) -> dict:
+    return await consult(payload.messages)
+
+
+@app.get("/api/staff/doctors")
+def staff_doctors(authorization: str | None = Header(None)) -> dict:
+    return list_staff_doctors(_bearer(authorization))
+
+
+@app.get("/api/staff/slots")
+def staff_slots(
+    doctor_id: UUID | None = Query(None, alias="doctorId"),
+    authorization: str | None = Header(None),
+) -> dict:
+    return list_staff_slots(_bearer(authorization), doctor_id)
+
+
+@app.post("/api/staff/slots", status_code=201)
+def add_staff_slot(
+    payload: StaffSlotInput,
+    authorization: str | None = Header(None),
+) -> dict:
+    return create_staff_slot(payload, _bearer(authorization))
