@@ -1,36 +1,35 @@
-# Documentation guide — PO scope and V2 target
+# Documentation — tài liệu nào là chuẩn?
 
-**Updated:** 2026-11-04. This guide explains source precedence and the **V1 → V2 transition**; it does not certify that code or the live database implements V2.
+**Ngày đối chiếu:** 2026-11-04. **Business source of truth:** [Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i); [Requirements PRD nền](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.qnrlozg520mq) dùng cho phần không bị sửa. Tab t.0 và bản US-03 clinic staff là **lịch sử**, không phải scope Doctor mới.
 
-## Authoritative references
+## Đọc theo thứ tự
 
-1. **Product scope and acceptance:** [PO — SMART HOSPITAL PATIENT APPOINTMENT SYSTEM, tab "Ver1 của Linh"](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?pli=1&tab=t.0#heading=h.a4pni6r8dmg8). Three must-have stories: US-01 consultation/specialty; US-02 doctor discovery and booking; US-03 clinic staff schedule/appointment dashboard. The PO approves acceptance and changes of scope.
-2. **Target HTTP/API semantics:** [API_CONTRACT_V2.md](API_CONTRACT_V2.md). JSON camelCase, doctor-scoped staff access, booking initially `requested`. It describes a **target**, not necessarily the current runtime.
-3. **Target entities, constraints, permissions and migration design:** [DATA_DICTIONARY.md](DATA_DICTIONARY.md). Four business tables/29 columns: `doctors`, `appointment_slots`, `appointments`, `staff_members`; no `clinics` or `rooms`.
-4. **Reference SQL for a new/empty Supabase database:** [schema_v2.sql](../supabase/schema_v2.sql). It is **not** a V1-to-V2 migration and must **not** be run on an existing database. Confirm live schema first; existing deployments require a separate audited data-preserving migration (Data Dictionary §9).
+1. **Nghiệp vụ cập nhật:** Doctor invitation registration + initial weekly schedule → system auto-generate 30-minute availability → Patient authenticated calendar → atomic booking **confirmed** → persistent real-time Doctor notifications/upcoming → Doctor đổi weekly hours theo effective date, **block conflicts**, không hủy/move lịch cũ.
+2. **API mục tiêu:** [API_CONTRACT_V2.md](API_CONTRACT_V2.md) — danh sách endpoint, payload, errors, owner. Đã chọn **giữ `slotId` được system sinh tự động** để tối thiểu thay đổi FE2 US-02. Nếu Lead thay đổi quyết định, phải sửa contract và thông báo BE/FE/QA trong PR trước khi triển khai.
+3. **Database mục tiêu:** [DATA_DICTIONARY.md](DATA_DICTIONARY.md) — patient_profiles, doctor_accounts, doctor_working_hours, generated slots, appointments, notifications, invites; migration additive.
+4. **Cơ sở SQL hiện tại:** [schema_v2.sql](../supabase/schema_v2.sql) và [migrations 001–004](../supabase/migrations/). **Chưa đồng nhất với target mới.** `schema_v2.sql` là bootstrap V2 trước recurring schedule, không phải migration lên DB chứa dữ liệu.
+5. **Legacy API:** [API_CONTRACT.md](API_CONTRACT.md) dành để đọc/đối chiếu code cũ; không làm contract P0 mới.
 
-**Historical/current implementation reference:** [API_CONTRACT.md](API_CONTRACT.md) describes the V1 clinic-scoped, immediate-confirmation API. It is retained for comparing/maintaining V1 code, **not** as the contract for new V2 work. Existing V1 migrations and seed files are likewise not proof that V2 was applied. Never mix V1-only fields (`clinicId`, `clinicName`, `clinicAddress`, `roomId`) into V2 responses.
+## Ghi nhận trạng thái main tại 2026-11-04 (commit 05a5f52)
 
-## Product vs implementation — decisions to resolve
+- PR #27–#30 (US-02), #38 (doctor_accounts + manual-slot RPC), #39 (Doctor HTTP API), #40 (doctor auth mapping) đã merge; **tận dụng lại**, không giao làm lại.
+- Booking BE: `POST /api/appointments` nhận `slotId` nhưng schema còn `requested`; code Doctor còn `POST /api/doctor/slots` manual và status `checked_in`. FE2 booking modal đã có và kỳ vọng `confirmed`. Staff page/slots legacy vẫn tồn tại. **Code và target đang khác nhau**, BE1/BE2/FE phải tích hợp tuần tự.
+- DB thật chưa được xác minh migration mới trong lần cập nhật tài liệu này; **không đồng nghĩa GitHub SQL đã chạy lên Supabase**. Không sửa hoặc xóa migration cũ gây hỏng môi trường đã áp dụng.
 
-- **Booking confirmation:** V2 `POST /api/appointments` returns HTTP 201 with `status: "requested"`: a persisted request, **not a confirmed appointment**. Staff can confirm via `PATCH /api/appointments/{id}`, after which the staff confirmed view can meet the final PO demo. The PO tab linked above uses "booking confirmation"/"confirmed appointment" language; the separate Google Doc tab "Requirements của Thiên An" explicitly uses initial `requested`. **Lead/PO must approve the resulting two-step demo/acceptance wording**; do not hardcode `confirmed` or show false success.
-- **Clinic staff vs doctor self-management:** In the linked PO tab the US-03 actor is **clinic staff**. V2 represents authorization as `staff_members(user_id, doctor_id)`: staff manage **assigned doctors**, not clinics. Another tab ("Requirements của Thiên An") and parts of the "Sprint planning" tab refer to doctors managing their **own** schedules, which is a **different product role**. Do not silently switch login/persona or promise doctor self-service; Lead/PO must resolve the discrepancy.
-- **Staff schedule endpoints and permissions:** V2 currently specifies `GET /api/staff/appointments` and `PATCH /api/appointments/{id}`, but **does not yet define** `GET /api/staff/doctors`, `GET /api/staff/slots` or `POST /api/staff/slots`. Data Dictionary §3.6 does not grant slot-administration rights via the existing API, and `schema_v2.sql` does not grant direct table writes to `service_role`. BE2 **#32** and Lead **#36** must agree on a secure doctor-scoped API, DB write path, errors and authorization; BE1 **#31** owns DB changes. Keep this gap visible until contract, schema and implementation are actually updated.
-- **Runtime state:** A merged PR, a passing CI run, or files present on `main` do **not** prove that the shared Supabase database has been migrated, staff endpoints work, or the PO six-step flow passed.
+## Quy tắc tránh conflict khi sửa
 
-## Current work tracking (only TODAY issues remain open)
+- **BE1 #31:** chỉ `supabase/`, migration mới, RPC, seed/identity, generated slots, DB atomic appointment+notification.
+- **BE2 #32:** `backend/app/main.py`, `service.py`, `schemas.py`, cập nhật `API_CONTRACT_V2.md` nếu endpoint/payload thật khác target; phối hợp BE1 khi đổi DB RPC. **Chốt API contract = đưa URL + method + JSON request/response + lỗi vào đúng tài liệu này và Lead #36 review**.
+- **FE1 #33:** Patient Auth/Profile + Doctor List đã merge (US-02), Doctor registration/login, Doctor Dashboard, notifications/upcoming (US-03). Không sửa booking modal/weekly editor của FE2.
+- **FE2 #34:** reusable Doctor weekly editor dùng lúc registration và dashboard, giữ booking modal từ PR #27; đổi patient calendar sang generated intervals + realtime. Phối hợp FE1 ở registration wrapper/navigation.
+- **Tester #35:** test Auth, weekly hours, 30-minute derivation, effective-date conflicts, booking 201 confirmed/409 race, notification/upcoming/realtime.
+- **Lead #36:** kiểm soát giao diện tích hợp, review migration/PR, demo/PO acceptance và đảm bảo US-01 vẫn có đường đi vào US-02.
 
-| Role | US-02 existing work | US-03 continuation |
-| --- | --- | --- |
-| BE1 | #3 | [#31](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/31) |
-| BE2 | #26 | [#32](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/32) |
-| FE1 | #5 | [#33](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/33) |
-| FE2 | #7 (closed; PR #27 merged) | [#34](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/34) |
-| Tester | #9 | [#35](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/35) |
-| Lead | #25 | [#36](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/36) |
+**Active issue:** chỉ #31–#36 (mỗi role một issue). US-02 cũ #3/#5/#9/#25/#26 đóng **superseded**, không có nghĩa toàn bộ AC đã nghiệm thu.
 
-Historical issues #21, #22, #8, #19 were closed in favor of #32, #34, #33, #35 respectively; closing **did not mean completion**. Other closed issues are history, not active dependencies. US-01 remains part of PO scope even though its former issues are closed: Lead must ensure the consultation flow is implemented and verified.
+## Phạm vi và bằng chứng
 
-## Verification before release
-
-Consult [USER_STORIES.md](USER_STORIES.md), [ACCEPTANCE_SCENARIO.md](ACCEPTANCE_SCENARIO.md), [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md) and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). Record the tested commit SHA, API version, **actual DB schema/migration**, synthetic test data, 401/403/409/422/503 paths, concurrency, UTC/+07 rendering and the PO decision. Do not claim acceptance from static documentation.
+- Đích là **Patient/Doctor** (không clinic staff); Doctor tự quản lịch định kỳ, không tạo slot từng cái.
+- Chỉ 3 status `confirmed/completed/cancelled`; `requested/checked_in` là dữ liệu/API lịch sử cần migration có kiểm soát.
+- Notification realtime + calendar realtime có **mục tiêu ~5 giây bình thường**, nhưng reconnect/refetch phải đúng; không thay DB locking bằng realtime.
+- Mọi PR ghi rõ code hiện có tận dụng, phần mới, đường migration, lệnh test đã chạy, thiếu bằng chứng nào. Không đánh dấu Done chỉ vì CI xanh.
