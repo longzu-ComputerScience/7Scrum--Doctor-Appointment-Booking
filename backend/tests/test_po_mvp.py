@@ -5,12 +5,26 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from app import main, service
+from app.demo import DEMO_DOCTORS
 from app.schemas import BookingInput, StaffSlotInput
 
 
 def test_chatbot_followup_and_dermatology(monkeypatch):
     for name in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(
+        service,
+        "search_doctors",
+        lambda specialty=None, district=None, keyword=None: {
+            "doctors": [
+                d for d in DEMO_DOCTORS
+                if service.doctor_matches(d, specialty or "", district or "", keyword or "")
+            ],
+            "demoMode": True,
+        },
+    )
+    monkeypatch.setattr("app.assistant.search_doctors", service.search_doctors)
+
     client = TestClient(main.app)
     first = client.post("/api/consult", json={"messages": ["Tôi bị nổi mẩn đỏ"]})
     assert first.status_code == 200
@@ -87,13 +101,32 @@ def test_schedule_rejects_wrong_clinic_doctor(monkeypatch):
         assert getattr(exc, "status_code", None) == 403
 
 
-def test_new_booking_confirmation_contract(monkeypatch):
+def test_new_booking_v2_contract(monkeypatch):
+    appointment_id = "50000000-0000-4000-8000-000000000001"
+    booking_reference = "A1B2C3D4E5F6"
+
     class FakeRPC:
         def execute(self):
             return type("Result", (), {"data": [{
-                "appointment_id": "50000000-0000-4000-8000-000000000001",
-                "booking_reference": "DEMO-1234",
+                "appointment_id": appointment_id,
+                "booking_reference": booking_reference,
             }]})()
+
+    class FakeAppointmentQuery:
+        def select(self, columns):
+            assert columns == "status"
+            return self
+
+        def eq(self, column, value):
+            assert (column, value) == ("id", appointment_id)
+            return self
+
+        def limit(self, count):
+            assert count == 1
+            return self
+
+        def execute(self):
+            return type("Result", (), {"data": [{"status": "requested"}]})()
 
     class FakeClient:
         def rpc(self, name, params):
@@ -101,11 +134,18 @@ def test_new_booking_confirmation_contract(monkeypatch):
             assert params["p_patient_name"] == "Demo Patient"
             return FakeRPC()
 
+        def table(self, name):
+            assert name == "appointments"
+            return FakeAppointmentQuery()
+
+    monkeypatch.setenv("BOOKING_RPC_V2_READY", "true")
     monkeypatch.setattr(service, "get_client", FakeClient)
     payload = BookingInput(
         slotId=UUID("30000000-0000-4000-8000-000000000109"),
         patientName="Demo Patient", patientPhone="0900000000",
     )
-    response = service.create_booking(payload)
-    assert response["status"] == "confirmed"
-    assert response["bookingReference"] == "DEMO-1234"
+    assert service.create_booking(payload) == {
+        "appointmentId": appointment_id,
+        "bookingReference": booking_reference,
+        "status": "requested",
+    }
