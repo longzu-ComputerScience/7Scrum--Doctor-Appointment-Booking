@@ -324,6 +324,16 @@ class APIErrorResponse(BaseModel):
     error: str
 
 
+class ValidationIssue(BaseModel):
+    loc: list[str | int]
+    msg: str
+    type: str
+
+
+class ValidationErrorResponse(APIErrorResponse):
+    detail: list[ValidationIssue] = Field(default_factory=list)
+
+
 class StatusInput(BaseModel):
     status: Literal["confirmed", "checked_in", "completed", "cancelled"]
 

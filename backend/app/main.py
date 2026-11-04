@@ -1,8 +1,8 @@
 """FastAPI routes for the booking and Doctor dashboard contracts."""
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,7 +18,8 @@ from app.schemas import (
     DoctorNotificationListResponse, DoctorProfileResponse, DoctorRegistrationInput, DoctorRegistrationResponse,
     DoctorSlotCreateResponse, DoctorSlotInput, DoctorSlotListResponse, NotificationReadInput, NotificationReadResponse,
     PatientProfileResponse, PatientRegistrationInput, PatientRegistrationResponse, ScheduleConflict, ScheduleInput,
-    ScheduleResponse, ScheduleUpdateResponse, SlotListResponse, StaffSlotInput, StatusInput,
+    ScheduleResponse, ScheduleUpdateResponse, SlotListResponse, StaffSlotInput, StatusInput, ValidationErrorResponse,
+    ValidationIssue,
 )
 from app.service import (
     create_booking, create_doctor_slot, create_staff_slot, get_doctor, get_doctor_profile, get_doctor_schedule,
@@ -51,7 +52,7 @@ def _bearer(authorization: str | None) -> str:
 
 
 def _session_token(
-    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(bearerFormat="JWT", auto_error=False)),
 ) -> str:
     if credentials is None or not credentials.credentials.strip():
         raise HTTPException(401, "Login required")
@@ -65,12 +66,13 @@ AUTH_ERRORS = {
     403: {"model": APIErrorResponse, "description": "Access denied"},
 }
 NOT_FOUND = {404: {"model": APIErrorResponse, "description": "Resource not found"}}
+INVALID_INPUT = {422: {"model": ValidationErrorResponse, "description": "Invalid request or input"}}
 REGISTRATION_CONFLICT = {409: {"model": APIErrorResponse, "description": "Registration conflicts with existing data"}}
 
 
 @app.post(
     "/api/auth/patients/register", status_code=201, response_model=PatientRegistrationResponse,
-    responses={**UNAVAILABLE, **REGISTRATION_CONFLICT},
+    responses={**UNAVAILABLE, **REGISTRATION_CONFLICT, **INVALID_INPUT},
 )
 def patient_registration(payload: PatientRegistrationInput) -> dict:
     return register_patient(payload)
@@ -79,7 +81,7 @@ def patient_registration(payload: PatientRegistrationInput) -> dict:
 @app.post(
     "/api/auth/doctors/register", status_code=201, response_model=DoctorRegistrationResponse,
     responses={
-        **UNAVAILABLE, **REGISTRATION_CONFLICT,
+        **UNAVAILABLE, **REGISTRATION_CONFLICT, **INVALID_INPUT,
         403: {"model": APIErrorResponse, "description": "Invalid invitation"},
     },
 )
@@ -108,7 +110,7 @@ def doctor_schedule(response: Response, token: str = Depends(_session_token)) ->
 @app.put(
     "/api/doctor/schedule", response_model=ScheduleUpdateResponse,
     responses={
-        **AUTH_ERRORS,
+        **AUTH_ERRORS, **INVALID_INPUT,
         409: {"model": ScheduleConflict | APIErrorResponse, "description": "Schedule or effective-date conflict"},
     },
 )
@@ -123,16 +125,21 @@ def doctor_notifications(response: Response, token: str = Depends(_session_token
 
 
 @app.patch(
-    "/api/doctor/notifications/{notification_id}", response_model=NotificationReadResponse,
-    responses={**AUTH_ERRORS, **NOT_FOUND},
+    "/api/doctor/notifications/{id}", response_model=NotificationReadResponse,
+    responses={**AUTH_ERRORS, **NOT_FOUND, **INVALID_INPUT},
 )
 def read_doctor_notification(
-    notification_id: UUID, payload: NotificationReadInput, token: str = Depends(_session_token),
+    notification_id: Annotated[UUID, Path(alias="id")],
+    payload: NotificationReadInput,
+    token: str = Depends(_session_token),
 ) -> dict:
     return mark_doctor_notification_read(notification_id, token)
 
 
-@app.get("/api/doctor/appointments", response_model=DoctorAppointmentListResponse, responses=AUTH_ERRORS)
+@app.get(
+    "/api/doctor/appointments", response_model=DoctorAppointmentListResponse,
+    responses={**AUTH_ERRORS, **INVALID_INPUT},
+)
 def doctor_appointments(
     response: Response,
     token: str = Depends(_session_token),
@@ -143,15 +150,15 @@ def doctor_appointments(
 
 
 @app.patch(
-    "/api/doctor/appointments/{appointment_id}",
+    "/api/doctor/appointments/{id}",
     response_model=DoctorAppointmentStatusResponse,
     responses={
-        **AUTH_ERRORS, **NOT_FOUND,
+        **AUTH_ERRORS, **NOT_FOUND, **INVALID_INPUT,
         409: {"model": APIErrorResponse, "description": "Invalid transition or appointment status changed"},
     },
 )
 def change_doctor_appointment(
-    appointment_id: UUID,
+    appointment_id: Annotated[UUID, Path(alias="id")],
     payload: DoctorAppointmentStatusInput,
     token: str = Depends(_session_token),
 ) -> dict:
@@ -182,7 +189,7 @@ def health() -> dict:
     return {"status": "ok", "databaseConfigured": is_database_configured()}
 
 
-@app.get("/api/doctors", response_model=DoctorListResponse, responses=UNAVAILABLE)
+@app.get("/api/doctors", response_model=DoctorListResponse, responses={**UNAVAILABLE, **INVALID_INPUT})
 def doctors(
     specialty: str | None = Query(None, max_length=80),
     district: str | None = Query(None, max_length=80),
@@ -191,14 +198,21 @@ def doctors(
     return search_doctors(specialty=specialty, district=district, keyword=keyword)
 
 
-@app.get("/api/doctors/{doctor_id}", response_model=DoctorDetailResponse, responses={**NOT_FOUND, **UNAVAILABLE})
-def doctor_detail(doctor_id: UUID) -> dict:
+@app.get(
+    "/api/doctors/{doctorId}", response_model=DoctorDetailResponse,
+    responses={**NOT_FOUND, **UNAVAILABLE, **INVALID_INPUT},
+)
+def doctor_detail(doctor_id: Annotated[UUID, Path(alias="doctorId")]) -> dict:
     return get_doctor(doctor_id)
 
 
-@app.get("/api/doctors/{doctor_id}/slots", response_model=SlotListResponse, responses={**NOT_FOUND, **UNAVAILABLE})
+@app.get(
+    "/api/doctors/{doctorId}/slots", response_model=SlotListResponse,
+    responses={**NOT_FOUND, **UNAVAILABLE, **INVALID_INPUT},
+)
 def slots(
-    doctor_id: UUID, response: Response,
+    doctor_id: Annotated[UUID, Path(alias="doctorId")],
+    response: Response,
     start: CalendarDate | None = Query(None, alias="from"),
     end: CalendarDate | None = Query(None, alias="to"),
 ) -> dict:
@@ -216,7 +230,7 @@ async def assistant(payload: AssistantInput) -> dict:
     status_code=201,
     response_model=BookingResponse,
     responses={
-        **AUTH_ERRORS,
+        **AUTH_ERRORS, **INVALID_INPUT,
         409: {"model": APIErrorResponse, "description": "Slot is no longer available"},
     },
 )
@@ -247,8 +261,9 @@ async def api_errors(_request, exc: HTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_errors(_request, exc: RequestValidationError):
     # A Pydantic error can contain the entire input, including a password or invitation.
-    detail = [{key: item[key] for key in ("loc", "msg", "type")} for item in exc.errors()]
-    return JSONResponse(status_code=422, content={"error": "Invalid input", "detail": detail})
+    detail = [ValidationIssue(loc=item["loc"], msg=item["msg"], type=item["type"]) for item in exc.errors()]
+    body = ValidationErrorResponse(error="Invalid input", detail=detail)
+    return JSONResponse(status_code=422, content=body.model_dump(mode="json"))
 
 
 @app.post("/api/consult")
