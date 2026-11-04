@@ -1,6 +1,6 @@
 # PO-Approved Product Backlog — 2-day MVP
 
-**Source of truth:** Google Doc [SMART HOSPITAL PATIENT APPOINTMENT SYSTEM](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit). Read on 2026-11-04.
+**Product source:** Google Doc [SMART HOSPITAL PATIENT APPOINTMENT SYSTEM (tab t.0)](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?pli=1&tab=t.0#heading=h.a4pni6r8dmg8), read 2026-11-04. **Target implementation references:** [API_CONTRACT_V2.md](API_CONTRACT_V2.md), [DATA_DICTIONARY.md](DATA_DICTIONARY.md), [schema_v2.sql](../supabase/schema_v2.sql). Read [DOCS_GUIDE.md](DOCS_GUIDE.md) before treating V1 runtime/docs as V2. The linked PO tab states clinic staff; another tab proposes doctor self-management, pending Lead/PO clarification.
 
 **Important:** The previous six-story numbering is superseded. **Only US-01, US-02 and US-03** are approved must-have stories for this 2-day MVP. Technical tasks may be split into multiple GitHub issues; those issue titles must refer to the *new* US IDs.
 
@@ -28,26 +28,26 @@
 - **AC05** Save appointment persistently and show booking confirmation.
 - **AC06** Booked slot is unavailable to other patients; no double booking.
 
-**Deliverables:** specialty-filtered doctor list, slot/date selector, validated form, confirmed appointment record and confirmation screen. Booking must survive refresh. System confirms appointment immediately for the demo. Patient registration is not required.
+**Deliverables:** specialty-filtered doctor list, slot/date selector, validated form, a **persisted booking request** and booking-result screen. Under V2 the initial status is `requested` (pending staff confirmation), not `confirmed`; the patient receives a booking reference. After staff confirmation the appointment becomes `confirmed`. The PO tab t.0 describes a booking confirmation and confirmed staff view, so **Lead/PO must sign off on this two-step interpretation**. Booking must survive refresh; patient registration is not required. Never display a fake confirmed result.
 
 ## US-03 — Doctor Schedule Management Dashboard (P0)
 
 > As a clinic staff member, I want to input and manage doctors' available appointment schedules through a dashboard, so that patients can book appointments based on doctor availability.
 
-- **AC01** Authorized test clinic staff see doctors belonging to their clinic.
+- **AC01** Authorized clinic staff can see doctors they are assigned to under V2 (`staff_members(user_id, doctor_id)`). This implements the linked PO tab's clinic-staff persona **without a physical `clinics` table**; Lead/PO must resolve the separate Google Doc tab describing doctor self-management.
 - **AC02** Staff select doctor and input future appointment dates/time slots.
 - **AC03** New slots are saved, not merely stored in browser state.
 - **AC04** Staff slots are shown as available in US-02.
 - **AC05** Booked slots appear unavailable on the staff dashboard.
 - **AC06** Staff see confirmed appointments including patient name, doctor, date, time.
 
-**Deliverables:** staff schedule-input form, persisted availability and synced booking status. Advanced editing, multi-role administration and appointment cancellation/rescheduling are NOT part of the required 2-day MVP.
+**Deliverables:** staff schedule-input form, persisted availability and synced booking status. Staff schedule GET/POST endpoints are **missing from API_CONTRACT_V2.md** and their authenticated DB write path/permissions are not yet defined; BE2 #32 + BE1 #31 + Lead #36 must close the gap before integration. Advanced editing, multi-role administration and patient cancellation/rescheduling are NOT part of the required 2-day MVP.
 
 ## Critical integration contracts
 
 - **US-03 → US-02:** Staff-created available slot is visible to the patient; unavailable/overlapping slots must not be offered.
 - **US-01 → US-02:** Suggested specialty filters the actual doctor catalog. No invented doctor/schedule data from the LLM.
-- **US-02 → US-03:** Booking is confirmed and stored. The same slot can no longer be booked; refreshed clinic dashboard shows the confirmed appointment.
+- **US-02 → US-03:** V2 booking is stored as `requested` and **already makes the slot unavailable**. Authorized staff can subsequently change it to `confirmed`; the refreshed staff view must show the confirmed appointment for PO AC06. Confirm two-step acceptance with PO.
 - **Minimum shared data:** specialty name/ID (logical catalog key), doctor ID/name/specialty, doctor/time/availability, appointment ID/patient name/phone/doctor/date/time, and chatbot specialty result. Physical database normalization is Tech Lead's choice.
 
 ## Outside the approved MVP
@@ -58,7 +58,7 @@ Existing features outside scope may remain in code temporarily but must **not** 
 
 ## GitHub traceability
 
-The PO's suggested tasks DEV-01 through DEV-09 are a *proposed decomposition*, not new user stories. See [ISSUE_MAPPING.md](ISSUE_MAPPING.md) for the mapping to actual GitHub issues and ownership. Do not duplicate an existing task only to match a suggested DEV number.
+The PO's suggested tasks DEV-01 through DEV-09 are a *proposed decomposition*, not new user stories. See [ISSUE_MAPPING.md](ISSUE_MAPPING.md) for the **active TODAY-US2/US3** mapping and ownership; older issues were closed as superseded, not completed. Do not duplicate an existing task to match a suggested DEV number.
 
 ## Release decision
 
