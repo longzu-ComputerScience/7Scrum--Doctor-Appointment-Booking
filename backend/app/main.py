@@ -217,12 +217,7 @@ def slots(
     end: CalendarDate | None = Query(None, alias="to"),
 ) -> dict:
     response.headers["Cache-Control"] = "no-store"
-    try:
-        return get_slots(doctor_id, start, end)
-    except HTTPException as exc:
-        # A cached 404 can hide newly available slots after a reconnect.
-        exc.headers = {**(exc.headers or {}), "Cache-Control": "no-store"}
-        raise
+    return get_slots(doctor_id, start, end)
 
 
 @app.post("/api/assistant")
@@ -259,8 +254,12 @@ def change_appointment(
 @app.exception_handler(HTTPException)
 async def api_errors(_request, exc: HTTPException):
     content = exc.detail if isinstance(exc.detail, dict) else {"error": str(exc.detail)}
-    headers = exc.headers or ({"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None)
-    return JSONResponse(status_code=exc.status_code, content=content, headers=headers)
+    response = JSONResponse(status_code=exc.status_code, content=content, headers=exc.headers)
+    # A cached 404 can hide newly available schedules or slots after a reconnect.
+    response.headers["Cache-Control"] = "no-store"
+    if exc.status_code == 401 and "WWW-Authenticate" not in response.headers:
+        response.headers["WWW-Authenticate"] = "Bearer"
+    return response
 
 
 @app.exception_handler(RequestValidationError)

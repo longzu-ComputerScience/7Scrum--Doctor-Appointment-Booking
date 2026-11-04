@@ -237,29 +237,33 @@ def _available_slots(client: Any, doctor_id: UUID, start: date, end: date) -> li
     ]
 
 
+def _is_future_half_hour_slot(slot: AvailableSlot, now: datetime) -> bool:
+    return slot.startAt > now and slot.endAt - slot.startAt == timedelta(minutes=30)
+
+
 def get_slots(doctor_id: UUID, start: date | None, end: date | None) -> dict:
     start, end = _availability_range(start, end)
-    if not is_database_configured():
+    demo_mode = not is_database_configured()
+    if demo_mode:
         get_doctor(doctor_id)
-        preview = map(AvailableSlot.model_validate, demo_slots(doctor_id))
-        slots = [
-            slot for slot in preview
-            if start <= slot.startAt.astimezone(SCHEDULE_ZONE).date() <= end
-        ]
-        return {"slots": slots, "demoMode": True}
-
-    with _database_operation("Slots unavailable"):
-        client = get_client()
-        _require_active_doctor(client, doctor_id)
-        try:
-            slots = _available_slots(client, doctor_id, start, end)
-        except Exception as exc:
-            raise _rpc_error(exc, "Slots unavailable") from exc
+        slots = [AvailableSlot.model_validate(row) for row in demo_slots(doctor_id)]
+    else:
+        with _database_operation("Slots unavailable"):
+            client = get_client()
+            _require_active_doctor(client, doctor_id)
+            try:
+                slots = _available_slots(client, doctor_id, start, end)
+            except Exception as exc:
+                raise _rpc_error(exc, "Slots unavailable") from exc
     # A slot can start while the RPC results are being fetched.
     now = datetime.now(timezone.utc)
     return {
-        "slots": [slot for slot in slots if slot.startAt > now and slot.endAt - slot.startAt == timedelta(minutes=30)],
-        "demoMode": False,
+        "slots": [
+            slot for slot in slots
+            if _is_future_half_hour_slot(slot, now)
+            and start <= slot.startAt.astimezone(SCHEDULE_ZONE).date() <= end
+        ],
+        "demoMode": demo_mode,
     }
 
 
@@ -537,12 +541,12 @@ def list_doctor_slots(token: str) -> dict:
         return (
             client.table("appointment_slots").select("id,start_at,end_at")
             .eq("doctor_id", str(doctor.id)).eq("is_published", True).not_.is_("schedule_version_id", "null")
-            .gt("start_at", now).lt("start_at", upper_bound.isoformat())
+            .gt("start_at", query_started_at.isoformat()).lt("start_at", upper_bound.isoformat())
         )
 
     with _database_operation("Doctor slots unavailable"):
         available_ids = {slot.id for slot in _available_slots(client, doctor.id, start, end)}
-        now = datetime.now(timezone.utc).isoformat()
+        query_started_at = datetime.now(timezone.utc)
         slots = [
             DoctorSlot(
                 id=row["id"], doctorId=doctor.id, startAt=row["start_at"], endAt=row["end_at"],
@@ -550,7 +554,8 @@ def list_doctor_slots(token: str) -> dict:
             )
             for row in _ordered_pages(query, "start_at")
         ]
-    return {"slots": slots}
+    now = datetime.now(timezone.utc)
+    return {"slots": [slot for slot in slots if _is_future_half_hour_slot(slot, now)]}
 
 
 def list_doctor_notifications(token: str) -> dict:
