@@ -217,7 +217,12 @@ def slots(
     end: CalendarDate | None = Query(None, alias="to"),
 ) -> dict:
     response.headers["Cache-Control"] = "no-store"
-    return get_slots(doctor_id, start, end)
+    try:
+        return get_slots(doctor_id, start, end)
+    except HTTPException as exc:
+        # A cached 404 can hide newly available slots after a reconnect.
+        exc.headers = {**(exc.headers or {}), "Cache-Control": "no-store"}
+        raise
 
 
 @app.post("/api/assistant")

@@ -253,7 +253,12 @@ def get_slots(doctor_id: UUID, start: date | None, end: date | None) -> dict:
             slots = _available_slots(client, doctor_id, start, end)
         except Exception as exc:
             raise _rpc_error(exc, "Slots unavailable") from exc
-    return {"slots": slots, "demoMode": False}
+    # A slot can start while the RPC results are being fetched.
+    now = datetime.now(timezone.utc)
+    return {
+        "slots": [slot for slot in slots if slot.startAt > now and slot.endAt - slot.startAt == timedelta(minutes=30)],
+        "demoMode": False,
+    }
 
 
 def create_booking(payload: BookingInput, token: str) -> dict:
