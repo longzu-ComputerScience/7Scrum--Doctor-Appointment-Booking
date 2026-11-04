@@ -1,30 +1,21 @@
-# Two-Day Sprint — Dependency-Based Plan
+# Sprint handoff — hoàn thiện US-02 + US-03 hôm nay
 
-**Product source:** [SMART HOSPITAL PATIENT APPOINTMENT SYSTEM, tab t.0](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?pli=1&tab=t.0#heading=h.a4pni6r8dmg8), section 7. This is a dependency sequence, not an hourly commitment. **V2 target:** [API_CONTRACT_V2.md](API_CONTRACT_V2.md), [DATA_DICTIONARY.md](DATA_DICTIONARY.md), [schema_v2.sql](../supabase/schema_v2.sql). See [DOCS_GUIDE.md](DOCS_GUIDE.md) for V1 migration and outstanding PO decisions.
+**Nguồn:** [Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i), [execution order](EXECUTION_ORDER.md). Đây là **chuỗi phụ thuộc**, không gán giờ cứng hoặc mở lại công việc đã merge.
 
-## Day 1 — Build Core Features
+## Giai đoạn A — freeze target & DB/API
 
-**First half:** confirm Next.js + FastAPI + Supabase approach; check shared API contract and sample data; implement staff schedule input (US-03) and booking UI (US-02) first because availability is a dependency.
+- Lead #36 xác nhận nguồn PRD và **API_CONTRACT_V2.md**. Đã chọn `slotId` generated để tận dụng FE2 booking. BE1 #31 xác minh DB migration/backup; BE2 #32 đối chiếu endpoint với RPC.
+- BE1 triển khai recurring working hours + Doctor/Patient Auth mapping, invitations, materialized 30-minute slots, 3 statuses, atomic appointment/notification (migration mới).
+- BE2 triển khai Doctor GET/PUT schedule theo effectiveDate/409 conflicts, derived availability, Patient-authenticated booking 201 confirmed, notification/upcoming API. Không tiếp tục manual slot creator làm đích.
 
-**Second half:** integrate controlled chatbot/specialty mapping (US-01), doctor matching and persisted booking (US-02). **V2 initially saves `requested`** and blocks the slot; only a real staff transition can mark `confirmed`. Begin vertical-slice testing immediately.
+## Giai đoạn B — FE song song
 
-**Expected outcome:** each major module can run locally; core integration is underway. Avoid postponing staff-created availability to Day 2.
+- FE1 #33: nối Doctor List đã merge → Patient Auth/Profile → Doctor registration/login → dashboard, upcoming và notifications.
+- FE2 #34: reusable weekly editor cho registration/dashboard; chuyển booking modal/calendar PR #27 sang generated slots/realtime, giữ UX đã có, tránh viết lại từ đầu.
 
-## Day 2 — Integrate, Verify, Demo
+## Giai đoạn C — test & review
 
-**First half:** finish US-01 → US-02 → US-03 flow on the same verified DB; test staff-created slots, availability synchronization and occupied `requested` slots. Verify staff can confirm a request and then see it in the confirmed list, subject to Lead/PO approval.
+- Tester #35: Auth role isolation, weekly validation, effective-date conflicts, availability 30-minute, booking race 1×201/1×409, status, atomic notification, realtime reconnect, timezone.
+- Lead #36: review PR/CI, test tích hợp với same Supabase, US-01 chatbot → specialty → doctor, PO demo theo [Acceptance Scenario](ACCEPTANCE_SCENARIO.md).
 
-**Second half:** fix critical defects; verify US AC01–AC06 for each of the three stories; run the six-step Dermatology acceptance scenario and Sprint Review with PO.
-
-**Expected outcome:** one working flow with shared persistent data and documented PO decision.
-
-## Role handoff
-
-- **BE1 #3 → #31:** database audit, V2 migration/constraints, staff memberships and booking RPC.
-- **BE2 #26 → #32:** doctor/booking and doctor-scoped staff APIs; supplement missing staff schedule contract with Lead.
-- **FE1 #5 → #33:** doctor discovery handoff and staff appointment view.
-- **FE2 #7 (closed/merged) → #34:** patient booking integration and staff schedule input.
-- **Tester #9 → #35:** authorization, negative cases, concurrency and cross-interface six-step E2E.
-- **Lead #25 → #36:** source precedence, PO scope and unresolved decisions, PR integration, demo and sign-off. Current six-person team has **no BA-assigned issues**.
-
-Every work item follows docs/DEFINITION_OF_DONE.md. Prioritize functionality ahead of visual extras and optional infrastructure.
+Không coi file SQL merge hay mock UI là nghiệm thu. Phải có evidence trên cùng DB và quyết định PO.
