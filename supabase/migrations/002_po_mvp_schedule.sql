@@ -1,3 +1,14 @@
+-- Compatibility migration. On v2, 001_init.sql already defines booking and slot rules.
+do $legacy_v1$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'doctors' and column_name = 'certificates'
+  ) then
+    return;
+  end if;
+
+  execute $v1_ddl$
 -- PO-approved 2-day MVP: staff-managed availability and immediately confirmed bookings.
 -- Run after 001_init.sql. PostgreSQL constraints are the concurrency authority.
 create extension if not exists btree_gist;
@@ -78,3 +89,6 @@ grant execute on function public.create_appointment(uuid,text,text,text) to serv
 
 -- Intentionally no anonymous INSERT into appointment_slots. Only FastAPI,
 -- after checking JWT + staff_members, writes through the service-role client.
+  $v1_ddl$;
+end;
+$legacy_v1$;
