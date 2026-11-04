@@ -10,17 +10,28 @@ from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field
 UtcDatetime = Annotated[AwareDatetime, AfterValidator(lambda value: value.astimezone(timezone.utc))]
 
 
+class Certificate(BaseModel):
+    name: str
+    issuer: str
+    issuedYear: int | None = None
+    credentialUrl: str | None = None
+
+
 class Doctor(BaseModel):
-    """Public v1 catalog fields; never expose complete database records."""
+    """Public catalog fields; never expose complete database records."""
 
     id: UUID
     name: str
     specialty: str
     bio: str
-    clinicId: UUID
+    clinicId: UUID | None = None
     clinicName: str
     clinicAddress: str
     district: str
+    address: str
+    certificates: list[Certificate] = Field(default_factory=list)
+    rating: float | None = None
+    ratingCount: int = 0
 
 
 class DoctorListResponse(BaseModel):
@@ -36,7 +47,7 @@ class DoctorDetailResponse(BaseModel):
 class AppointmentSlot(BaseModel):
     id: UUID
     doctorId: UUID
-    clinicId: UUID
+    clinicId: UUID | None = None
     startAt: str
     endAt: str
     roomName: str | None

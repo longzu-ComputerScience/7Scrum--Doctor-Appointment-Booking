@@ -170,7 +170,9 @@ export default function BookingClient({ doctorId, intercepted = false }: { docto
               <div><dt>Patient</dt><dd>{confirmation.patientName}</dd></div>
               <div><dt>Appointment date</dt><dd>{formatDay(confirmation.slot.startAt)}</dd></div>
               <div><dt>Time · Vietnam</dt><dd>{formatTime(confirmation.slot.startAt)} – {formatTime(confirmation.slot.endAt)}</dd></div>
-              <div className={styles.fullWidth}><dt>In-person visit at</dt><dd>{doctor.clinicName}<small>{doctor.clinicAddress}</small></dd></div>
+              <div className={styles.fullWidth}><dt>In-person visit at</dt><dd>
+                {doctor.clinicName || doctor.district}<small>{doctor.address || doctor.clinicAddress}</small>
+              </dd></div>
             </dl>
           </div>
           <button className={styles.primary} type="button" onClick={close}>Back to doctors</button>
@@ -188,7 +190,7 @@ export default function BookingClient({ doctorId, intercepted = false }: { docto
             <form onSubmit={submit} noValidate aria-busy={submitting}>
               <div className={styles.doctor}>
                 <span className={styles.avatar}><BookingIcon name="doctor" /></span>
-                <div><h2>{doctor.name}</h2><p>{doctor.specialty} · {doctor.clinicName}</p></div>
+                <div><h2>{doctor.name}</h2><p>{doctor.specialty} · {doctor.clinicName || doctor.district}</p></div>
                 <span className={styles.visitType}><BookingIcon name="pin" /> In-person visit</span>
               </div>
               {demo && <p className={styles.notice} role="status">Demo mode: these times are for preview only. Booking will be available once the service is configured.</p>}
@@ -236,7 +238,7 @@ export default function BookingClient({ doctorId, intercepted = false }: { docto
                     <h3>Appointment summary</h3>
                     <p><BookingIcon name="calendar" /><span>{selectedSlot ? formatDay(selectedSlot.startAt) : "No time selected"}</span></p>
                     {selectedSlot && <p><BookingIcon name="clock" /><span>{formatTime(selectedSlot.startAt)} – {formatTime(selectedSlot.endAt)} (UTC+7)</span></p>}
-                    <p><BookingIcon name="pin" /><span>{doctor.clinicAddress}</span></p>
+                    <p><BookingIcon name="pin" /><span>{doctor.address || doctor.clinicAddress}</span></p>
                   </div>
                   <button className={styles.primary} type="submit" disabled={!selectedSlot || submitting || demo}>
                     {submitting ? <><span className={styles.spinner} /> Confirming…</> : <>Confirm appointment <BookingIcon name="arrow" /></>}

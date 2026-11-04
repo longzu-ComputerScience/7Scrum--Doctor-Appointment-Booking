@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { Doctor } from "@/lib/types";
 
 type IconName = "menu" | "home" | "calendar" | "appointments" | "profile" | "help" | "communication" | "logout" | "search" | "bell" | "settings" | "arrow" | "check" | "close";
 
@@ -62,28 +63,128 @@ function Overview({ onBook, onChat }: { onBook: () => void; onChat: () => void }
 }
 
 function BookingView({ onBack }: { onBack: () => void }) {
-  const doctors = [
-    { id: "cris", initials: "CJ", name: "Dr. Cris Johnson", specialty: "Clinical Psychology", experience: "5 years experience", rating: 4.9, ratingCount: 128, clinic: "Carely Wellness Clinic", district: "Downtown", address: "24 Harbor Street, Suite 4", bio: "A warm, evidence-based psychologist helping adults navigate anxiety, stress and life transitions.", certificates: ["PhD in Clinical Psychology, UCLA", "Certified CBT Therapist, APA"] },
-    { id: "maya", initials: "MP", name: "Dr. Maya Patel", specialty: "Pediatrics", experience: "8 years experience", rating: 4.8, ratingCount: 96, clinic: "Carely Children's Center", district: "Riverside", address: "18 Willow Avenue", bio: "A caring pediatrician focused on preventive care and helping children feel comfortable during every visit.", certificates: ["MD, University of Michigan", "Board Certified in Pediatrics"] },
-    { id: "oliver", initials: "OR", name: "Dr. Oliver Reed", specialty: "Pulmonology", experience: "7 years experience", rating: 4.9, ratingCount: 74, clinic: "Carely Medical Center", district: "Midtown", address: "9 North Park Road", bio: "A respiratory specialist offering thoughtful diagnosis and long-term care for breathing conditions.", certificates: ["MD, Johns Hopkins Medicine", "American Board of Internal Medicine"] },
-  ];
-  const [mode, setMode] = useState<"offline" | "online">("offline");
-  const [doctorId, setDoctorId] = useState("cris");
-  const [specialtyFilter, setSpecialtyFilter] = useState("All specialties");
-  const [step, setStep] = useState<0 | 1 | 2>(0);
-  const [date, setDate] = useState("Thu, 18 Sep");
-  const [time, setTime] = useState("10:30 AM");
-  const [submitted, setSubmitted] = useState(false);
-  const [name, setName] = useState("Laurie Jean");
-  const [email, setEmail] = useState("laurie.jean@example.com");
-  const [phone, setPhone] = useState("+1 555 014 2025");
-  const dates = ["Thu, 18 Sep", "Fri, 19 Sep", "Sat, 20 Sep", "Mon, 22 Sep", "Tue, 23 Sep"];
-  const times = ["09:00 AM", "10:30 AM", "02:00 PM", "04:30 PM"];
+  const [catalog, setCatalog] = useState<{ doctors: Doctor[]; demoMode: boolean }>();
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [doctorId, setDoctorId] = useState<string>();
+  const [specialtyFilter, setSpecialtyFilter] = useState("");
 
-  const selectedDoctor = doctors.find((doctor) => doctor.id === doctorId) || doctors[0];
-  if (submitted) return <section className="booking-page"><button className="back-button" onClick={onBack}>← Back to overview</button><div className="booking-success"><div className="success-icon"><Icon name="check" /></div><span className="booking-overline">BOOKING CONFIRMED</span><h2>Your appointment is all set.</h2><p>We saved your visit details. Keep this number for check-in.</p><div className="booking-number"><small>Queue number</small><strong>A-{String(218).padStart(3, "0")}</strong><span>Confirmation sent to {email}</span></div><div className="success-details"><div><small>Doctor</small><strong>{selectedDoctor.name}</strong><span>{selectedDoctor.specialty}</span></div><div><small>Consultation</small><strong>{mode === "offline" ? "In-person visit" : "Online consultation"}</strong></div><div><small>Date & time</small><strong>{date}</strong><span>{time}</span></div></div><button className="primary-button" onClick={onBack}>Back to overview <Icon name="arrow" /></button></div></section>;
-  const filteredDoctors = specialtyFilter === "All specialties" ? doctors : doctors.filter((doctor) => doctor.specialty === specialtyFilter);
-  if (step === 0) return <section className="booking-page"><div className="booking-heading"><div><span className="booking-overline">BOOK APPOINTMENT</span><h2>Find the right doctor for you.</h2><p>Browse our specialists and choose a doctor to see their availability.</p></div><span className="booking-step">CHOOSE A DOCTOR</span></div><div className="doctor-browser"><section className="doctor-list-panel"><div className="doctor-list-heading"><strong>Specialists</strong><span>{filteredDoctors.length} doctors</span></div><div className="specialty-filters"><button className={specialtyFilter === "All specialties" ? "selected" : ""} onClick={() => setSpecialtyFilter("All specialties")}>All</button>{["Clinical Psychology", "Pediatrics", "Pulmonology"].map((specialty) => <button key={specialty} className={specialtyFilter === specialty ? "selected" : ""} onClick={() => setSpecialtyFilter(specialty)}>{specialty}</button>)}</div><div className="doctor-list">{filteredDoctors.map((doctor) => <button className={`doctor-list-row ${doctor.id === doctorId ? "selected" : ""}`} key={doctor.id} onClick={() => setDoctorId(doctor.id)}><span className="list-avatar">{doctor.initials}</span><span><strong>{doctor.name}</strong><small>{doctor.specialty}</small><em>★ {doctor.rating} ({doctor.ratingCount})</em></span><b>›</b></button>)}</div></section><section className="doctor-detail-panel"><div className="detail-profile"><div className="detail-avatar">{selectedDoctor.initials}</div><div><span className="booking-overline">SPECIALIST PROFILE</span><h3>{selectedDoctor.name}</h3><p>{selectedDoctor.specialty} · ★ {selectedDoctor.rating} ({selectedDoctor.ratingCount} reviews)</p></div></div><p className="detail-bio">{selectedDoctor.bio}</p><div className="detail-info-grid"><div><small>Practice</small><strong>{selectedDoctor.clinic}</strong></div><div><small>Location</small><strong>{selectedDoctor.district}</strong><span>{selectedDoctor.address}</span></div></div><div className="detail-section"><h4>Education & certificates</h4>{selectedDoctor.certificates.map((certificate) => <p key={certificate}>✓ {certificate}</p>)}</div><div className="detail-extra-grid"><div><h4>Available Today</h4><p>Mon–Sat · 10:00 AM–12:00 PM</p><p>2:00 PM–8:00 PM</p></div><div><h4>Schedule</h4><p>Online and in-person visits available.</p></div><div><h4>Specialty</h4><p>{selectedDoctor.specialty}</p></div><div><h4>Procedures</h4><p>Individual consultation</p><p>Follow-up care</p><p>Supportive therapy</p></div><div className="reviews-block"><h4>Doctor’s Reviews</h4><article className="review-card"><span className="review-avatar">NT</span><div><strong>Nadia Taylor</strong><span>★ 4.9</span><p>“Thoughtful, patient and easy to talk to.”</p></div></article><article className="review-card"><span className="review-avatar">EP</span><div><strong>Ethan Parker</strong><span>★ 5.0</span><p>“Clear advice and a very comfortable visit.”</p></div></article></div></div><button className="primary-button detail-book" onClick={() => setStep(1)}>Book with {selectedDoctor.name}</button></section></div></section>;
+  useEffect(() => {
+    const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
+    async function loadDoctors() {
+      try {
+        const response = await fetch("/api/doctors", { signal, cache: "no-store" });
+        if (!response.ok) throw new Error("Doctor catalog unavailable");
+        const data = await response.json() as { doctors: Doctor[]; demoMode: boolean };
+        if (!Array.isArray(data.doctors) || typeof data.demoMode !== "boolean") {
+          throw new Error("Invalid doctor catalog");
+        }
+        if (!controller.signal.aborted) setCatalog(data);
+      } catch {
+        if (!controller.signal.aborted) setError(true);
+      }
+    }
 
-  return <section className="booking-page"><button className="back-button" onClick={onBack}>← Back to overview</button><div className="booking-heading"><div><span className="booking-overline">BOOK APPOINTMENT</span><h2>{step === 1 ? "Choose a visit that works for you." : "Tell us a little about you."}</h2><p>{step === 1 ? "Select a doctor, consultation type and a convenient time." : "Review your details before confirming the appointment."}</p></div><span className="booking-step">STEP {step} OF 2</span></div><div className={`booking-layout booking-step-${step}`}><section className="booking-card booking-options"><div className="booking-toggle"><button className={mode === "offline" ? "selected" : ""} onClick={() => setMode("offline")}>In-person</button><button className={mode === "online" ? "selected" : ""} onClick={() => setMode("online")}>Online</button></div><label className="booking-label">Choose your doctor</label><div className="doctor-picker">{doctors.map((doctor) => <button key={doctor.id} className={`doctor-option ${doctor.id === doctorId ? "selected" : ""}`} onClick={() => setDoctorId(doctor.id)}><div className="doctor-avatar">{doctor.initials}</div><span><strong>{doctor.name}</strong><small>{doctor.specialty} · {doctor.rating} ★</small><em>{mode === "offline" ? doctor.clinic : "Secure video consultation"}</em></span><b>{doctor.id === doctorId ? "✓" : ""}</b></button>)}</div><div className="booking-divider"/><label className="booking-label">Choose a date</label><div className="date-grid">{dates.map((item) => <button key={item} className={date === item ? "selected" : ""} onClick={() => setDate(item)}>{item.split(", ")[0]}<strong>{item.split(", ")[1]}</strong></button>)}</div><label className="booking-label">Available times</label><div className="time-grid">{times.map((item) => <button key={item} className={time === item ? "selected" : ""} onClick={() => setTime(item)}>{item}</button>)}</div><button className="primary-button booking-next" onClick={() => setStep(2)}>Continue to your details <Icon name="arrow" /></button></section><section className="booking-card booking-form-card"><button className="booking-back-step" onClick={() => setStep(1)}>← Change date or time</button><div className="form-card-heading"><span className="booking-overline">YOUR DETAILS</span><h3>Who is this appointment for?</h3><p>Your account details are filled in. You can edit them before confirming.</p></div><label className="booking-field"><span>Full name</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="booking-field"><span>Email address</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label><label className="booking-field"><span>Phone number</span><input value={phone} onChange={(event) => setPhone(event.target.value)} /></label><label className="booking-field"><span>Notes <small>(optional)</small></span><textarea placeholder="Anything the doctor should know before your visit?" rows={3} /></label><div className="booking-total"><div><span>Consultation fee</span><strong>$35.90</strong></div><div><span>Tax</span><strong>$2.00</strong></div><div className="booking-total-row"><span>Total</span><strong>$37.90</strong></div></div><button className="primary-button booking-confirm" disabled={!name.trim() || !email.trim() || !phone.trim()} onClick={() => setSubmitted(true)}>Confirm appointment <Icon name="arrow" /></button><small className="booking-note">Demo prototype · No actual payment will be charged.</small></section></div></section>;
+    void loadDoctors();
+    return () => controller.abort();
+  }, [attempt]);
+
+  const doctors = catalog?.doctors ?? [];
+  const specialties = [...new Set(doctors.map((doctor) => doctor.specialty))];
+  const filteredDoctors = specialtyFilter
+    ? doctors.filter((doctor) => doctor.specialty === specialtyFilter)
+    : doctors;
+  const selectedDoctor = filteredDoctors.find((doctor) => doctor.id === doctorId) ?? filteredDoctors[0];
+
+  return (
+    <section className="booking-page">
+      <button className="back-button" onClick={onBack}>← Back to overview</button>
+      <div className="booking-heading">
+        <div>
+          <span className="booking-overline">BOOK APPOINTMENT</span>
+          <h2>Find the right doctor for you.</h2>
+          <p>Browse our specialists and choose a doctor to see their availability.</p>
+        </div>
+        <span className="booking-step">CHOOSE A DOCTOR</span>
+      </div>
+
+      {error ? (
+        <div className="doctor-list-panel" role="alert">
+          <p>We couldn’t load the doctor directory.</p>
+          <button className="primary-button" onClick={() => {
+            setError(false);
+            setAttempt((value) => value + 1);
+          }}>Try again</button>
+        </div>
+      ) : !catalog ? (
+        <p role="status">Loading doctors…</p>
+      ) : (
+        <>
+          {catalog.demoMode && <p className="muted-note" role="status">Demo directory. Booking is unavailable.</p>}
+          <div className="doctor-browser">
+            <section className="doctor-list-panel" aria-label="Doctor directory">
+              <div className="doctor-list-heading"><strong>Specialists</strong><span>{filteredDoctors.length} doctors</span></div>
+              <div className="specialty-filters">
+                <button className={!specialtyFilter ? "selected" : ""} onClick={() => setSpecialtyFilter("")}>All</button>
+                {specialties.map((specialty) => (
+                  <button key={specialty} className={specialtyFilter === specialty ? "selected" : ""}
+                    onClick={() => setSpecialtyFilter(specialty)}>{specialty}</button>
+                ))}
+              </div>
+              {filteredDoctors.length === 0 && <p>No doctors available.</p>}
+              <div className="doctor-list">
+                {filteredDoctors.map((doctor) => (
+                  <button className={doctor.id === selectedDoctor?.id ? "doctor-list-row selected" : "doctor-list-row"}
+                    key={doctor.id} onClick={() => setDoctorId(doctor.id)} aria-pressed={doctor.id === selectedDoctor?.id}>
+                    <span className="list-avatar" aria-hidden="true" />
+                    <span>
+                      <strong>{doctor.name}</strong>
+                      <small>{doctor.specialty}</small>
+                    </span>
+                    <b aria-hidden="true">›</b>
+                  </button>
+                ))}
+              </div>
+            </section>
+            {selectedDoctor && (
+              <section className="doctor-detail-panel" aria-label="Selected doctor profile">
+                <div className="detail-profile">
+                  <div>
+                    <span className="booking-overline">SPECIALIST PROFILE</span>
+                    <h3>{selectedDoctor.name}</h3>
+                    <p>{selectedDoctor.specialty}</p>
+                    {selectedDoctor.rating != null && <p>★ {selectedDoctor.rating} ({selectedDoctor.ratingCount} ratings)</p>}
+                  </div>
+                </div>
+                {selectedDoctor.bio && <p className="detail-bio">{selectedDoctor.bio}</p>}
+                <div className="detail-info-grid">
+                  <div>
+                    <small>Location</small>
+                    <strong>{selectedDoctor.district}</strong>
+                    <span>{selectedDoctor.address || selectedDoctor.clinicAddress}</span>
+                  </div>
+                </div>
+                {!!selectedDoctor.certificates?.length && (
+                  <div className="detail-section">
+                    <h4>Education &amp; certificates</h4>
+                    {selectedDoctor.certificates.map((certificate, index) => (
+                      <p key={index}>{certificate.name} · {certificate.issuer}{certificate.issuedYear && (
+                        <> · {certificate.issuedYear}</>
+                      )}</p>
+                    ))}
+                  </div>
+                )}
+                {!catalog.demoMode && (
+                  <Link className="primary-button detail-book" href={"/doctors/" + selectedDoctor.id + "/book"}>
+                    View availability
+                  </Link>
+                )}
+              </section>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }

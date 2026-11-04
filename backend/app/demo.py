@@ -12,6 +12,7 @@ DEMO_DOCTORS = [
         "clinicId": "20000000-0000-4000-8000-000000000001",
         "clinicName": "Phòng khám Mẫu A",
         "clinicAddress": "Thủ Đức, TP.HCM (địa chỉ minh họa)",
+        "address": "Thủ Đức, TP.HCM (địa chỉ minh họa)",
         "district": "Thủ Đức",
     },
     {
@@ -22,6 +23,7 @@ DEMO_DOCTORS = [
         "clinicId": "20000000-0000-4000-8000-000000000002",
         "clinicName": "Phòng khám Mẫu B",
         "clinicAddress": "Bình Thạnh, TP.HCM (địa chỉ minh họa)",
+        "address": "Bình Thạnh, TP.HCM (địa chỉ minh họa)",
         "district": "Bình Thạnh",
     },
     {
@@ -32,6 +34,7 @@ DEMO_DOCTORS = [
         "clinicId": "20000000-0000-4000-8000-000000000001",
         "clinicName": "Phòng khám Mẫu A",
         "clinicAddress": "Thủ Đức, TP.HCM (địa chỉ minh họa)",
+        "address": "Thủ Đức, TP.HCM (địa chỉ minh họa)",
         "district": "Thủ Đức",
     },
 ]

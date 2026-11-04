@@ -10,6 +10,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from fastapi.exceptions import RequestValidationError
+from postgrest.exceptions import APIError
 from typing import Any
 
 from app.config import is_database_configured
@@ -48,24 +49,45 @@ def _doctor_from_record(row: dict) -> dict:
         "name": row["name"],
         "specialty": row["specialty"],
         "bio": row.get("bio", ""),
-        "clinicId": str(row["clinic_id"]),
+        "clinicId": row.get("clinic_id"),
         "clinicName": clinic.get("name", ""),
-        "clinicAddress": clinic.get("address", ""),
-        "district": clinic.get("district", ""),
+        "clinicAddress": row.get("address", clinic.get("address", "")),
+        "address": row.get("address", clinic.get("address", "")),
+        "district": row.get("district", clinic.get("district", "")),
+        "certificates": row.get("certificates", []),
+        "rating": row.get("rating"),
+        "ratingCount": row.get("rating_count", 0),
     }
 
 
-def _active_doctors_query(client: Any) -> Any:
-    return (
-        client.table("doctors")
-        .select("id,name,specialty,bio,clinic_id,clinics!inner(name,address,district,active)")
-        .eq("active", True)
-        .eq("clinics.active", True)
-    )
+def _active_doctor_rows(
+    client: Any, *, limit: int, doctor_id: UUID | None = None, after: str | None = None,
+) -> list[dict]:
+    query = client.table("doctors").select(
+        "id,name,specialty,bio,address,district,certificates,rating,rating_count"
+    ).eq("active", True)
+
+    def read(query: Any) -> list[dict]:
+        if doctor_id is not None:
+            query = query.eq("id", str(doctor_id))
+        if after is not None:
+            query = query.gt("id", after)
+        return query.order("id").limit(limit).execute().data
+
+    try:
+        return read(query)
+    except APIError as exc:
+        if exc.code != "42703" or "doctors.address" not in exc.message:
+            raise
+        # Older local installs still use the clinic relation from migration 001.
+        legacy_query = client.table("doctors").select(
+            "id,name,specialty,bio,clinic_id,clinics!inner(name,address,district,active)"
+        ).eq("active", True).eq("clinics.active", True)
+        return read(legacy_query)
 
 
 def _require_active_doctor(client: Any, doctor_id: UUID) -> dict:
-    rows = _active_doctors_query(client).eq("id", str(doctor_id)).limit(1).execute().data
+    rows = _active_doctor_rows(client, limit=1, doctor_id=doctor_id)
     if not rows:
         raise HTTPException(404, "Doctor not found")
     return rows[0]
@@ -87,7 +109,7 @@ def doctor_matches(doctor: dict, specialty: str = "", district: str = "", keywor
     if district and _normalize(district) not in _normalize(doctor["district"]):
         return False
     if keyword:
-        haystack = [doctor["name"], doctor["specialty"], doctor["clinicName"], doctor["district"]]
+        haystack = [doctor["name"], doctor["specialty"], doctor["clinicName"], doctor["address"], doctor["district"]]
         if not any(_normalize(keyword) in _normalize(value) for value in haystack):
             return False
     return True
@@ -98,7 +120,7 @@ def search_doctors(
     district: str | None = None,
     keyword: str | None = None,
 ) -> dict:
-    """Filter the active v1 catalog before limiting the public result to 100.
+    """Filter the active catalog before limiting the public result to 100.
 
     Scan ordered pages because accent-insensitive matching is implemented in
     Python, without requiring a schema change from the database owner.
@@ -116,10 +138,7 @@ def search_doctors(
     try:
         client = get_client()
         while len(matches) < 100:
-            query = _active_doctors_query(client)
-            if last_id is not None:
-                query = query.gt("id", last_id)
-            rows = query.order("id").limit(100).execute().data
+            rows = _active_doctor_rows(client, limit=100, after=last_id)
             if not rows:
                 break
             # Supabase can return fewer rows than requested on any page.
@@ -161,21 +180,25 @@ def get_slots(doctor_id: UUID) -> dict:
         client = get_client()
         doctor = _require_active_doctor(client, doctor_id)
         # The empty embed filters out slots with non-cancelled bookings before LIMIT.
-        rows = (
+        clinic_id = doctor.get("clinic_id")
+        columns = "id,doctor_id,start_at,end_at,appointments()"
+        if clinic_id is not None:
+            columns += ",clinic_id,rooms(name)"
+        query = (
             client
             .table("appointment_slots")
-            .select("id,doctor_id,clinic_id,start_at,end_at,rooms(name),appointments()")
+            .select(columns)
             .eq("doctor_id", str(doctor_id))
-            .eq("clinic_id", str(doctor["clinic_id"]))
             .eq("is_published", True)
             .gt("start_at", datetime.now(timezone.utc).isoformat())
             .neq("appointments.status", "cancelled")
             .is_("appointments", "null")
             .order("start_at")
             .limit(100)
-            .execute()
-            .data
         )
+        if clinic_id is not None:
+            query = query.eq("clinic_id", str(clinic_id))
+        rows = query.execute().data
         slots = []
         for item in rows:
             room = _one(item.get("rooms"))
@@ -183,7 +206,7 @@ def get_slots(doctor_id: UUID) -> dict:
                 {
                     "id": str(item["id"]),
                     "doctorId": str(item["doctor_id"]),
-                    "clinicId": str(item["clinic_id"]),
+                    "clinicId": item.get("clinic_id"),
                     "startAt": item["start_at"],
                     "endAt": item["end_at"],
                     "roomName": room.get("name"),

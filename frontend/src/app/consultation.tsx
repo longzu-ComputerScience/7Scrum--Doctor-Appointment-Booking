@@ -69,7 +69,7 @@ export function Consultation() {
         {result.doctors.map(d => <article className="card" key={d.id}>
           <span className="chip">{d.specialty}</span>
           <h3>{d.name}</h3>
-          <p>{d.clinicName} — {d.district}</p>
+          <p>{d.clinicName ? `${d.clinicName} — ${d.district}` : d.address || d.district}</p>
           <Link className="btn" href={"/doctors/" + d.id + "/book"}>Chọn bác sĩ & xem lịch</Link>
         </article>)}
         {!result.doctors.length && <p>Chưa có bác sĩ phù hợp trong danh mục.</p>}
