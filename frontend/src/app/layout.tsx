@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Find doctors and book clinic appointments. Demo application.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children, booking }: Readonly<{ children: React.ReactNode; booking: React.ReactNode }>) {
   return (
     <html lang="vi">
       <body>
@@ -16,6 +16,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <nav aria-label="Main navigation"><Link href="/">Tìm bác sĩ</Link><Link href="/staff">Clinic staff</Link></nav>
         </div></header>
         <main className="main">{children}</main>
+        {booking}
         <footer className="site-footer">7Scrum MVP · Chỉ dùng dữ liệu minh họa · Không thay thế tư vấn hoặc cấp cứu y khoa</footer>
       </body>
     </html>
