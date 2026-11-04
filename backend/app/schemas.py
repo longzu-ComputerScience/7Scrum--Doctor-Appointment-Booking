@@ -73,6 +73,24 @@ class DoctorAppointmentListResponse(BaseModel):
     appointments: list[DoctorAppointment]
 
 
+DoctorAppointmentStatusTarget = Literal["checked_in", "completed", "cancelled"]
+
+
+class DoctorAppointmentStatusInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: DoctorAppointmentStatusTarget
+
+
+class DoctorAppointmentStatusResult(BaseModel):
+    id: UUID
+    status: DoctorAppointmentStatusTarget
+
+
+class DoctorAppointmentStatusResponse(BaseModel):
+    appointment: DoctorAppointmentStatusResult
+
+
 class DoctorSlot(BaseModel):
     id: UUID
     doctorId: UUID

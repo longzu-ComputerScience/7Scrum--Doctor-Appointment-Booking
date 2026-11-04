@@ -11,11 +11,12 @@ from app.consult import consult
 from app.config import allowed_origins, is_database_configured
 from app.schemas import (
     APIErrorResponse, AssistantInput, BookingInput, BookingResponse, ConsultationInput, DoctorAppointmentListResponse,
-    DoctorDetailResponse, DoctorListResponse, DoctorProfileResponse, DoctorSlotCreateResponse, DoctorSlotInput,
-    DoctorSlotListResponse, SlotListResponse, StaffSlotInput, StatusInput,
+    DoctorAppointmentStatusInput, DoctorAppointmentStatusResponse, DoctorDetailResponse, DoctorListResponse,
+    DoctorProfileResponse, DoctorSlotCreateResponse, DoctorSlotInput, DoctorSlotListResponse, SlotListResponse,
+    StaffSlotInput, StatusInput,
 )
 from app.service import (
-    create_doctor_slot, get_doctor_profile, list_doctor_appointments, list_doctor_slots,
+    create_doctor_slot, get_doctor_profile, list_doctor_appointments, list_doctor_slots, update_doctor_appointment_status,
     create_booking, get_doctor, get_slots, list_staff_appointments,
     search_doctors, update_status, list_staff_doctors, list_staff_slots, create_staff_slot,
 )
@@ -67,6 +68,23 @@ def doctor_me(token: str = Depends(_doctor_token)) -> dict:
 def doctor_appointments(response: Response, token: str = Depends(_doctor_token)) -> dict:
     response.headers["Cache-Control"] = "no-store"
     return list_doctor_appointments(token)
+
+
+@app.patch(
+    "/api/doctor/appointments/{appointment_id}",
+    response_model=DoctorAppointmentStatusResponse,
+    responses={
+        **DOCTOR_ERRORS,
+        404: {"model": APIErrorResponse, "description": "Appointment not found"},
+        409: {"model": APIErrorResponse, "description": "Invalid transition or appointment status changed"},
+    },
+)
+def change_doctor_appointment(
+    appointment_id: UUID,
+    payload: DoctorAppointmentStatusInput,
+    token: str = Depends(_doctor_token),
+) -> dict:
+    return update_doctor_appointment_status(appointment_id, payload, token)
 
 
 @app.get("/api/doctor/slots", response_model=DoctorSlotListResponse, responses=DOCTOR_ERRORS)

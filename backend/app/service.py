@@ -15,8 +15,8 @@ from typing import Any
 from app.config import is_database_configured
 from app.demo import DEMO_DOCTORS, demo_slots
 from app.schemas import (
-    ALLOWED_TRANSITIONS, BookingInput, BookingResponse, DoctorAppointment, DoctorProfile, DoctorSlot, DoctorSlotInput,
-    StaffSlotInput,
+    ALLOWED_TRANSITIONS, BookingInput, BookingResponse, DoctorAppointment, DoctorAppointmentStatusInput,
+    DoctorAppointmentStatusResult, DoctorProfile, DoctorSlot, DoctorSlotInput, StaffSlotInput,
 )
 
 
@@ -333,6 +333,61 @@ def list_doctor_appointments(token: str) -> dict:
     except Exception as exc:
         raise HTTPException(503, "Doctor appointments unavailable") from exc
     return {"appointments": appointments}
+
+
+def update_doctor_appointment_status(
+    appointment_id: UUID, payload: DoctorAppointmentStatusInput, token: str,
+) -> dict:
+    client, user_id, doctor = _authorized_doctor(token)
+    try:
+        rows = (
+            client.table("appointments")
+            .select("status,appointment_slots!inner(doctor_id,doctors!inner(auth_user_id))")
+            .eq("id", str(appointment_id))
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not rows:
+            raise HTTPException(404, "Appointment not found")
+        (row,) = rows
+        slot = _one(row["appointment_slots"])
+        owner = _one(slot["doctors"])
+        if str(slot["doctor_id"]) != str(doctor.id) or owner["auth_user_id"] != user_id:
+            raise HTTPException(403, "Doctor access denied")
+        current = row["status"]
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Doctor appointment status unavailable") from exc
+
+    if current not in ("confirmed", "checked_in") or payload.status not in ALLOWED_TRANSITIONS[current]:
+        raise HTTPException(409, "Invalid appointment status transition")
+
+    try:
+        # The RPC must recheck ownership and compare the expected status in the write transaction.
+        (result,) = client.rpc(
+            "update_doctor_appointment_status",
+            {
+                "p_appointment_id": str(appointment_id),
+                "p_user_id": user_id,
+                "p_expected_status": current,
+                "p_status": payload.status,
+            },
+        ).execute().data
+        appointment = DoctorAppointmentStatusResult.model_validate(result)
+        if appointment.id != appointment_id or appointment.status != payload.status:
+            raise ValueError("Status RPC returned a different appointment or status")
+    except Exception as exc:
+        code = getattr(exc, "code", None)
+        if code == "PT403":
+            raise HTTPException(403, "Doctor access denied") from exc
+        if code == "PT404":
+            raise HTTPException(404, "Appointment not found") from exc
+        if code == "PT409":
+            raise HTTPException(409, "Appointment status changed or transition is invalid") from exc
+        raise HTTPException(503, "Doctor appointment status unavailable") from exc
+    return {"appointment": appointment.model_dump(mode="json")}
 
 
 def _doctor_slot_from_record(row: dict, *, available: bool) -> DoctorSlot:
