@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { apiMessage, ContractApiError } from "../../../../lib/contract-api";
 import { BookingCalendar } from "./booking-calendar";
 import { BookingDialog, BookingIcon } from "./booking-dialog";
@@ -13,8 +13,12 @@ import styles from "./booking.module.css";
 type Confirmation = { reference: string; slot: BookingSlot; patientName: string };
 export type BookingClientProps = { doctorId: string; intercepted?: boolean };
 export default function BookingClient(props: BookingClientProps) {
+  const pathname = usePathname();
   const integration = useBookingIntegration();
   const session = integration.sessionState.status === "ready" ? integration.sessionState.session : null;
+  // Parallel slots can retain their active subpage after returning to a hash-based
+  // Dashboard section. Unmount the dialog/requests when its URL is no longer active.
+  if (props.intercepted && pathname !== `/doctors/${encodeURIComponent(props.doctorId)}/book`) return null;
   return <BookingWorkspace key={props.doctorId + ":" + (session?.accessToken ?? integration.sessionState.status)} {...props} integration={integration} />;
 }
 function BookingWorkspace({ doctorId, intercepted = false, integration }: BookingClientProps & { integration: BookingIntegration }) {
@@ -77,6 +81,10 @@ function BookingWorkspace({ doctorId, intercepted = false, integration }: Bookin
     } finally { submitLock.current = false; if (!controller.signal.aborted) setSubmitting(false); }
   }
   const selectedSlot = slots.find(slot => slot.id === slotId && slot.available);
+  const bookingHint = demo
+    ? "Online booking is unavailable in demo mode. These times are for preview only, and your details will not be submitted."
+    : !session?.accessToken ? "Sign in with a Patient account to book."
+      : !selectedSlot ? "Select an available time to continue." : "";
   const daySlots = slots.filter(slot => dateKey(slot.startAt) === date);
 
   const fields = [
@@ -107,6 +115,11 @@ function BookingWorkspace({ doctorId, intercepted = false, integration }: Bookin
       ) : (
         <>
           <header className={styles.heading}>
+            {!intercepted && (
+              <button type="button" className={styles.backLink} onClick={close} aria-label="Return to patient dashboard">
+                <BookingIcon name="left" /> <span>Back to dashboard</span>
+              </button>
+            )}
             <p className={styles.eyebrow}>CHOOSE YOUR VISIT</p>
             <h1 id="booking-title" tabIndex={-1}>Book an appointment</h1>
             <p className={styles.description}>Choose a date and time that works for you. Let Carely connect you with your doctor.</p>
@@ -172,8 +185,9 @@ function BookingWorkspace({ doctorId, intercepted = false, integration }: Bookin
                     {selectedSlot && <p><BookingIcon name="clock" /><span>{formatTime(selectedSlot.startAt)} – {formatTime(selectedSlot.endAt)} (UTC+7)</span></p>}
                     <p><BookingIcon name="pin" /><span>{doctor.address}</span></p>
                   </div>
-                  <button className={styles.primary} type="submit" disabled={!selectedSlot || submitting || demo || !session?.accessToken || accessBlocked || uncertain || Boolean(availability.error)}>
-                    {submitting ? <><span className={styles.spinner} /> Confirming…</> : <>Confirm appointment <BookingIcon name="arrow" /></>}
+                  {bookingHint && <p id="booking-availability" className={styles.notice} role="status">{bookingHint}</p>}
+                  <button className={styles.primary} type="submit" disabled={!selectedSlot || submitting || demo || !session?.accessToken || accessBlocked || uncertain || Boolean(availability.error)} aria-describedby={bookingHint ? "booking-availability" : undefined}>
+                    {submitting ? <><span className={styles.spinner} /> Confirming…</> : demo ? "Booking unavailable in demo" : <>Confirm appointment <BookingIcon name="arrow" /></>}
                   </button>
                   <div>{uncertain && <div className={styles.notice} role="alert"><p>The booking may already exist. Check with the care team before trying again. No automatic booking retry will be sent.</p><button type="button" className={styles.textButton} disabled={submitting || availability.refreshing || Boolean(availability.error)} onClick={async () => { if (await availability.refresh()) { setUncertain(false); setError(""); } }}>I checked with the care team; allow another attempt</button></div>}</div>
                   <p className={styles.footerNote}>{submitting ? "We are checking and saving your appointment. Please wait for confirmation." : "No payment is collected at this step. Availability is checked again when you confirm."}</p>

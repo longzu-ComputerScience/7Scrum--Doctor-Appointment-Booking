@@ -12,6 +12,7 @@ const schedule = require("../src/app/doctor/schedule-api.ts");
 const booking = require("../src/app/doctors/[id]/book/booking-utils.ts");
 const { ContractApiError, requestJson, apiMessage } = require("../src/lib/contract-api.ts");
 const { vietnamDate, formatScheduleDay, formatScheduleTime } = require("../src/lib/schedule-time.ts");
+const { doctorForDisplay } = require("../src/lib/doctor-display.ts");
 const doctorId = "11111111-1111-4111-8111-111111111111";
 const slotId = "22222222-2222-4222-8222-222222222222";
 const appointmentId = "33333333-3333-4333-8333-333333333333";
@@ -24,6 +25,38 @@ async function withFetch(callback, run) {
   try { globalThis.fetch = callback; await run(); } finally { globalThis.fetch = original; }
 }
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+
+test("frontend_dev display normalization preserves legacy catalog identity and clinic fields", () => {
+  const source = { id: doctorId, name: "BS. Unit Test", specialty: "Da liễu", bio: "", district: "Thủ Đức",
+    clinicId: appointmentId, clinicName: "Phòng khám Mẫu A", clinicAddress: "Test address" };
+  const displayed = doctorForDisplay(source);
+  assert.equal(displayed.id, doctorId); assert.equal(displayed.clinicId, appointmentId);
+  assert.equal(displayed.name, "Dr. Unit Test"); assert.equal(displayed.specialty, "Dermatology");
+  assert.equal(displayed.clinicName, "Demo Clinic A"); assert.equal(displayed.clinicAddress, "Test address");
+  assert.equal(source.name, "BS. Unit Test");
+});
+
+test("V2 display normalization preserves address and metadata without inventing legacy clinic keys", () => {
+  const source = { id: doctorId, name: "BS. Unit Test", specialty: "Tim mạch", bio: "", district: "Bình Thạnh",
+    address: "Thủ Đức, TP.HCM (địa chỉ minh họa)", certificates: [], rating: null };
+  const displayed = doctorForDisplay(source);
+  assert.equal(displayed.id, doctorId); assert.equal(displayed.name, "Dr. Unit Test");
+  assert.equal(displayed.specialty, "Cardiology"); assert.equal(displayed.district, "Binh Thanh");
+  assert.equal(displayed.address, "Thu Duc, Ho Chi Minh City (demo address)");
+  assert.equal(displayed.certificates, source.certificates); assert.equal(displayed.rating, null);
+  assert.equal("clinicName" in displayed, false); assert.equal("clinicAddress" in displayed, false);
+});
+
+test("reconciled booking read normalizes valid V2 display copy while retaining strict slot and schema checks", async () => {
+  await withFetch(async url => url.includes("/slots?") ? json({ slots: [slot], demoMode: false }) : json({ doctor: {
+    id: doctorId, name: "BS. Unit Test", specialty: "Da liễu", bio: "", address: "Test address", district: "Thủ Đức",
+  }, demoMode: false }), async () => {
+    const data = await booking.loadBookingData(doctorId, undefined, range);
+    assert.equal(data.doctor.name, "Dr. Unit Test"); assert.equal(data.doctor.specialty, "Dermatology");
+    assert.equal(data.doctor.address, "Test address"); assert.equal(data.slots[0].id, slotId);
+    assert.equal(data.demo, false); assert.equal("clinicName" in data.doctor, false);
+  });
+});
 
 test("shared Vietnam dates and times remain stable across workstation timezones", () => {
   const previous = process.env.TZ;

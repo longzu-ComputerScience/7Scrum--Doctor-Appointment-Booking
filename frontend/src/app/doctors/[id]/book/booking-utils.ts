@@ -1,5 +1,6 @@
 import { ContractApiError, isInstant, isRecord, isUuid, requestJson } from "../../../../lib/contract-api";
 import { vietnamDate } from "../../../../lib/schedule-time";
+import { doctorForDisplay } from "../../../../lib/doctor-display";
 
 export type BookingDoctor = { id: string; name: string; specialty: string; bio: string; address: string; district: string };
 export type BookingSlot = { id: string; doctorId: string; startAt: string; endAt: string; available: boolean };
@@ -65,7 +66,7 @@ export async function loadBookingData(doctorId: string, signal?: AbortSignal, ra
     requestJson(base, { signal }), requestJson(`${base}/slots?${new URLSearchParams(range)}`, { signal }),
   ]);
   if (!isRecord(doc) || !isRecord(availability) || typeof doc.demoMode !== "boolean" || typeof availability.demoMode !== "boolean") throw new ContractApiError("invalid");
-  return { doctor: parseBookingDoctor(doc.doctor, doctorId), slots: parseBookingSlots(availability.slots, doctorId, range), demo: doc.demoMode || availability.demoMode };
+  return { doctor: doctorForDisplay(parseBookingDoctor(doc.doctor, doctorId)), slots: parseBookingSlots(availability.slots, doctorId, range), demo: doc.demoMode || availability.demoMode };
 }
 export async function loadPatientProfile(token: string, signal?: AbortSignal): Promise<PatientProfile> {
   if (!token.trim()) throw new ContractApiError(401);

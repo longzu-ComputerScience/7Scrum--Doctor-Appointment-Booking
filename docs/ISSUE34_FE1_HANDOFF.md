@@ -1,6 +1,6 @@
 # Issue #34 — FE1 handoff: weekly schedule and V2 booking
 
-**Status: component handoff / Draft PR. Full application integration and live acceptance are pending.**
+**Status: user-approved normal integration of origin/frontend_dev (5296896) into feat/staff-schedule-ui. Patient shell/catalog/modal routing are reconciled; Doctor mounts, Patient auth and live acceptance remain pending.**
 
 Refs #34. Ownership: [FE2 #34](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/34) supplies the editor and booking components; [FE1 #33](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/33) owns auth wrappers, homepage, Sidebar and Doctor Dashboard; [BE2 #32](https://github.com/longzu-ComputerScience/7Scrum--Doctor-Appointment-Booking/issues/32) implements the HTTP/event contract with BE1 #31.
 
@@ -12,12 +12,12 @@ Target: [API_CONTRACT_V2.md on main](https://github.com/longzu-ComputerScience/7
 | --- | --- | --- |
 | Weekly Schedule Editor | Reusable controlled fields, exported props/types/validation | FE1 mounts it in Doctor invitation Registration |
 | Doctor schedule update | API-backed DoctorScheduleEditor with future effectiveDate and conflicts | FE1 mounts it inside the Doctor-only Dashboard; BE provides compatible endpoints |
-| V2 Patient booking | Existing direct booking route imports the updated BookingClient and calendar | FE1 connects the real homepage/catalog and auth context |
-| Intercepted popup | Existing @booking route imports the same BookingClient with intercepted=true | FE1 restores the root layout's booking slot and retains the Patient shell |
+| V2 Patient booking | frontend_dev homepage/catalog and V2 BookingClient are connected in this integrated implementation | FE1 supplies actual Patient auth/profile; BE/QA verify live behavior |
+| Intercepted popup | Root layout renders the existing @booking slot; both routes use V2 BookingClient | FE1 supplies a shared session bridge and QA verifies authenticated E2E |
 | Confirmation | Existing dialog/ticket design; opens only after validated 201 confirmed/reference | Real authenticated API/DB verification |
 | Realtime | Subscription interface and five-second visible-tab GET fallback | BE defines transport/events; FE1 wires the subscriber |
 
-The current `frontend/src/app/page.tsx` still contains its old hardcoded BookingView and local `setSubmitted(true)` confirmation. It does not enter the updated V2 route. The current root `layout.tsx` renders children only, omitting the @booking slot. Those FE1-owned files have deliberately not been changed. Component/unit checks do not establish a complete Dashboard-to-booking workflow.
+The integrated implementation now retains origin/frontend_dev's PatientShell, API-backed DoctorBrowser, homepage and root layout booking slot. Its old hardcoded homepage BookingView/local confirmation has been replaced by the incoming API-backed flow. Booking navigation/demo hints and display normalization are combined with V2 validation/authentication. The reviewed resolution is finalized through a normal Git merge. This does not establish live booking or database persistence.
 
 ## WeeklyScheduleEditor: Doctor Registration
 
@@ -118,12 +118,12 @@ Validation, loading/empty/error states, 401/403/409/422/503, non-JSON/network er
 
 ## Required FE1 homepage, Sidebar, authentication and modal work
 
-The read-only comparison with `frontend_dev` at `5296896` found its newer PatientShell, UUID/API-backed DoctorBrowser, DoctorAvailability and root layout booking-slot wiring. Keep those owner components. This older worktree is not a replacement for that UI.
+The read-only comparison with `frontend_dev` at `5296896` found its newer PatientShell, UUID/API-backed DoctorBrowser, DoctorAvailability and root layout booking-slot wiring. Keep those owner components. The incoming UI is now retained in this integrated implementation. The original frontend_dev worktree remains untouched.
 
-1. Preserve FE1's existing homepage/Sidebar/PatientShell behavior, search/filter state and navigation. Route DoctorBrowser's UUID selection to `/doctors/{id}/book` with Next Link (`scroll={false}` for the popup). Replace/bypass this worktree's old prototype BookingView; it must not present local confirmation as a real booking.
-2. FE1's root layout must accept `booking: React.ReactNode` and render it alongside children. Keep the existing @booking default/catch-all routes. An illustrative layout composition is `{children}{booking}` within the appropriate Patient session bridge; do not rewrite or copy the entire shell to achieve this.
+1. Review and retain the restored homepage/Sidebar/PatientShell behavior, search/filter state and navigation. DoctorBrowser already links UUID selections to `/doctors/{id}/book` using Next Link with `scroll={false}`; the older local-confirmation prototype is no longer used.
+2. Keep the restored root layout accepting `booking: React.ReactNode` and rendering it alongside children, with the existing @booking default/catch-all routes. Add the appropriate Patient session bridge around both surfaces rather than rewriting the shell.
 3. Provide Patient auth/profile/login navigation around **both** the normal booking route and @booking parallel slot. Maintain the Doctor-only Registration/Dashboard auth boundary separately.
-4. Reconcile only the overlapping booking files. Preserve frontend_dev's Back to dashboard navigation and explicit demo-disabled hint/label alongside the V2 logic. Do not overwrite newer owner files or copy unrelated UI into a preview.
+4. Review the combined overlapping booking files: frontend_dev's Back to dashboard navigation, explicit demo-disabled hint/label and display normalization are retained alongside V2 guards. Catalog display accepts both V1 preview and V2 address fields; booking itself still requires the strict V2 schema. DoctorAvailability uses the same bounded 30-minute slot parser.
 
 ### Patient session provider
 
@@ -170,18 +170,22 @@ Public AvailableSlot responses contain only unbooked slots. A previously observe
 
 This Draft PR contains production components, focused V2 tests and this documentation. Both `/issue34-review` and `/staff/preview` source routes are absent. Preview source, legacy Staff adapters/styles/tests and earlier review evidence were preserved under ignored `/output/`, outside the frontend build tree. They must not be staged. Shared timezone helpers have been retained in the neutral lib module. The only retained Staff change is the compatibility notice removing manual slot creation from that legacy screen.
 
-No FE1 homepage, root layout, Sidebar, auth route, Doctor Dashboard, backend, schema, separate frontend_dev worktree, commit or remote branch has been changed during this preparation. Existing integration gaps are recorded rather than hidden behind a synthetic final-product preview.
+This reconciliation updates the Carely-staff working tree only. Patient homepage/layout/Sidebar and Staff Dashboard files are taken from origin/frontend_dev; catalog display/availability receive narrow V2 compatibility changes. The homepage also uses Next router navigation for section hashes to preserve popup Close/reopen/Back history. Backend/schema files and the original frontend_dev worktree are unchanged. Only feat/staff-schedule-ui receives the approved normal merge; no PR is merged into frontend_dev or main, and no synthetic production route is introduced.
 
 Run from `frontend/`: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`. The typecheck command regenerates route types. Unit HTTP stubs are isolated test inputs and never evidence of live booking/DB persistence. Existing browser evidence checked isolated editor/mobile layout and the real booking route's blocked/error state; full authenticated V2 calendar/confirmation/realtime E2E remains pending.
 
 See [the prepared Draft PR description](ISSUE34_DRAFT_PR.md). Keep it Draft and use `Refs #34` until the missing application integration and live acceptance are completed.
 
-## Final preparation checks
+## Conflict resolution verification
 
-- PASS: 22 focused unit tests (20 V2 tests plus two shared timezone/date tests). The eight superseded manual Staff helper tests are preserved in local backups rather than shipped.
-- PASS: ESLint, TypeScript/route type generation, production build and whitespace checks. The production build used the permitted external execution context for Next.js generated output.
-- PASS: source routes/dev-tools removed from the frontend tree; production manifest has only the homepage, not-found, direct/intercepted booking and legacy Staff page.
-- PASS: FE1-owned homepage/layout/Staff wrapper hashes unchanged; no Sidebar or other-worktree edits.
-- BLOCKED: real backend, auth/DB persistence, event delivery, FE1 screen mounts and complete application E2E acceptance.
+- Remote refs were refreshed with git fetch origin. Compared HEAD d9dea26 with origin/frontend_dev 5296896 using merge base d91b51d. The initial clean index had no active merge; after user approval, the normal merge was started with --no-ff --no-commit for a fresh verification pass.
+- Read-only three-way inspection predicted conflicts in booking-client.tsx and booking-utils.ts (two regions each). Both are reconciled in the integrated implementation; CSS combines the incoming back-link styles with V2 overflow/status styles.
+- The 10 protected V2 editor/calendar/session/HTTP/time source files are byte-identical to the original source commit d9dea26. Fifteen incoming files, including PatientShell, layout, globals and Staff UI, match origin/frontend_dev exactly. The incoming homepage has only the additional Next router history fix; three catalog/display files contain reviewed V2 compatibility adaptations.
+- PASS: 40 unit tests (22 V2/time tests, 15 incoming Staff API tests, three reconciliation regressions), ESLint, TypeScript, production build and whitespace checks.
+- PASS: no preview/review source route or production manifest entry.
+- BLOCKED: Doctor Registration/Dashboard mounts, actual Patient auth/profile bridge, compatible backend/DB persistence, event delivery and authenticated E2E acceptance.
 
-Exactly 19 source/config/test/handover files are proposed for staging. Nothing has been staged or committed. The Draft PR description is prepared locally; no remote PR has been created.
+The user reviewed and approved the resolution before finalization. The approved files were preserved in a SHA256-verified backup and named safety stash, restored into the normal merge, and rechecked before its merge commit and normal push. See ignored output/finalize-integration for recovery evidence and output/conflict-review for the original inspection. The final commit is identified by Git history; frontend_dev and main are not PR-merged by this work.
+## Additional navigation verification
+
+Production browser QA exposed a parallel-slot cache case when closing back to `/#book`. BookingClient guards intercepted rendering with usePathname, so stale slot content unmounts the dialog and aborts its requests. The homepage changes section hashes through Next router.push with scroll disabled, keeping Next's history tree synchronized. A fresh visit to `/` verified Dashboard → Doctor Browser → popup → Close, then reopen → browser Back. Both exits removed the open dialog, returned to `/#book`, restored body scrolling and focused the original doctor link. All 40 tests, ESLint, typecheck and production build passed after this fix. Earlier verification also covered desktop Sidebar collapse/expand and the 390px mobile drawer; document scrollWidth 375 was within the 390px viewport. The actual public catalog was demo mode; its legacy detail response was rejected by the strict V2 booking parser. No booking was submitted or persistence invented. Evidence is in ignored output/finalize-integration, and the temporary port-3100 production QA server was stopped afterward.
