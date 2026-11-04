@@ -77,3 +77,7 @@ One issue per branch/PR. Before work, read `docs/USER_STORIES.md`, `docs/DEFINIT
 **US-01:** symptom chatbot with basic follow-up and specialty suggestion. **US-02:** doctor selection, persistent confirmed booking, double-booking prevention. **US-03:** staff creates slots and sees confirmed patient appointments. Full PO requirements and two-day plan: `docs/USER_STORIES.md`, `docs/SPRINT_PLAN.md`, `docs/ISSUE_MAPPING.md`, `docs/ACCEPTANCE_SCENARIO.md`.
 
 **Important:** Apply both SQL migrations in order. Migration 002 makes bookings immediately confirmed for the demo and protects overlapping slots. The optional controlled chatbot prototype is not a medical diagnosis system.
+
+## Issue execution order
+
+See **[Two-day execution order (Vietnamese)](docs/EXECUTION_ORDER.md)** for immediate tasks, prerequisites, and work that FE/BE/QA can do in parallel.
