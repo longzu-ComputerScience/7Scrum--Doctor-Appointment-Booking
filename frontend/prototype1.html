@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carely — Home & Book Appointment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f3f4f6;
+      --panel:#ffffff;
+      --soft:#f7f7f8;
+      --line:#ededf0;
+      --text:#151515;
+      --muted:#777b81;
+      --muted-2:#9ea3a9;
+      --teal:#23c0bf;
+      --teal-2:#dff8f7;
+      --shadow:0 18px 40px rgba(18,22,33,.06);
+      --radius-xl:26px;
+      --radius-lg:20px;
+      --radius-md:16px;
+      --radius-sm:12px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:'Manrope',system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+    button,input{font:inherit}
+    button{cursor:pointer;border:none;background:none}
+    .app{display:grid;grid-template-columns:84px 1fr;min-height:100vh;gap:20px;padding:14px}
+    .sidebar{background:#fafafa;border:1px solid var(--line);border-radius:24px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-shadow:var(--shadow)}
+    .logo{width:42px;height:42px;border-radius:14px;background:var(--teal-2);display:grid;place-items:center;position:relative;margin-bottom:18px}
+    .logo::before,.logo::after{content:"";position:absolute;width:14px;height:24px;background:#32b8b9;border-radius:14px 14px 4px 14px}
+    .logo::before{transform:rotate(35deg);left:11px}
+    .logo::after{transform:rotate(-35deg);right:11px}
+    .side-group{display:flex;flex-direction:column;gap:10px;align-items:center}
+    .nav-icon{width:42px;height:42px;border-radius:14px;background:transparent;color:#4a4e57;display:grid;place-items:center;position:relative}
+    .nav-icon.active{background:#ecfcfb;color:#20b8b7}
+    .nav-icon.active::before{content:"";position:absolute;left:-12px;top:7px;bottom:7px;width:3px;background:#20b8b7;border-radius:999px}
+    .nav-icon svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .content{padding:4px 0 10px 0}
+    .topbar{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;margin-bottom:14px}
+    .title{font-size:18px;font-weight:800;letter-spacing:-.02em}
+    .search-wrap{display:flex;align-items:center;gap:14px;justify-self:center;width:min(100%,820px)}
+    .search{flex:1;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:16px;height:50px;padding:0 16px;box-shadow:var(--shadow)}
+    .search svg{width:18px;height:18px;stroke:#9ba0a6;fill:none;stroke-width:1.8}
+    .search input{border:none;outline:none;flex:1;background:transparent;color:var(--text)}
+    .actions{display:flex;align-items:center;gap:10px}
+    .icon-btn{width:46px;height:46px;background:#fff;border:1px solid var(--line);border-radius:14px;display:grid;place-items:center;position:relative;box-shadow:var(--shadow)}
+    .icon-btn svg{width:18px;height:18px;stroke:#4f5561;fill:none;stroke-width:1.8}
+    .badge{position:absolute;right:12px;top:11px;width:7px;height:7px;background:#f04438;border-radius:50%}
+    .profile{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:8px 12px 8px 8px;min-width:182px;box-shadow:var(--shadow)}
+    .profile img{width:40px;height:40px;border-radius:12px;object-fit:cover;background:#f3ecdf}
+    .profile strong{display:block;font-size:13px;line-height:1.15}
+    .profile span{font-size:11px;color:var(--muted)}
+    .nav-arrows{display:flex;gap:10px;margin-left:8px}
+    .arrow{width:20px;height:20px;color:#8b9096}
+    .arrow svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+    .section{background:transparent;padding-right:6px}
+    .categories{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 16px}
+    .pill{padding:11px 18px;border-radius:999px;background:#fff;border:1px solid transparent;color:#555962;font-size:13px;box-shadow:var(--shadow)}
+    .pill.active{border-color:var(--teal);color:#1daead;background:#f9fffe}
+    .main-grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow)}
+    .list-panel{padding:16px 14px;max-height:calc(100vh - 180px);overflow:auto}
+    .panel-title{font-size:14px;font-weight:700;margin:4px 6px 14px}
+    .doctor-list{display:flex;flex-direction:column;gap:12px}
+    .doctor-card{border:1.5px solid #ececee;border-radius:18px;padding:12px;display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:start;transition:.18s ease;background:#fff}
+    .doctor-card.active{border-color:var(--teal);box-shadow:0 10px 24px rgba(32,184,183,.12)}
+    .doctor-card img{width:56px;height:56px;border-radius:14px;background:#eef3f9;padding:4px}
+    .doctor-card h4{margin:0 0 4px;font-size:15px}
+    .doctor-card .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .rating{display:inline-flex;align-items:center;gap:4px;font-size:12px;background:#fff9ed;padding:4px 7px;border-radius:999px;color:#9b6d0b;border:1px solid #fae7c2}
+    .rating svg{width:12px;height:12px;fill:#f2b233;stroke:none}
+    .small-label{font-size:11px;color:#8a8f98;margin:8px 0 4px}
+    .bullet-row{font-size:12px;color:#26282d;display:flex;align-items:flex-start;gap:6px;margin-bottom:4px}
+    .bullet-row::before{content:"•";color:#18191c;line-height:1.1}
+    .fee{align-self:end;font-size:13px;font-weight:700;white-space:nowrap}
+    .detail-panel{padding:18px 18px 14px;display:grid;grid-template-columns:1fr;gap:16px;min-height:calc(100vh - 180px)}
+    .detail-head{display:grid;grid-template-columns:80px 1fr auto;gap:16px;align-items:start}
+    .detail-head img{width:72px;height:72px;border-radius:18px;background:#eef3f9;padding:5px}
+    .detail-head h2{margin:0 0 4px;font-size:32px;line-height:1.02;letter-spacing:-.03em}
+    .detail-meta{font-size:15px;color:var(--muted);margin-bottom:8px}
+    .book-btn{background:var(--teal);color:#fff;height:48px;padding:0 24px;border-radius:999px;font-weight:700;align-self:start;box-shadow:0 14px 28px rgba(35,192,191,.26)}
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .info-block h5,.review-section h4{margin:0 0 8px;font-size:12px;color:#8b9096;font-weight:700;text-transform:none}
+    .info-main{font-size:14px;line-height:1.7}
+    .label-strong{font-weight:700;color:#181b21}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{padding:9px 12px;border-radius:999px;background:#f5f6f8;color:#40434a;font-size:12px;border:1px solid #efeff1}
+    .section-sep{height:1px;background:#efeff1}
+    .reviews-title{font-size:22px;font-weight:800;letter-spacing:-.02em;margin:0 0 10px}
+    .reviews-title small{font-size:14px;color:#8b9096;font-weight:600}
+    .review-list{display:flex;flex-direction:column;gap:12px}
+    .review{border:1px solid #ececee;border-radius:16px;padding:12px 14px;background:#fff}
+    .review-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+    .review-top img{width:34px;height:34px;border-radius:50%;background:#f2f2f3;object-fit:cover}
+    .review-name{font-size:13px;font-weight:800}
+    .review-date{font-size:11px;color:#8d9299}
+    .review-rating{display:inline-flex;align-items:center;gap:4px;margin-left:auto;font-size:12px;color:#9c6b0f}
+    .review-rating svg{width:12px;height:12px;fill:#f2b233;stroke:none}
+    .review p{margin:0;font-size:12px;line-height:1.55;color:#555962}
+    .empty{padding:18px;text-align:center;color:#8a8f98;font-size:13px}
+
+    @media (max-width: 1200px){
+      .main-grid{grid-template-columns:320px 1fr}
+      .detail-head h2{font-size:28px}
+    }
+    @media (max-width: 1024px){
+      .app{grid-template-columns:1fr;padding:12px}
+      .sidebar{display:none}
+      .topbar{grid-template-columns:1fr;gap:12px}
+      .search-wrap{justify-self:stretch;width:100%}
+      .actions{justify-content:space-between}
+      .main-grid{grid-template-columns:1fr}
+      .list-panel,.detail-panel{max-height:none;min-height:auto}
+    }
+    @media (max-width: 720px){
+      .detail-head{grid-template-columns:1fr;}
+      .detail-grid{grid-template-columns:1fr}
+      .book-btn{width:100%}
+      .doctor-card{grid-template-columns:56px 1fr}
+      .fee{grid-column:2;justify-self:end}
+      .categories{gap:8px}
+      .pill{padding:10px 14px;font-size:12px}
+      .title{font-size:22px}
+      .detail-head h2{font-size:24px}
+    }
+
+    /* Landing page: additive styles only; original Book Appointment styling is unchanged. */
+    [hidden]{display:none!important}
+    .home-page{padding:3px 6px 18px 0;max-width:1680px;margin:0 auto}
+    .home-page svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none}
+    .home-intro{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:23px 1px 24px}
+    .home-eyebrow,.home-overline{font-size:10px;letter-spacing:.14em;font-weight:800;color:#19aaa9;margin:0 0 10px}
+    .small-sun{color:#16bcb8;font-size:14px;margin-right:6px}
+    .home-intro h1{font-size:clamp(22px,2.3vw,32px);line-height:1.25;margin:0 0 7px;letter-spacing:-.045em;font-weight:800}
+    .home-intro h1>span:first-child{color:#20b8b7}.home-intro .wave{color:#f4b55e;font-size:23px}
+    .home-intro-sub{margin:0;color:#868b93;font-size:12px}
+    .today-pill{white-space:nowrap;display:flex;align-items:center;gap:9px;background:#fff;padding:12px 16px;border:1px solid #efeff0;border-radius:100px;font-weight:700;font-size:11px;color:#696e75}
+    .today-dot{width:7px;height:7px;border-radius:50%;background:#36b8a2;box-shadow:0 0 0 4px #e5f8f3}
+    .home-hero{min-height:400px;position:relative;overflow:hidden;background:linear-gradient(107deg,#ddf7f5 0%,#def8f5 44%,#cdf4f2 100%);border-radius:27px;display:flex;isolation:isolate}
+    .hero-copy{position:relative;z-index:4;padding:45px 0 28px 47px;width:55%;display:flex;flex-direction:column;align-items:flex-start}
+    .hero-kicker{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(9,161,163,.17);background:#f4fffead;color:#168f90;border-radius:100px;font-size:10px;letter-spacing:.13em;font-weight:800;padding:10px 14px;margin-bottom:18px}
+    .hero-kicker span{font-size:14px}
+    .hero-copy h2{font-size:clamp(34px,3.65vw,58px);line-height:1.13;letter-spacing:-.06em;margin:0;font-weight:800;max-width:640px}
+    .hero-copy h2 em{font-style:normal;color:#17aaa9}
+    .hero-copy>p{font-size:13px;max-width:395px;line-height:1.8;margin:15px 0 21px;color:#557170}
+    .hero-cta-row{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+    .home-primary-btn,.bottom-book-btn{background:#1ab6b6;color:#fff;border-radius:100px;padding:15px 22px;display:flex;align-items:center;justify-content:center;gap:20px;font-weight:800;font-size:12px;box-shadow:0 14px 28px rgba(19,159,159,.18);transition:transform .2s,background .2s}
+    .home-primary-btn:hover,.bottom-book-btn:hover,.book-btn:hover{transform:translateY(-2px);background:#079f9e}
+    .home-primary-btn svg,.bottom-book-btn svg{width:16px;height:16px}
+    .home-text-btn{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#3b5959;padding:10px 0}
+    .home-text-btn:hover{color:#139e9d}.home-text-btn svg{width:16px;height:16px}
+    .hero-assurance{display:flex;align-items:center;gap:8px;margin-top:24px;font-size:11px;color:#54817d;font-weight:700}
+    .assurance-check{width:16px;height:16px;border-radius:50%;background:#1baea8;color:white;display:grid;place-items:center}.assurance-check svg{width:11px;height:11px;stroke-width:2.8}
+    .assurance-divider{height:13px;width:1px;background:#a3cfca;margin:0 6px}
+    .hero-visual{position:absolute;z-index:2;right:-10px;bottom:0;width:49%;height:100%}
+    .hero-disc{position:absolute;width:450px;height:450px;border:1px solid rgba(0,176,177,.19);background:radial-gradient(circle at 54% 42%,#e1faf8 0%,#bceee9 62%,#b1ebe5 100%);border-radius:50%;bottom:-143px;right:5%}
+    .hero-halo{position:absolute;border:1px solid rgba(25,180,177,.13);border-radius:50%;z-index:0}.halo-one{height:650px;width:650px;right:-10%;bottom:-380px}.halo-two{height:530px;width:530px;right:3%;bottom:-300px}
+    .hero-doctor{position:absolute;z-index:2;right:7%;bottom:-14px;max-width:84%;width:445px;height:97%;object-fit:contain;object-position:bottom;filter:drop-shadow(0 15px 15px rgba(3,121,116,.07))}
+    .hero-circle{position:absolute;z-index:3;color:#20bcb9;display:grid;place-items:center}.circle-tl{font-size:39px;top:40px;left:3%;opacity:.36}.circle-tr{font-size:34px;right:12%;top:35px;color:#fff}
+    .hero-float{position:absolute;z-index:5;display:flex;gap:10px;align-items:center;background:#fff;box-shadow:0 15px 30px rgba(4,71,71,.12);border-radius:15px;padding:11px 14px}
+    .hero-float strong,.hero-float small{display:block}.hero-float strong{font-size:12px}.hero-float small{font-size:9px;color:#868e95;margin-top:3px}
+    .float-rating{top:60px;left:0}.float-star{width:32px;height:32px;border-radius:10px;background:#fff7e6;display:grid;place-items:center;color:#f5b52a;font-size:20px}
+    .float-visit{right:4%;bottom:25px}.visit-check{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#def8f1;color:#16b9a8}.visit-check svg{width:19px;height:19px;stroke-width:2.7}
+    .home-stats{margin:17px 0 33px;background:white;border:1px solid #ededf0;border-radius:22px;padding:21px 18px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));box-shadow:var(--shadow)}
+    .stat-item{display:flex;align-items:center;gap:14px;padding:0 18px;border-right:1px solid #eeeef0}.stat-item.last{border-right:0}.stat-glyph{display:grid;place-items:center;width:47px;height:47px;border-radius:15px;flex:none}.stat-glyph svg{width:21px;height:21px}
+    .stat-glyph.mint{color:#18aba7;background:#e2f8f4}.stat-glyph.violet{color:#9382db;background:#f0edff}.stat-glyph.peach{color:#e69b55;background:#fff1e4}.stat-glyph.blue{color:#7296d4;background:#eaf2ff}
+    .stat-item strong{display:block;font-weight:800;font-size:19px;letter-spacing:-.055em;line-height:1.2}.stat-item strong span{color:#1ab7b6}.stat-item small{display:block;color:#989ca4;font-size:10px;margin-top:5px;font-weight:600}
+    .home-section-heading{display:flex;justify-content:space-between;align-items:end;gap:24px;margin:0 2px 17px}.home-section-heading .home-overline{display:block;margin:0 0 8px}
+    .home-section-heading h2,.steps-panel h2{font-size:clamp(20px,2.2vw,27px);line-height:1.35;margin:0 0 7px;letter-spacing:-.045em;font-weight:800}.home-section-heading p{font-size:12px;color:#9297a0;margin:0}
+    .home-link-btn{display:inline-flex;align-items:center;gap:9px;color:#16aaa9;font-weight:800;font-size:12px;white-space:nowrap;padding:8px 0}.home-link-btn svg{height:15px;width:15px}.home-link-btn:hover{text-decoration:underline}
+    .specialty-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:13px}
+    .specialty-tile{position:relative;text-align:left;min-height:156px;background:#fff;border:1px solid #ededf0;border-radius:21px;padding:20px 18px 17px;display:flex;flex-direction:column;align-items:start;box-shadow:var(--shadow);transition:transform .2s,border-color .2s,box-shadow .2s}
+    .specialty-tile:hover,.featured-card:hover{transform:translateY(-3px);border-color:#a7e7e3;box-shadow:0 18px 36px rgba(14,91,90,.09)}
+    .specialty-graphic{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;margin-bottom:16px}.specialty-graphic svg{height:21px;width:21px}.sg-purple{background:#f1edff;color:#a38fe4}.sg-peach{background:#fff1e5;color:#eeab6d}.sg-blue{background:#e9f2ff;color:#7b9fda}.sg-mint{background:#e8f9f3;color:#3ec4aa}.sg-pink{background:#ffedf3;color:#e999b6}
+    .specialty-tile strong{font-size:12px;margin-bottom:5px;line-height:1.3}.specialty-tile>span:not(.specialty-graphic){color:#999ca4;font-size:10px}.tile-arrow{position:absolute;right:17px;bottom:17px;color:#99a4a7;font-weight:500;font-size:16px}.specialty-tile:hover .tile-arrow{color:#16b8b6}
+    .home-doc-heading{margin-top:38px}
+    .featured-doctors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .featured-card{background:white;min-width:0;border:1px solid #ededf0;border-radius:22px;padding:13px;box-shadow:var(--shadow);transition:transform .2s,border-color .2s,box-shadow .2s}
+    .featured-top{display:flex;gap:13px;align-items:start}.featured-img{width:92px;height:109px;object-fit:cover;object-position:top center;border-radius:15px;background:#eaf7f5;flex:none}.featured-info{min-width:0;padding-top:6px}.featured-info h3{font-size:13px;margin:0 0 4px;line-height:1.4}.featured-info p{font-size:10px;color:#969ca3;margin:0 0 9px}.featured-rating{display:inline-flex;gap:5px;align-items:center;font-size:11px;font-weight:800}.featured-rating .star{color:#f6ba49}.featured-exp{color:#9aa0a7;font-weight:600;font-size:10px}
+    .featured-bottom{border-top:1px solid #f1f1f2;margin-top:12px;padding:12px 3px 1px;display:flex;justify-content:space-between;align-items:center;gap:8px}.featured-bottom small{font-size:10px;color:#9a9da3}.featured-bottom strong{display:block;font-size:13px;margin-top:3px}.featured-bottom button{background:#e5f9f7;color:#0ca7a5;padding:10px 15px;border-radius:100px;font-weight:800;font-size:10px;white-space:nowrap}.featured-bottom button:hover{background:#1ab6b6;color:#fff}
+    .how-cta-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:37px}.steps-panel,.bottom-cta{border-radius:24px;overflow:hidden;min-height:270px;padding:27px 30px}.steps-panel{background:white;border:1px solid #ededf0;box-shadow:var(--shadow)}
+    .steps-list{display:grid;gap:15px;margin-top:20px}.step-row{display:flex;gap:13px;align-items:center}.step-num{width:37px;height:37px;display:grid;place-items:center;border-radius:12px;color:#1db9b6;background:#e6faf8;font-size:11px;font-weight:800;flex:none}.step-row strong{font-size:12px}.step-row p{margin:3px 0 0;color:#969ba3;font-size:10px}
+    .bottom-cta{position:relative;background:linear-gradient(145deg,#0caea9 0%,#159a9b 100%);color:#fff;isolation:isolate}.bottom-cta-icon{width:42px;height:42px;border-radius:14px;background:#ffffff30;display:grid;place-items:center;margin-bottom:11px}.bottom-cta .home-overline{color:#d1fffa}.bottom-cta h2{font-size:31px;line-height:1.16;letter-spacing:-.05em;margin:10px 0}.bottom-cta p{color:#e4fffc;font-size:11px}.bottom-book-btn{position:relative;z-index:2;background:#fff;color:#119e9b;margin-top:20px;box-shadow:none;padding:12px 18px}.bottom-book-btn:hover{background:#e5fcfa;color:#0c9895}.bottom-decor{font-size:220px;position:absolute;color:#ffffff15;right:-32px;bottom:-85px;z-index:0;line-height:1}
+    .home-footer{display:flex;justify-content:space-between;gap:15px;padding:26px 3px 0;color:#a1a4ad;font-size:10px}.home-footer b{color:#25b4b3;font-size:14px;margin-right:8px}
+    .home-toast{position:fixed;right:25px;bottom:25px;background:#1d2f32;color:white;padding:14px 19px;border-radius:15px;box-shadow:0 17px 40px #0002;z-index:20;font-size:12px;font-weight:700;max-width:min(350px,90vw)}
+    @media(max-width:1280px){.hero-copy{padding-left:34px}.hero-visual{right:-20px;width:50%}.hero-copy h2{font-size:43px}.float-rating{left:-10px}.stat-item{padding:0 10px;gap:10px}.specialty-tile{padding:18px 12px}.featured-img{width:76px;height:104px}}
+    @media(max-width:1080px){.home-hero{min-height:375px}.hero-copy{width:57%}.hero-visual{width:44%;right:0}.hero-copy h2{font-size:40px}.hero-doctor{width:360px;max-width:100%}.hero-float{padding:8px 10px}.specialty-cards{grid-template-columns:repeat(3,minmax(0,1fr))}.home-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.stat-item:nth-child(2){border-right:0}.featured-doctors{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:760px){.home-intro{padding:18px 2px}.today-pill{display:none}.home-hero{min-height:590px;display:block}.hero-copy{padding:28px 25px 0;width:100%}.hero-copy h2{font-size:37px}.hero-copy>p{max-width:360px;font-size:12px;margin:11px 0 17px}.hero-kicker{margin-bottom:12px}.hero-assurance{margin-top:14px}.hero-visual{height:290px;width:100%;right:0;bottom:0;top:auto}.hero-disc{height:290px;width:290px;bottom:-95px;right:9%}.hero-doctor{height:325px;bottom:-20px;right:12%;width:290px;max-width:none}.float-rating{top:85px;left:8%}.float-visit{bottom:13px;right:6%}.home-section-heading{align-items:start}.home-section-heading h2{font-size:22px}.specialty-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.featured-doctors{grid-template-columns:1fr}.how-cta-grid{grid-template-columns:1fr}.home-stats{padding:17px 10px}.stat-item{padding:0 7px;gap:8px}.stat-glyph{width:38px;height:38px}.stat-item strong{font-size:15px}.stat-item small{font-size:9px}.home-link-btn{font-size:10px}.home-footer{font-size:9px}}
+    @media(max-width:420px){.home-hero{min-height:625px}.hero-copy h2{font-size:35px}.home-primary-btn{padding:13px 16px}.home-text-btn{font-size:11px}.hero-cta-row{gap:12px}.hero-doctor{right:4%}.specialty-tile{min-height:146px}.home-section-heading h2{font-size:19px}.home-stats{gap:13px}.stat-glyph{display:none}.hero-float{transform:scale(.85)}.float-rating{transform-origin:left top}.float-visit{transform-origin:right bottom}}
+
+/* Booking popup + confirmation: additions only, original layout/sidebar preserved. */
+.carely-overlay[hidden]{display:none!important}
+.carely-overlay{position:fixed;inset:0;z-index:1000;background:rgba(30,31,35,.42);display:flex;align-items:center;justify-content:center;padding:22px;backdrop-filter:blur(2px)}
+.carely-popup{position:relative;background:#fff;border-radius:14px;box-shadow:0 28px 90px rgba(21,31,42,.28);border:1px solid rgba(255,255,255,.8);color:#161719;max-height:min(92vh,760px);overflow:auto}
+.carely-dismiss{position:absolute;right:16px;top:14px;width:28px;height:28px;display:grid;place-items:center;color:#393a3d;font-size:24px;font-weight:400;line-height:1;z-index:1;border-radius:8px}
+.carely-dismiss:hover{background:#f0f1f4}
+.carely-book-popup{width:min(690px,100%);padding:24px 23px 19px}
+.carely-book-popup h2{font-size:23px;font-weight:700;letter-spacing:-.045em;margin:0 32px 19px 0;line-height:1.25}
+.carely-book-columns{display:grid;grid-template-columns:minmax(0,1.48fr) minmax(0,1fr);gap:18px}
+.carely-book-left{min-width:0}
+.carely-mode-toggle{display:flex;align-items:center;gap:4px;background:#f7f8f9;border:1px solid #e8ebee;border-radius:999px;padding:4px;margin-bottom:17px}
+.carely-mode-toggle button{flex:1;text-align:center;border-radius:999px;padding:9px 5px;font-size:13px;color:#73777f;background:transparent;transition:background .15s,color .15s}
+.carely-mode-toggle button.active{background:#0eb6b9;color:#fff;font-weight:700;box-shadow:0 4px 12px rgba(4,162,167,.18)}
+.carely-mode-toggle button:disabled{opacity:.4;cursor:not-allowed}
+.carely-consult{padding:0 5px 19px;border-bottom:1px solid #ebecef;min-height:96px}
+.carely-consult h3{font-size:16px;letter-spacing:-.035em;font-weight:700;margin:0 0 6px}
+.carely-consult p{font-size:11px;line-height:1.65;color:#83878e;margin:0;max-width:315px}
+.carely-calendar{padding:18px 2px 0}
+.carely-cal-caption,.carely-time-label{color:#8d9299;font-size:11px;margin-bottom:7px}
+.carely-cal-title{display:flex;align-items:center;justify-content:space-between;margin:8px 0 13px}
+.carely-cal-title strong{font-size:15px;font-weight:800;letter-spacing:-.02em}
+.carely-cal-arrow{height:27px;width:27px;border:1px solid #eaedf0;border-radius:50%;background:#fff;color:#777e86;display:grid;place-items:center;font-size:18px;line-height:1}
+.carely-cal-arrow:disabled{color:#d0d2d6;background:#f8f9fa}
+.carely-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px 3px;text-align:center}
+.carely-weekday{font-size:10px;color:#3a8790;padding:3px 0 8px}
+.carely-day{border-radius:50%;width:32px;height:32px;margin:0 auto;color:#22b878;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:650;position:relative}
+.carely-day.limited{color:#e8a11b}.carely-day.unavailable{color:#c2c7cd;cursor:not-allowed}.carely-day.selected{background:#0db6b9;color:white;font-weight:800}
+.carely-day:not(:disabled):not(.selected):hover{background:#e9f9f9}
+.carely-day:focus-visible,.carely-slot:focus-visible,.carely-primary:focus-visible{outline:2px solid #056e74;outline-offset:3px}
+.carely-cal-legend{display:flex;gap:13px;justify-content:space-between;flex-wrap:wrap;color:#858a92;font-size:9px;padding:14px 0 0}
+.carely-cal-legend span{display:inline-flex;align-items:center;gap:5px}
+.carely-legend-dot{width:6px;height:6px;border-radius:50%;display:inline-block;background:#25c484}
+.carely-legend-dot.limited{background:#eba01b}.carely-legend-dot.unavailable{background:#b8bec4}.carely-legend-dot.selected{background:#0bb4b7}
+.carely-book-right{border-left:1px solid #eff0f2;padding-left:18px;display:flex;flex-direction:column;min-width:0}
+.carely-time-list{display:flex;flex-direction:column;gap:8px}
+.carely-slot{min-height:39px;border-radius:8px;border:1px solid #eaedf0;background:#fff;text-align:left;display:flex;align-items:center;gap:10px;padding:6px 10px;font-size:12px;color:#292d33;white-space:nowrap}
+.carely-slot.active{border-color:#0cb9bb;background:#f8ffff;box-shadow:0 0 0 1px rgba(20,184,185,.14)}
+.carely-slot:disabled{opacity:.38;cursor:not-allowed;background:#f6f7f8}
+.carely-radio{display:inline-grid;place-items:center;height:13px;width:13px;border-radius:50%;border:1px solid #33383e;flex:none}
+.carely-slot.active .carely-radio{border-color:#0ab6b9}
+.carely-slot.active .carely-radio:after{content:"";height:6px;width:6px;border-radius:50%;background:#0ab6b9}
+.carely-cost{margin-top:auto;padding-top:112px}
+.carely-cost-info{background:#f7f8fa;border-radius:10px;padding:12px 12px 10px}
+.carely-fee-row{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#60666d;padding:7px 0}
+.carely-fee-row strong{font-size:12px;color:#252a30;font-weight:600}
+.carely-fee-row.total{border-top:1px solid #eaedf0;margin-top:5px;padding-top:12px;font-weight:800;color:#151719;font-size:13px}
+.carely-fee-row.total strong{font-size:15px;font-weight:800}
+.carely-primary{background:#0db7b9;border-radius:999px;height:40px;width:100%;font-size:12px;font-weight:700;color:#fff;transition:background .15s;box-shadow:0 7px 16px rgba(9,175,179,.14);margin-top:12px}
+.carely-primary:hover{background:#029fa3}
+.carely-primary:disabled{opacity:.45;cursor:not-allowed}
+.carely-demo-note{font-size:9px;color:#9da2a9;text-align:center;margin:9px 0 0}
+.carely-confirm-popup{width:min(440px,100%);padding:18px 18px 17px}
+.carely-confirm-title{text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;font-size:19px;letter-spacing:-.035em;margin:1px 0 16px;font-weight:800}
+.carely-confirm-check{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#0ab4b8;color:white;font-size:16px}
+.carely-confirm-card{background:#f5f6f8;border-radius:9px;padding:22px 20px 21px;min-height:224px}
+.carely-confirm-head{display:flex;justify-content:space-between;gap:16px;padding-bottom:23px;border-bottom:1px solid #ebecef}
+.carely-confirm-qr{display:block;flex:none;width:68px;height:68px;image-rendering:pixelated;background:#fff;border:4px solid #fff}
+.carely-confirm-label{color:#81858e;font-size:11px;margin:0 0 9px}
+.carely-confirm-value{color:#181a1e;font-size:12px;line-height:1.45;font-weight:800;margin:0}
+.carely-confirm-sub{font-size:10px;color:#848994;margin:3px 0 0}
+.carely-confirm-details{display:grid;grid-template-columns:1fr 1fr;gap:23px 14px;margin-top:20px}
+.carely-confirm-popup .carely-primary{height:39px;margin:17px 0 10px}
+.carely-outline{width:100%;height:39px;border:1px solid #727b84;border-radius:999px;background:#fff;color:#40454b;font-size:11px;font-weight:700}
+.carely-outline:hover{background:#f7f8f9}
+.carely-schedule-popup{width:min(520px,100%);padding:24px}
+.carely-schedule-popup h2{margin:0 0 15px;font-size:21px}
+.carely-schedule-item{background:#f7f8fa;border:1px solid #e8eced;border-radius:13px;padding:15px;margin:9px 0;font-size:12px;line-height:1.7}
+.carely-schedule-item strong{font-size:14px}
+@media(max-width:700px){.carely-overlay{padding:12px}.carely-popup{max-height:calc(100dvh - 24px)}.carely-book-popup{padding:19px 16px}.carely-book-columns{grid-template-columns:1fr;gap:18px}.carely-book-right{padding-left:0;border-left:0;border-top:1px solid #eff0f2;padding-top:16px}.carely-cost{padding-top:15px}.carely-time-list{display:grid;grid-template-columns:1fr}.carely-slot{white-space:normal}.carely-consult{min-height:unset}.carely-confirm-card{padding:18px 14px}}
+.home-hero + .home-section-heading{margin-top:32px}
+
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m4 10 8-6 8 6v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z"/><path d="M9 20v-6h6v6"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+    <symbol id="i-stethoscope" viewBox="0 0 24 24"><path d="M6 3v6a5 5 0 0 0 10 0V3M4 3h4M14 3h4M11 14v2a4 4 0 0 0 8 0v-2"/><circle cx="19" cy="12" r="2"/></symbol>
+    <symbol id="i-hospital" viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6M9 10h.01M15 10h.01M9 14h.01M15 14h.01M12 7v6M9 10h6"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h5"/><rect x="5" y="3" width="14" height="18" rx="2"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5 8.7 8.7 0 0 1-4-.9L3 21l1.4-4.5A8.5 8.5 0 1 1 21 12Z"/><path d="M8 11h8M8 14h5"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M10 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.7l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.7-.3 1.6 1.6 0 0 0-1 1.5V22a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.7.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.7 1.6 1.6 0 0 0-1.5-1H2a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.7l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.7.3h.1A1.6 1.6 0 0 0 9 4.2V4a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.7-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.7v.1a1.6 1.6 0 0 0 1.5 1H20a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M5 19 19 5M9 5h10v10"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.5 4.9a5.5 5.5 0 0 0-7.8 0L12 5.6l-.7-.7a5.5 5.5 0 0 0-7.8 7.8L12 21l8.5-8.3a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14m-7-7 7 7-7 7"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 9 4v6c0 6-4 9-9 10-5-1-9-4-9-10V6Z"/><path d="m8 12 2.5 2.5L16 9"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10 6-4v12l-6-4"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 7 .9-5.1 4.9 1.2 7-6.2-3.3-6.2 3.3 1.2-7L1.9 9.2l7-.9Z"/></symbol>
+  </svg>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="side-group">
+        <div class="logo" aria-label="Carely"></div>
+        <button class="nav-icon" data-page="home" title="Home" aria-label="Home"><svg><use href="#i-home"/></svg></button>
+        <button class="nav-icon" data-page="book" title="Book an appointment" aria-label="Book an appointment"><svg><use href="#i-calendar"/></svg></button>
+        <button class="nav-icon active" data-page="book" title="Find a doctor" aria-label="Find a doctor"><svg><use href="#i-stethoscope"/></svg></button>
+        <button class="nav-icon" data-demo="Clinic information is coming soon in the prototype." title="Clinic"><svg><use href="#i-hospital"/></svg></button>
+        <button class="nav-icon" data-my-appointments title="My appointments"><svg><use href="#i-clip"/></svg></button>
+      </div>
+      <div class="side-group">
+        <button class="nav-icon" data-demo="Chat support will be added in a later version." title="Help"><svg><use href="#i-chat"/></svg></button>
+        <button class="nav-icon" data-demo="This is a UI prototype: account actions are not enabled." title="Account"><svg><use href="#i-logout"/></svg></button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div class="title" id="pageTitle">Book Appointment</div>
+        <div class="search-wrap">
+          <div class="search">
+            <svg><use href="#i-search"/></svg>
+            <input id="searchInput" type="text" placeholder="Search doctors or specialist..." />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="icon-btn" aria-label="Notifications"><span class="badge"></span><svg><use href="#i-bell"/></svg></button>
+          <button class="icon-btn" aria-label="Settings"><svg><use href="#i-settings"/></svg></button>
+          <div class="profile">
+            <img alt="Laurie Jean" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='24' fill='%23f3ebd9'/><circle cx='48' cy='36' r='16' fill='%23d8a082'/><path d='M30 80c2-14 11-22 18-22s16 8 18 22' fill='%23b8c8d8'/><path d='M34 34c1-16 28-21 31-3 1 10-4 13-4 13s-2-8-11-8c-7 0-9 3-14 8-3-2-3-6-2-10Z' fill='%237b6656'/></svg>" />
+            <div><strong>Laurie Jean</strong><span>Patient</span></div>
+          </div>
+          <div class="nav-arrows">
+            <span class="arrow"><svg><use href="#i-left"/></svg></span>
+            <span class="arrow"><svg><use href="#i-right"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- New landing page: preserves the uploaded sidebar, typography, palette, and Book Appointment view. -->
+      <section class="home-page" id="homeView" aria-label="Home landing page">
+        <div class="home-intro">
+          <div>
+            <p class="home-eyebrow"><span class="small-sun">✳</span> WELCOME TO CARELY</p>
+            <h1>Care starts here, <span>Laurie.</span> <span class="wave">✳</span></h1>
+            <p class="home-intro-sub">Find your doctor, plan your visit, and feel better—at your own pace.</p>
+          </div>
+          <div class="today-pill"><span class="today-dot"></span><span id="todayLabel">Here for you, every day</span></div>
+        </div>
+
+        <section class="home-hero" aria-label="Find a doctor">
+          <div class="hero-halo halo-one"></div><div class="hero-halo halo-two"></div>
+          <div class="hero-copy">
+            <div class="hero-kicker"><span>✦</span> YOUR HEALTH, SIMPLIFIED</div>
+            <h2>Expert care.<br><em>Right when</em><br>you need it.</h2>
+            <p>From finding the right specialist to booking your visit, we're here to make healthcare feel effortless.</p>
+            <div class="hero-cta-row">
+              <button class="home-primary-btn" data-open-booking>Book an appointment <svg><use href="#i-arrow-up"/></svg></button>
+              <button class="home-text-btn" data-scroll-to="howItWorks">How it works <svg><use href="#i-arrow-right"/></svg></button>
+            </div>
+            <div class="hero-assurance"><span class="assurance-check"><svg><use href="#i-check"/></svg></span> Easy booking <span class="assurance-divider"></span><span class="assurance-check"><svg><use href="#i-check"/></svg></span> Trusted specialists</div>
+          </div>
+          <div class="hero-visual">
+            <div class="hero-disc"></div>
+            <div class="hero-circle circle-tl">✳</div><div class="hero-circle circle-tr">+</div>
+            <img class="hero-doctor" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20570%20540%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22c%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23deeaff%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22s%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%230d58cb%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23407cef%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Ccircle%20cx%3D%22288%22%20cy%3D%22264%22%20r%3D%22236%22%20fill%3D%22%23b8d0ff%22%20opacity%3D%22.48%22%2F%3E%3Ccircle%20cx%3D%22328%22%20cy%3D%22278%22%20r%3D%22190%22%20fill%3D%22%2390b4ff%22%20opacity%3D%22.22%22%2F%3E%3Ccircle%20cx%3D%2298%22%20cy%3D%22117%22%20r%3D%2212%22%20fill%3D%22%23fff%22%20opacity%3D%22.55%22%2F%3E%3Ccircle%20cx%3D%22492%22%20cy%3D%22167%22%20r%3D%229%22%20fill%3D%22%23fff%22%20opacity%3D%22.65%22%2F%3E%3Cpath%20d%3D%22M439%2066%20v28%20M425%2080%20h28%20M66%20261%20v24%20M54%20273%20h24%22%20stroke%3D%22%23fff%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.55%22%2F%3E%3Cpath%20d%3D%22M217%20151%20C184%20117%20190%2068%20232%2051%20C264%2026%20328%2037%20346%2082%20C361%20118%20340%20143%20344%20176%20L311%20203%20L227%20201Z%22%20fill%3D%22%23293c64%22%2F%3E%3Cellipse%20cx%3D%22280%22%20cy%3D%22132%22%20rx%3D%2274%22%20ry%3D%2283%22%20fill%3D%22%23e8b493%22%2F%3E%3Cpath%20d%3D%22M204%20115%20C197%2061%20240%2037%20291%2042%20C329%2045%20349%2076%20354%20114%20C325%20112%20310%2088%20295%2075%20C266%20111%20239%20114%20204%20115%22%20fill%3D%22%23293c64%22%2F%3E%3Cpath%20d%3D%22M230%20132%20q14%20-10%2029%200%20M297%20132%20q14%20-10%2029%200%22%20stroke%3D%22%2330394f%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M253%20170%20q26%2019%2054%200%22%20stroke%3D%22%23b66c65%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M252%20202%20v41%20l31%2032%2031%20-32%20v-41%22%20fill%3D%22%23dda585%22%2F%3E%3Cpath%20d%3D%22M220%20230%20C160%20250%20142%20288%20116%20379%20L78%20540%20H484%20L445%20379%20C425%20284%20393%20246%20333%20232%20L287%20284%20L242%20243%22%20fill%3D%22url%28%23c%29%22%2F%3E%3Cpath%20d%3D%22M242%20243%20l44%2041%2047%20-52%2018%20308%20H217Z%22%20fill%3D%22%23b6c8e8%22%2F%3E%3Cpath%20d%3D%22M240%20238%20L205%20256%20227%20378%20286%20284%20M333%20232%20L362%20253%20347%20372%20286%20284%22%20fill%3D%22%23fff%22%20stroke%3D%22%23dbe6fb%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M204%20292%20q-18%2096%2041%20123%20q49%2020%2074%20-29%22%20stroke%3D%22%235078bb%22%20fill%3D%22none%22%20stroke-width%3D%2211%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22384%22%20r%3D%2224%22%20fill%3D%22%23426db8%22%2F%3E%3Ccircle%20cx%3D%22320%22%20cy%3D%22384%22%20r%3D%2212%22%20fill%3D%22%23e7f0ff%22%2F%3E%3Cpath%20d%3D%22M382%20290%20v92%22%20stroke%3D%22%23527fc6%22%20stroke-width%3D%228%22%2F%3E%3Crect%20x%3D%22367%22%20y%3D%22279%22%20width%3D%2229%22%20height%3D%2245%22%20rx%3D%2214%22%20fill%3D%22%23527fc6%22%2F%3E%3Cpath%20d%3D%22M167%20418%20L218%20375%20L249%20407%20L218%20452%22%20fill%3D%22%23e6b18e%22%2F%3E%3Cpath%20d%3D%22M405%20411%20L358%20374%20L328%20402%20L366%20448%22%20fill%3D%22%23e6b18e%22%2F%3E%3Cpath%20d%3D%22M169%20419%20Q277%20453%20403%20415%20L398%20462%20Q282%20513%20177%20467Z%22%20fill%3D%22%23f9fbff%22%20stroke%3D%22%23cfdff5%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22202%22%20y%3D%22375%22%20width%3D%22158%22%20height%3D%22101%22%20rx%3D%2215%22%20fill%3D%22%23fff%22%20stroke%3D%22%23c6daf7%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22226%22%20y%3D%22392%22%20width%3D%2266%22%20height%3D%2210%22%20rx%3D%225%22%20fill%3D%22%2394b7eb%22%2F%3E%3Crect%20x%3D%22226%22%20y%3D%22411%22%20width%3D%22104%22%20height%3D%228%22%20rx%3D%224%22%20fill%3D%22%23dce8f8%22%2F%3E%3Crect%20x%3D%22226%22%20y%3D%22429%22%20width%3D%2288%22%20height%3D%228%22%20rx%3D%224%22%20fill%3D%22%23dce8f8%22%2F%3E%3Ccircle%20cx%3D%22331%22%20cy%3D%22445%22%20r%3D%2212%22%20fill%3D%22%232cae93%22%2F%3E%3Cpath%20d%3D%22M325%20445%20l4%204%208%20-9%22%20stroke%3D%22%23fff%22%20stroke-width%3D%223%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E" alt="Friendly doctor illustration">
+            <div class="hero-float float-rating"><span class="float-star">★</span><div><strong>4.9 / 5</strong><small>Doctor ratings · demo</small></div></div>
+            <div class="hero-float float-visit"><span class="visit-check"><svg><use href="#i-check"/></svg></span><div><strong>Appointment ready</strong><small>Find a time that suits you</small></div></div>
+          </div>
+        </section>
+
+        <div class="home-section-heading">
+          <div><span class="home-overline">EXPLORE OUR CARE</span><h2>What can we help you with?</h2><p>Explore different specialties and find the right care for you.</p></div>
+          <button class="home-link-btn" data-open-booking>All specialties <svg><use href="#i-arrow-right"/></svg></button>
+        </div>
+        <div class="specialty-cards">
+          <button class="specialty-tile" data-home-specialty="Psychology"><span class="specialty-graphic sg-purple"><svg><use href="#i-heart"/></svg></span><strong>Psychology</strong><span>Mental wellness</span><b class="tile-arrow">↗</b></button>
+          <button class="specialty-tile" data-home-specialty="Pediatrics"><span class="specialty-graphic sg-peach"><svg><use href="#i-heart"/></svg></span><strong>Pediatrics</strong><span>Kids' health</span><b class="tile-arrow">↗</b></button>
+          <button class="specialty-tile" data-home-specialty="Traumatology"><span class="specialty-graphic sg-blue"><svg><use href="#i-shield"/></svg></span><strong>Traumatology</strong><span>Injury care</span><b class="tile-arrow">↗</b></button>
+          <button class="specialty-tile" data-home-specialty="Pulmonology"><span class="specialty-graphic sg-mint"><svg><use href="#i-stethoscope"/></svg></span><strong>Pulmonology</strong><span>Respiratory health</span><b class="tile-arrow">↗</b></button>
+          <button class="specialty-tile" data-home-specialty="Obstetrician"><span class="specialty-graphic sg-pink"><svg><use href="#i-heart"/></svg></span><strong>Obstetrician</strong><span>Women's care</span><b class="tile-arrow">↗</b></button>
+        </div>
+
+        <div class="home-section-heading home-doc-heading">
+          <div><span class="home-overline">EXPERIENCED & APPROACHABLE</span><h2>Meet our specialists</h2><p>Find the person you feel comfortable putting your health in.</p></div>
+          <button class="home-link-btn" data-open-booking>View all doctors <svg><use href="#i-arrow-right"/></svg></button>
+        </div>
+        <div class="featured-doctors" id="featuredDoctors"></div>
+
+        <div class="how-cta-grid" id="howItWorks">
+          <section class="steps-panel">
+            <div class="steps-heading"><span class="home-overline">SIMPLE AS ONE, TWO, THREE</span><h2>Getting care is easy.</h2></div>
+            <div class="steps-list">
+              <div class="step-row"><span class="step-num">01</span><div><strong>Find your doctor</strong><p>Choose a specialist who fits your needs.</p></div></div>
+              <div class="step-row"><span class="step-num">02</span><div><strong>Choose your visit</strong><p>Pick a convenient time and consultation type.</p></div></div>
+              <div class="step-row"><span class="step-num">03</span><div><strong>You're all set</strong><p>Follow your appointment details in one place.</p></div></div>
+            </div>
+          </section>
+          <section class="bottom-cta"><span class="bottom-cta-icon"><svg><use href="#i-calendar"/></svg></span><span class="home-overline">YOUR NEXT STEP</span><h2>Ready to feel<br>a little better?</h2><p>Your next appointment is just a few clicks away.</p><button class="bottom-book-btn" data-open-booking>Find your doctor <svg><use href="#i-arrow-up"/></svg></button><span class="bottom-decor">✳</span></section>
+        </div>
+        <footer class="home-footer"><span><b>carely.</b> Thoughtful care, made simple.</span><span>UI prototype · Demo content</span></footer>
+      </section>
+
+      <div id="bookingView" hidden>
+      <section class="section">
+        <div style="font-size:14px;font-weight:700;margin-bottom:10px">Category</div>
+        <div class="categories" id="categories"></div>
+
+        <div class="main-grid">
+          <section class="panel list-panel">
+            <div class="panel-title">Choose Doctor</div>
+            <div class="doctor-list" id="doctorList"></div>
+            <div class="empty" id="emptyState" hidden>Không tìm thấy bác sĩ phù hợp.</div>
+          </section>
+
+          <section class="panel detail-panel" id="detailPanel"></section>
+        </div>
+      </section>
+      </div>
+    </main>
+  </div>
+
+<!-- Booking modal follows the two supplied reference screens. The existing page is unchanged. -->
+<div class="carely-overlay" id="carelyBookingBackdrop" hidden>
+  <section class="carely-popup carely-book-popup" role="dialog" aria-modal="true" aria-labelledby="carelyBookingTitle">
+    <button class="carely-dismiss" type="button" data-close-carely aria-label="Close">×</button>
+    <h2 id="carelyBookingTitle">Book Appointment</h2>
+    <div class="carely-book-columns">
+      <div class="carely-book-left">
+        <div class="carely-mode-toggle" role="group" aria-label="Consultation type">
+          <button type="button" data-carely-mode="offline">Offline</button>
+          <button type="button" data-carely-mode="online">Online</button>
+        </div>
+        <div class="carely-consult"><h3 id="carelyConsultTitle">Online consultation with a doctor</h3><p id="carelyConsultInfo"></p></div>
+        <div class="carely-calendar">
+          <div class="carely-cal-caption">Date:</div>
+          <div class="carely-cal-title"><button type="button" class="carely-cal-arrow" id="carelyPrevMonth" aria-label="Previous month">‹</button><strong id="carelyMonthTitle"></strong><button type="button" class="carely-cal-arrow" id="carelyNextMonth" aria-label="Next month">›</button></div>
+          <div class="carely-cal-grid" id="carelyCalendarDays"></div>
+          <div class="carely-cal-legend"><span><i class="carely-legend-dot"></i>Available</span><span><i class="carely-legend-dot limited"></i>Limited</span><span><i class="carely-legend-dot unavailable"></i>Not Available</span><span><i class="carely-legend-dot selected"></i>Selected</span></div>
+        </div>
+      </div>
+      <div class="carely-book-right">
+        <div class="carely-time-label">Time:</div>
+        <div id="carelyTimeList" class="carely-time-list"></div>
+        <div class="carely-cost"><div class="carely-cost-info"><div class="carely-fee-row"><span>Fee Consultation</span><strong id="carelyFee">$35.90</strong></div><div class="carely-fee-row"><span>Tax</span><strong>$2.00</strong></div><div class="carely-fee-row total"><span>Total</span><strong id="carelyTotal">$37.90</strong></div></div><button class="carely-primary" type="button" id="carelyConfirmBooking">Proceed Payment</button><p class="carely-demo-note">Demo prototype · No actual payment</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="carely-overlay" id="carelySuccessBackdrop" hidden>
+  <section class="carely-popup carely-confirm-popup" role="dialog" aria-modal="true" aria-labelledby="carelySuccessTitle">
+    <div class="carely-confirm-title" id="carelySuccessTitle">Booking confirmed! <span class="carely-confirm-check">✓</span></div>
+    <div class="carely-confirm-card">
+      <div class="carely-confirm-head"><div><p class="carely-confirm-label">Booking Number</p><p class="carely-confirm-value" id="carelySuccessNumber"></p></div><img id="carelyQr" class="carely-confirm-qr" alt="Demo booking QR code"></div>
+      <div class="carely-confirm-details">
+        <div><p class="carely-confirm-label">Doctor</p><p class="carely-confirm-value" id="carelySuccessDoctor"></p><p class="carely-confirm-sub" id="carelySuccessSpecialty"></p></div>
+        <div><p class="carely-confirm-label">Consultation</p><p class="carely-confirm-value" id="carelySuccessMode"></p></div>
+        <div><p class="carely-confirm-label">Date</p><p class="carely-confirm-value" id="carelySuccessDate"></p></div>
+        <div><p class="carely-confirm-label">Time</p><p class="carely-confirm-value" id="carelySuccessTime"></p></div>
+      </div>
+    </div>
+    <button class="carely-primary" type="button" id="carelyBackToHome">Back to home</button>
+    <button class="carely-outline" type="button" id="carelyViewSchedule">Appointment schedule</button>
+  </section>
+</div>
+<div class="carely-overlay" id="carelyScheduleBackdrop" hidden>
+  <section class="carely-popup carely-schedule-popup" role="dialog" aria-modal="true" aria-labelledby="carelyScheduleTitle">
+    <button class="carely-dismiss" type="button" data-close-carely aria-label="Close">×</button>
+    <h2 id="carelyScheduleTitle">Appointment schedule</h2>
+    <div id="carelyScheduleList"></div>
+    <button class="carely-primary" type="button" id="carelyScheduleFindDoctor">Book another appointment</button>
+  </section>
+</div>
+
+  <script>
+    const doctors = [
+      {
+        id:1,
+        name:'Dr. Cris Johnson',
+        category:'Psychology',
+        experience:'5 years experience',
+        rating:4.9,
+        education:'PhD in Clinical Psychology, UCLA',
+        certificate:'Certified CBT Therapist, APA',
+        availability:['Online Consultation','Offline at Doctors Hospitals, California'],
+        schedule:[['Monday - Saturday','10:00 - 12:00'],['','14:00 - 20:00']],
+        symptoms:['Anxiety & Panic Attacks','Stress','Depression','Sleep Disorders'],
+        procedures:['Cognitive Behavioral Therapy (CBT)','Family & Couples Therapy','Supportive Psychotherapy','Mindfulness-Based Stress Reduction (MBSR)'],
+        reviews:[
+          {name:'Nadia Tailor', date:'15 May 2025', rating:4.9, text:`My sessions with Dr. Johnson truly changed the way I see myself. He's incredibly patient, listens with empathy, and provides practical tools that really work. Highly recommended!`},
+          {name:'Ethan Parker', date:'22 June 2025', rating:5.0, text:`Dr. Johnson's approach is transformative. His insights have led me to profound personal growth and I can't thank him enough for the support and guidance he has offered.`},
+          {name:'Sofia Ramirez', date:'10 July 2025', rating:4.8, text:`I was hesitant at first, but Dr. Johnson's expertise made all the difference. The techniques I learned are now a part of my daily life, and I feel more empowered.`}
+        ],
+        fee:'$25 - $385',
+        image:'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20320%20340%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23dee9ff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fff%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22coat%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e7eef9%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20width%3D%22320%22%20height%3D%22340%22%20rx%3D%2226%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Ccircle%20cx%3D%22267%22%20cy%3D%2248%22%20r%3D%2278%22%20fill%3D%22%234b80d0%22%20opacity%3D%22.11%22%2F%3E%3Ccircle%20cx%3D%2259%22%20cy%3D%22254%22%20r%3D%2272%22%20fill%3D%22%234b80d0%22%20opacity%3D%22.07%22%2F%3E%0A%20%3Cellipse%20cx%3D%22156%22%20cy%3D%22125%22%20rx%3D%2261%22%20ry%3D%2273%22%20fill%3D%22%23d59a76%22%2F%3E%3Cellipse%20cx%3D%2297%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23d59a76%22%2F%3E%3Cellipse%20cx%3D%22215%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23d59a76%22%2F%3E%0A%20%3Cpath%20d%3D%22M95%2097%20C94%2053%20118%2041%20157%2040%20C191%2038%20218%2056%20218%2095%20C196%2085%20181%2067%20173%2059%20C146%2078%20122%2092%2095%2097Z%22%20fill%3D%22%23192a46%22%2F%3E%3Cpath%20d%3D%22M129%20150%20Q155%20170%20181%20150%22%20stroke%3D%22%23a55e56%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.65%22%2F%3E%0A%20%3Cpath%20d%3D%22M119%20115%20q12%20-9%2024%200%20M170%20115%20q12%20-9%2024%200%22%20stroke%3D%22%233b3340%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%0A%20%3Cpath%20d%3D%22M133%20173%20L133%20204%20L177%20204%20L177%20173%22%20fill%3D%22%23d59a76%22%2F%3E%3Cpath%20d%3D%22M115%20194%20Q81%20198%2066%20219%20L42%20340%20H270%20L246%20219%20Q230%20198%20194%20194%20L173%20213%20L137%20212Z%22%20fill%3D%22url%28%23coat%29%22%2F%3E%0A%20%3Cpath%20d%3D%22M132%20196%20L156%20237%20L179%20196%20L188%20340%20H124Z%22%20fill%3D%22%232b3d62%22%2F%3E%3Cpath%20d%3D%22M132%20196%20L115%20194%20L115%20261%20L155%20237Z%20M179%20196%20L195%20194%20L195%20261%20L155%20237Z%22%20fill%3D%22%23fff%22%20stroke%3D%22%23dde7f5%22%20stroke-width%3D%222%22%2F%3E%0A%20%3Cpath%20d%3D%22M111%20215%20Q99%20255%20111%20284%20Q126%20306%20154%20280%22%20stroke%3D%22%234b80d0%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%2211%22%20fill%3D%22%234b80d0%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%225%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M198%20228%20v55%22%20stroke%3D%22%234b80d0%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22193%22%20y%3D%22230%22%20width%3D%2210%22%20height%3D%2216%22%20rx%3D%225%22%20fill%3D%22%234b80d0%22%2F%3E%0A%20%3Crect%20x%3D%22208%22%20y%3D%22267%22%20width%3D%2234%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%234b80d0%22%20opacity%3D%22.6%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%22282%22%20width%3D%2225%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%234b80d0%22%20opacity%3D%22.3%22%2F%3E%0A%20%3C%2Fsvg%3E'
+      },
+      {
+        id:2,
+        name:'Dr. Bald Meghan',
+        category:'Psychology',
+        experience:'5 years experience',
+        rating:4.9,
+        education:'MD in Psychiatry, Stanford',
+        certificate:'Licensed Clinical Psychologist',
+        availability:['Online Consultation','Offline at Green Mind Center, Seattle'],
+        schedule:[['Monday - Friday','09:00 - 12:00'],['','13:30 - 18:00']],
+        symptoms:['Burnout','Stress','Emotional regulation'],
+        procedures:['Therapy Session','Group Therapy','Mental Wellness Coaching'],
+        reviews:[
+          {name:'Ariana Fox', date:'11 June 2025', rating:4.9, text:'Very supportive and easy to talk to. The sessions felt calm and practical.'},
+          {name:'Mark Joel', date:'02 July 2025', rating:4.8, text:'Helped me deal better with workplace stress and anxiety.'}
+        ],
+        fee:'$17 - $243',
+        image:'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20320%20340%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23f5e9f2%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fff%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22coat%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e7eef9%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20width%3D%22320%22%20height%3D%22340%22%20rx%3D%2226%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Ccircle%20cx%3D%22267%22%20cy%3D%2248%22%20r%3D%2278%22%20fill%3D%22%23b06c9e%22%20opacity%3D%22.11%22%2F%3E%3Ccircle%20cx%3D%2259%22%20cy%3D%22254%22%20r%3D%2272%22%20fill%3D%22%23b06c9e%22%20opacity%3D%22.07%22%2F%3E%0A%20%3Cpath%20d%3D%22M90%20137%20C77%2059%20102%2033%20158%2033%20C215%2032%20235%2077%20220%20147%20L212%20177%20L105%20178%20Z%22%20fill%3D%22%2343304e%22%2F%3E%3Cellipse%20cx%3D%22156%22%20cy%3D%22125%22%20rx%3D%2261%22%20ry%3D%2273%22%20fill%3D%22%23e4b08b%22%2F%3E%3Cellipse%20cx%3D%2297%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23e4b08b%22%2F%3E%3Cellipse%20cx%3D%22215%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23e4b08b%22%2F%3E%0A%20%3Cpath%20d%3D%22M98%2089%20C93%2038%20135%2039%20154%2037%20C202%2036%20220%2064%20213%2099%20C189%2088%20166%2067%20161%2057%20C145%2082%20128%2088%2098%2089Z%22%20fill%3D%22%2343304e%22%2F%3E%3Cpath%20d%3D%22M129%20150%20Q155%20170%20181%20150%22%20stroke%3D%22%23a55e56%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.65%22%2F%3E%0A%20%3Cpath%20d%3D%22M119%20115%20q12%20-9%2024%200%20M170%20115%20q12%20-9%2024%200%22%20stroke%3D%22%233b3340%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22141%22%20r%3D%223%22%20fill%3D%22%23e9c47e%22%2F%3E%3Ccircle%20cx%3D%22213%22%20cy%3D%22141%22%20r%3D%223%22%20fill%3D%22%23e9c47e%22%2F%3E%0A%20%3Cpath%20d%3D%22M133%20173%20L133%20204%20L177%20204%20L177%20173%22%20fill%3D%22%23e4b08b%22%2F%3E%3Cpath%20d%3D%22M115%20194%20Q81%20198%2066%20219%20L42%20340%20H270%20L246%20219%20Q230%20198%20194%20194%20L173%20213%20L137%20212Z%22%20fill%3D%22url%28%23coat%29%22%2F%3E%0A%20%3Cpath%20d%3D%22M132%20196%20L156%20237%20L179%20196%20L188%20340%20H124Z%22%20fill%3D%22%2330273e%22%2F%3E%3Cpath%20d%3D%22M132%20196%20L115%20194%20L115%20261%20L155%20237Z%20M179%20196%20L195%20194%20L195%20261%20L155%20237Z%22%20fill%3D%22%23fff%22%20stroke%3D%22%23dde7f5%22%20stroke-width%3D%222%22%2F%3E%0A%20%3Cpath%20d%3D%22M111%20215%20Q99%20255%20111%20284%20Q126%20306%20154%20280%22%20stroke%3D%22%23b06c9e%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%2211%22%20fill%3D%22%23b06c9e%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%225%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M198%20228%20v55%22%20stroke%3D%22%23b06c9e%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22193%22%20y%3D%22230%22%20width%3D%2210%22%20height%3D%2216%22%20rx%3D%225%22%20fill%3D%22%23b06c9e%22%2F%3E%0A%20%3Crect%20x%3D%22208%22%20y%3D%22267%22%20width%3D%2234%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23b06c9e%22%20opacity%3D%22.6%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%22282%22%20width%3D%2225%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23b06c9e%22%20opacity%3D%22.3%22%2F%3E%0A%20%3C%2Fsvg%3E'
+      },
+      {
+        id:3,
+        name:'Dr. Leo Shah',
+        category:'Traumatology',
+        experience:'10 years experience',
+        rating:4.9,
+        education:'Orthopedic Trauma Fellowship, NYU',
+        certificate:'Board Certified Traumatologist',
+        availability:['Offline at HealthPlus Clinic, New York'],
+        schedule:[['Monday - Saturday','08:00 - 11:00'],['','13:00 - 17:00']],
+        symptoms:['Sports Injury','Bone Fracture','Joint Pain'],
+        procedures:['Fracture Follow-up','Joint Assessment','Post-op Monitoring'],
+        reviews:[{name:'Kevin Brooks', date:'08 May 2025', rating:4.9, text:'Excellent care and very clear explanations.'}],
+        fee:'$50 - $300',
+        image:'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20320%20340%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23e2f6f2%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fff%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22coat%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e7eef9%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20width%3D%22320%22%20height%3D%22340%22%20rx%3D%2226%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Ccircle%20cx%3D%22267%22%20cy%3D%2248%22%20r%3D%2278%22%20fill%3D%22%236fb6a2%22%20opacity%3D%22.11%22%2F%3E%3Ccircle%20cx%3D%2259%22%20cy%3D%22254%22%20r%3D%2272%22%20fill%3D%22%236fb6a2%22%20opacity%3D%22.07%22%2F%3E%0A%20%3Cellipse%20cx%3D%22156%22%20cy%3D%22125%22%20rx%3D%2261%22%20ry%3D%2273%22%20fill%3D%22%23c88e6c%22%2F%3E%3Cellipse%20cx%3D%2297%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23c88e6c%22%2F%3E%3Cellipse%20cx%3D%22215%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23c88e6c%22%2F%3E%0A%20%3Cpath%20d%3D%22M95%2097%20C94%2053%20118%2041%20157%2040%20C191%2038%20218%2056%20218%2095%20C196%2085%20181%2067%20173%2059%20C146%2078%20122%2092%2095%2097Z%22%20fill%3D%22%23192d3c%22%2F%3E%3Cpath%20d%3D%22M129%20150%20Q155%20170%20181%20150%22%20stroke%3D%22%23a55e56%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.65%22%2F%3E%0A%20%3Cpath%20d%3D%22M119%20115%20q12%20-9%2024%200%20M170%20115%20q12%20-9%2024%200%22%20stroke%3D%22%233b3340%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M112%20112%20h34%20a9%209%200%200%201%20-9%2012%20h-15%20a9%209%200%200%201%20-10%20-12%20M166%20112%20h34%20a9%209%200%200%201%20-9%2012%20h-15%20a9%209%200%200%201%20-10%20-12%20M146%20116%20h20%22%20stroke%3D%22%234b5262%22%20stroke-width%3D%223%22%20fill%3D%22none%22%2F%3E%0A%20%3Cpath%20d%3D%22M133%20173%20L133%20204%20L177%20204%20L177%20173%22%20fill%3D%22%23c88e6c%22%2F%3E%3Cpath%20d%3D%22M115%20194%20Q81%20198%2066%20219%20L42%20340%20H270%20L246%20219%20Q230%20198%20194%20194%20L173%20213%20L137%20212Z%22%20fill%3D%22url%28%23coat%29%22%2F%3E%0A%20%3Cpath%20d%3D%22M132%20196%20L156%20237%20L179%20196%20L188%20340%20H124Z%22%20fill%3D%22%23324451%22%2F%3E%3Cpath%20d%3D%22M132%20196%20L115%20194%20L115%20261%20L155%20237Z%20M179%20196%20L195%20194%20L195%20261%20L155%20237Z%22%20fill%3D%22%23fff%22%20stroke%3D%22%23dde7f5%22%20stroke-width%3D%222%22%2F%3E%0A%20%3Cpath%20d%3D%22M111%20215%20Q99%20255%20111%20284%20Q126%20306%20154%20280%22%20stroke%3D%22%236fb6a2%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%2211%22%20fill%3D%22%236fb6a2%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%225%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M198%20228%20v55%22%20stroke%3D%22%236fb6a2%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22193%22%20y%3D%22230%22%20width%3D%2210%22%20height%3D%2216%22%20rx%3D%225%22%20fill%3D%22%236fb6a2%22%2F%3E%0A%20%3Crect%20x%3D%22208%22%20y%3D%22267%22%20width%3D%2234%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%236fb6a2%22%20opacity%3D%22.6%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%22282%22%20width%3D%2225%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%236fb6a2%22%20opacity%3D%22.3%22%2F%3E%0A%20%3C%2Fsvg%3E'
+      },
+      {
+        id:4,
+        name:'Dr. Emma Liu',
+        category:'Pediatrics',
+        experience:'8 years experience',
+        rating:4.9,
+        education:'MD Pediatrics, Boston University',
+        certificate:'Pediatric Care Specialist',
+        availability:['Offline at KidsCare, Texas'],
+        schedule:[['Monday - Friday','09:30 - 12:30'],['','14:00 - 18:00']],
+        symptoms:['Child fever','Nutrition','Routine checkups'],
+        procedures:['Child Consultation','Vaccination Advisory','Growth Monitoring'],
+        reviews:[{name:'Sarah Lee', date:'05 June 2025', rating:4.9, text:'Very gentle and kind with children.'}],
+        fee:'$20 - $150',
+        image:'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20320%20340%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff2df%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fff%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22coat%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e7eef9%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20width%3D%22320%22%20height%3D%22340%22%20rx%3D%2226%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Ccircle%20cx%3D%22267%22%20cy%3D%2248%22%20r%3D%2278%22%20fill%3D%22%23efa95a%22%20opacity%3D%22.11%22%2F%3E%3Ccircle%20cx%3D%2259%22%20cy%3D%22254%22%20r%3D%2272%22%20fill%3D%22%23efa95a%22%20opacity%3D%22.07%22%2F%3E%0A%20%3Cpath%20d%3D%22M90%20137%20C77%2059%20102%2033%20158%2033%20C215%2032%20235%2077%20220%20147%20L212%20177%20L105%20178%20Z%22%20fill%3D%22%2338283e%22%2F%3E%3Cellipse%20cx%3D%22156%22%20cy%3D%22125%22%20rx%3D%2261%22%20ry%3D%2273%22%20fill%3D%22%23e8b89d%22%2F%3E%3Cellipse%20cx%3D%2297%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23e8b89d%22%2F%3E%3Cellipse%20cx%3D%22215%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23e8b89d%22%2F%3E%0A%20%3Cpath%20d%3D%22M98%2089%20C93%2038%20135%2039%20154%2037%20C202%2036%20220%2064%20213%2099%20C189%2088%20166%2067%20161%2057%20C145%2082%20128%2088%2098%2089Z%22%20fill%3D%22%2338283e%22%2F%3E%3Cpath%20d%3D%22M129%20150%20Q155%20170%20181%20150%22%20stroke%3D%22%23a55e56%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.65%22%2F%3E%0A%20%3Cpath%20d%3D%22M119%20115%20q12%20-9%2024%200%20M170%20115%20q12%20-9%2024%200%22%20stroke%3D%22%233b3340%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22141%22%20r%3D%223%22%20fill%3D%22%23e9c47e%22%2F%3E%3Ccircle%20cx%3D%22213%22%20cy%3D%22141%22%20r%3D%223%22%20fill%3D%22%23e9c47e%22%2F%3E%0A%20%3Cpath%20d%3D%22M133%20173%20L133%20204%20L177%20204%20L177%20173%22%20fill%3D%22%23e8b89d%22%2F%3E%3Cpath%20d%3D%22M115%20194%20Q81%20198%2066%20219%20L42%20340%20H270%20L246%20219%20Q230%20198%20194%20194%20L173%20213%20L137%20212Z%22%20fill%3D%22url%28%23coat%29%22%2F%3E%0A%20%3Cpath%20d%3D%22M132%20196%20L156%20237%20L179%20196%20L188%20340%20H124Z%22%20fill%3D%22%2340364c%22%2F%3E%3Cpath%20d%3D%22M132%20196%20L115%20194%20L115%20261%20L155%20237Z%20M179%20196%20L195%20194%20L195%20261%20L155%20237Z%22%20fill%3D%22%23fff%22%20stroke%3D%22%23dde7f5%22%20stroke-width%3D%222%22%2F%3E%0A%20%3Cpath%20d%3D%22M111%20215%20Q99%20255%20111%20284%20Q126%20306%20154%20280%22%20stroke%3D%22%23efa95a%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%2211%22%20fill%3D%22%23efa95a%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%225%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M198%20228%20v55%22%20stroke%3D%22%23efa95a%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22193%22%20y%3D%22230%22%20width%3D%2210%22%20height%3D%2216%22%20rx%3D%225%22%20fill%3D%22%23efa95a%22%2F%3E%0A%20%3Crect%20x%3D%22208%22%20y%3D%22267%22%20width%3D%2234%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23efa95a%22%20opacity%3D%22.6%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%22282%22%20width%3D%2225%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23efa95a%22%20opacity%3D%22.3%22%2F%3E%0A%20%3C%2Fsvg%3E'
+      },
+      {
+        id:5,
+        name:'Dr. Omar Velez',
+        category:'Pulmonology',
+        experience:'11 years experience',
+        rating:4.8,
+        education:'MD Pulmonology, Johns Hopkins',
+        certificate:'Respiratory Specialist',
+        availability:['Online Consultation','Offline at Sunrise Medical, Denver'],
+        schedule:[['Monday - Thursday','10:00 - 13:00'],['','15:00 - 19:00']],
+        symptoms:['Chronic cough','Asthma','Breathing issues'],
+        procedures:['Lung Assessment','Respiratory Follow-up'],
+        reviews:[{name:'Tracy Gomez', date:'18 May 2025', rating:4.8, text:'Professional and very informative during consultation.'}],
+        fee:'$35 - $260',
+        image:'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20320%20340%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23e9ebff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fff%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22coat%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e7eef9%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20width%3D%22320%22%20height%3D%22340%22%20rx%3D%2226%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Ccircle%20cx%3D%22267%22%20cy%3D%2248%22%20r%3D%2278%22%20fill%3D%22%23858de8%22%20opacity%3D%22.11%22%2F%3E%3Ccircle%20cx%3D%2259%22%20cy%3D%22254%22%20r%3D%2272%22%20fill%3D%22%23858de8%22%20opacity%3D%22.07%22%2F%3E%0A%20%3Cellipse%20cx%3D%22156%22%20cy%3D%22125%22%20rx%3D%2261%22%20ry%3D%2273%22%20fill%3D%22%23ae745a%22%2F%3E%3Cellipse%20cx%3D%2297%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23ae745a%22%2F%3E%3Cellipse%20cx%3D%22215%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23ae745a%22%2F%3E%0A%20%3Cpath%20d%3D%22M95%2097%20C94%2053%20118%2041%20157%2040%20C191%2038%20218%2056%20218%2095%20C196%2085%20181%2067%20173%2059%20C146%2078%20122%2092%2095%2097Z%22%20fill%3D%22%23233348%22%2F%3E%3Cpath%20d%3D%22M129%20150%20Q155%20170%20181%20150%22%20stroke%3D%22%23a55e56%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.65%22%2F%3E%0A%20%3Cpath%20d%3D%22M119%20115%20q12%20-9%2024%200%20M170%20115%20q12%20-9%2024%200%22%20stroke%3D%22%233b3340%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M112%20112%20h34%20a9%209%200%200%201%20-9%2012%20h-15%20a9%209%200%200%201%20-10%20-12%20M166%20112%20h34%20a9%209%200%200%201%20-9%2012%20h-15%20a9%209%200%200%201%20-10%20-12%20M146%20116%20h20%22%20stroke%3D%22%234b5262%22%20stroke-width%3D%223%22%20fill%3D%22none%22%2F%3E%0A%20%3Cpath%20d%3D%22M133%20173%20L133%20204%20L177%20204%20L177%20173%22%20fill%3D%22%23ae745a%22%2F%3E%3Cpath%20d%3D%22M115%20194%20Q81%20198%2066%20219%20L42%20340%20H270%20L246%20219%20Q230%20198%20194%20194%20L173%20213%20L137%20212Z%22%20fill%3D%22url%28%23coat%29%22%2F%3E%0A%20%3Cpath%20d%3D%22M132%20196%20L156%20237%20L179%20196%20L188%20340%20H124Z%22%20fill%3D%22%232b3f52%22%2F%3E%3Cpath%20d%3D%22M132%20196%20L115%20194%20L115%20261%20L155%20237Z%20M179%20196%20L195%20194%20L195%20261%20L155%20237Z%22%20fill%3D%22%23fff%22%20stroke%3D%22%23dde7f5%22%20stroke-width%3D%222%22%2F%3E%0A%20%3Cpath%20d%3D%22M111%20215%20Q99%20255%20111%20284%20Q126%20306%20154%20280%22%20stroke%3D%22%23858de8%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%2211%22%20fill%3D%22%23858de8%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%225%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M198%20228%20v55%22%20stroke%3D%22%23858de8%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22193%22%20y%3D%22230%22%20width%3D%2210%22%20height%3D%2216%22%20rx%3D%225%22%20fill%3D%22%23858de8%22%2F%3E%0A%20%3Crect%20x%3D%22208%22%20y%3D%22267%22%20width%3D%2234%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23858de8%22%20opacity%3D%22.6%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%22282%22%20width%3D%2225%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23858de8%22%20opacity%3D%22.3%22%2F%3E%0A%20%3C%2Fsvg%3E'
+      },
+      {
+        id:6,
+        name:'Dr. Helena Ortiz',
+        category:'Obstetrician',
+        experience:'9 years experience',
+        rating:4.9,
+        education:'OB-GYN Residency, UCLA',
+        certificate:'Women Health Specialist',
+        availability:['Offline at Mothers Care Clinic, Miami'],
+        schedule:[['Monday - Saturday','08:30 - 11:30'],['','14:30 - 18:30']],
+        symptoms:['Prenatal check','Women health','Consultation'],
+        procedures:['Antenatal Care','Consultation','Routine Screening'],
+        reviews:[{name:'Olivia Martin', date:'27 July 2025', rating:4.9, text:'Warm, experienced and reassuring.'}],
+        fee:'$40 - $275',
+        image:'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20320%20340%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23f1eeff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fff%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22coat%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23fff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e7eef9%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20width%3D%22320%22%20height%3D%22340%22%20rx%3D%2226%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Ccircle%20cx%3D%22267%22%20cy%3D%2248%22%20r%3D%2278%22%20fill%3D%22%23a194d0%22%20opacity%3D%22.11%22%2F%3E%3Ccircle%20cx%3D%2259%22%20cy%3D%22254%22%20r%3D%2272%22%20fill%3D%22%23a194d0%22%20opacity%3D%22.07%22%2F%3E%0A%20%3Cpath%20d%3D%22M90%20137%20C77%2059%20102%2033%20158%2033%20C215%2032%20235%2077%20220%20147%20L212%20177%20L105%20178%20Z%22%20fill%3D%22%234f3546%22%2F%3E%3Cellipse%20cx%3D%22156%22%20cy%3D%22125%22%20rx%3D%2261%22%20ry%3D%2273%22%20fill%3D%22%23dba580%22%2F%3E%3Cellipse%20cx%3D%2297%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23dba580%22%2F%3E%3Cellipse%20cx%3D%22215%22%20cy%3D%22136%22%20rx%3D%229%22%20ry%3D%2216%22%20fill%3D%22%23dba580%22%2F%3E%0A%20%3Cpath%20d%3D%22M98%2089%20C93%2038%20135%2039%20154%2037%20C202%2036%20220%2064%20213%2099%20C189%2088%20166%2067%20161%2057%20C145%2082%20128%2088%2098%2089Z%22%20fill%3D%22%234f3546%22%2F%3E%3Cpath%20d%3D%22M129%20150%20Q155%20170%20181%20150%22%20stroke%3D%22%23a55e56%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.65%22%2F%3E%0A%20%3Cpath%20d%3D%22M119%20115%20q12%20-9%2024%200%20M170%20115%20q12%20-9%2024%200%22%20stroke%3D%22%233b3340%22%20stroke-width%3D%223.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22141%22%20r%3D%223%22%20fill%3D%22%23e9c47e%22%2F%3E%3Ccircle%20cx%3D%22213%22%20cy%3D%22141%22%20r%3D%223%22%20fill%3D%22%23e9c47e%22%2F%3E%0A%20%3Cpath%20d%3D%22M133%20173%20L133%20204%20L177%20204%20L177%20173%22%20fill%3D%22%23dba580%22%2F%3E%3Cpath%20d%3D%22M115%20194%20Q81%20198%2066%20219%20L42%20340%20H270%20L246%20219%20Q230%20198%20194%20194%20L173%20213%20L137%20212Z%22%20fill%3D%22url%28%23coat%29%22%2F%3E%0A%20%3Cpath%20d%3D%22M132%20196%20L156%20237%20L179%20196%20L188%20340%20H124Z%22%20fill%3D%22%2345364c%22%2F%3E%3Cpath%20d%3D%22M132%20196%20L115%20194%20L115%20261%20L155%20237Z%20M179%20196%20L195%20194%20L195%20261%20L155%20237Z%22%20fill%3D%22%23fff%22%20stroke%3D%22%23dde7f5%22%20stroke-width%3D%222%22%2F%3E%0A%20%3Cpath%20d%3D%22M111%20215%20Q99%20255%20111%20284%20Q126%20306%20154%20280%22%20stroke%3D%22%23a194d0%22%20stroke-width%3D%225%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%2211%22%20fill%3D%22%23a194d0%22%2F%3E%3Ccircle%20cx%3D%22154%22%20cy%3D%22281%22%20r%3D%225%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M198%20228%20v55%22%20stroke%3D%22%23a194d0%22%20stroke-width%3D%224%22%2F%3E%3Crect%20x%3D%22193%22%20y%3D%22230%22%20width%3D%2210%22%20height%3D%2216%22%20rx%3D%225%22%20fill%3D%22%23a194d0%22%2F%3E%0A%20%3Crect%20x%3D%22208%22%20y%3D%22267%22%20width%3D%2234%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23a194d0%22%20opacity%3D%22.6%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%22282%22%20width%3D%2225%22%20height%3D%225%22%20rx%3D%222.5%22%20fill%3D%22%23a194d0%22%20opacity%3D%22.3%22%2F%3E%0A%20%3C%2Fsvg%3E'
+      }
+    ];
+
+    const categories = ['All','Psychology','Pediatrics','Traumatology','Anestiology','Ophthalmology','Dermatovenereologists','Pulmonology','Obstetrician'];
+    let state = { category:'All', search:'', selectedId:1 };
+
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    const current = () => doctors.find(d => d.id === state.selectedId) || doctors[0];
+    const star = `<svg viewBox="0 0 24 24"><use href="#i-star"></use></svg>`;
+
+    function renderCategories(){
+      $('#categories').innerHTML = categories.map(cat =>
+        `<button class="pill ${state.category===cat?'active':''}" data-cat="${cat}">${cat}</button>`
+      ).join('');
+    }
+
+    function filteredDoctors(){
+      const q = state.search.trim().toLowerCase();
+      return doctors.filter(d => {
+        const okCat = state.category === 'All' || d.category === state.category;
+        const blob = `${d.name} ${d.category} ${d.education}`.toLowerCase();
+        return okCat && (!q || blob.includes(q));
+      });
+    }
+
+    function renderList(){
+      const list = filteredDoctors();
+      const wrap = $('#doctorList');
+      const empty = $('#emptyState');
+      empty.hidden = list.length !== 0;
+      if (!list.some(d => d.id === state.selectedId) && list.length) state.selectedId = list[0].id;
+      wrap.innerHTML = list.map(d => `
+        <button class="doctor-card ${d.id===state.selectedId?'active':''}" data-id="${d.id}">
+          <img src="${d.image}" alt="${d.name}">
+          <div>
+            <h4>${d.name}</h4>
+            <div class="meta">${d.category} Specialist  •  ${d.experience}</div>
+            <div class="rating">${star} ${d.rating}</div>
+            <div class="small-label">Available Today:</div>
+            ${d.availability.slice(0,2).map(a=>`<div class="bullet-row">${a}</div>`).join('')}
+          </div>
+          <div class="fee">${d.fee}</div>
+        </button>
+      `).join('');
+    }
+
+    function avatarData(name){
+      const initials = name.split(' ').slice(0,2).map(x=>x[0]).join('');
+      return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><rect width='80' height='80' rx='40' fill='#f2f4f7'/><text x='40' y='46' font-family='Arial' font-size='24' text-anchor='middle' fill='#6b7280'>${initials}</text></svg>`)}`;
+    }
+
+    function renderDetail(){
+      const d = current();
+      $('#detailPanel').innerHTML = `
+        <div class="detail-head">
+          <img src="${d.image}" alt="${d.name}">
+          <div>
+            <h2>${d.name}</h2>
+            <div class="detail-meta">${d.category} Specialist  •  ${d.experience}</div>
+            <div class="rating">${star} ${d.rating}</div>
+          </div>
+          <button class="book-btn" id="bookBtn">Book an Appointment</button>
+        </div>
+
+        <div class="detail-grid">
+          <div class="info-block">
+            <h5>Education</h5>
+            <div class="info-main">${d.education}</div>
+          </div>
+          <div class="info-block">
+            <h5>Certificate</h5>
+            <div class="info-main">${d.certificate}</div>
+          </div>
+          <div class="info-block">
+            <h5>Available Today:</h5>
+            <div class="info-main">${d.availability.map(a=>`<div class="bullet-row">${a}</div>`).join('')}</div>
+          </div>
+          <div class="info-block">
+            <h5>Schedule :</h5>
+            <div class="info-main">${d.schedule.map(([label,time])=>`<div><span class="label-strong">${label}</span> ${time}</div>`).join('')}</div>
+          </div>
+        </div>
+
+        <div>
+          <h5>Symptoms:</h5>
+          <div class="info-main">${d.symptoms.join(', ')}</div>
+        </div>
+
+        <div>
+          <h5>Specialty Procedures:</h5>
+          <div class="chips">${d.procedures.map(p=>`<span class="chip">${p}</span>`).join('')}</div>
+        </div>
+
+        <div class="section-sep"></div>
+
+        <div class="review-section">
+          <div class="reviews-title">Doctor’s Reviews <small>(${d.reviews.length || 210} Reviews)</small></div>
+          <div class="review-list">
+            ${d.reviews.map(r=>`
+              <div class="review">
+                <div class="review-top">
+                  <img src="${avatarData(r.name)}" alt="${r.name}">
+                  <div>
+                    <div class="review-name">${r.name}</div>
+                    <div class="review-date">${r.date}</div>
+                  </div>
+                  <div class="review-rating">${star} ${r.rating}</div>
+                </div>
+                <p>${r.text}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function render(){
+      renderCategories();
+      renderList();
+      renderDetail();
+    }
+
+    document.addEventListener('click', e => {
+      const cat = e.target.closest('[data-cat]');
+      if (cat) {
+        state.category = cat.dataset.cat;
+        render();
+        return;
+      }
+      const card = e.target.closest('[data-id]');
+      if (card) {
+        state.selectedId = Number(card.dataset.id);
+        render();
+        return;
+      }
+      if (e.target.closest('#bookBtn')) {
+        openCarelyBooking();
+      }
+    });
+
+    $('#searchInput').addEventListener('input', e => {
+      state.search = e.target.value;
+      renderList();
+      if (filteredDoctors().length) renderDetail();
+    });
+
+    render();
+
+    // Added navigation and landing behavior. The original Book Appointment render/filter handlers above stay untouched.
+    const homeState = {page:'home'};
+    function showPage(page,options={}){
+      homeState.page=page;
+      $('#homeView').hidden=page!=='home';
+      $('#bookingView').hidden=page!=='book';
+      $('#pageTitle').textContent=page==='home'?'Home':'Book Appointment';
+      document.querySelectorAll('.sidebar [data-page]').forEach(btn=>btn.classList.toggle('active',btn.dataset.page===page && (page==='home' || btn.querySelector('use')?.getAttribute('href')==='#i-stethoscope')));
+      if(page==='book'){
+        render();
+        if(options.focusSearch)$('#searchInput').focus();
+      }
+      window.scrollTo({top:0,behavior:'instant'});
+      const targetHash=page==='home'?'#home':'#book';
+      if(location.hash!==targetHash)history.replaceState(null,'',targetHash);
+    }
+    function renderFeaturedDoctors(){
+      const chosen=[doctors[0],doctors[3],doctors[2]];
+      $('#featuredDoctors').innerHTML=chosen.map(d=>`
+        <article class="featured-card">
+          <div class="featured-top">
+            <img class="featured-img" src="${d.image}" alt="${d.name}">
+            <div class="featured-info"><h3>${d.name}</h3><p>${d.category} Specialist</p>
+            <span class="featured-rating"><span class="star">★</span>${d.rating}<span class="featured-exp"> · ${d.experience}</span></span></div>
+          </div>
+          <div class="featured-bottom"><span><small>Consultation fee</small><strong>${d.fee}</strong></span><button data-home-doctor="${d.id}">View profile ↗</button></div>
+        </article>
+      `).join('');
+    }
+    function openBookingFromHome({category='All',doctorId=null}={}){
+      state.search='';$('#searchInput').value='';
+      state.category=category;
+      if(doctorId)state.selectedId=doctorId;
+      showPage('book');
+    }
+    let homeToastTimer;
+    function showHomeToast(message){
+      document.querySelector('.home-toast')?.remove();
+      const toast=document.createElement('div');toast.className='home-toast';toast.setAttribute('role','status');toast.textContent=message;document.body.appendChild(toast);
+      clearTimeout(homeToastTimer);homeToastTimer=setTimeout(()=>toast.remove(),2900);
+    }
+    document.addEventListener('click',event=>{
+      const btn=event.target.closest('button');if(!btn)return;
+      if(btn.dataset.page){showPage(btn.dataset.page);return}
+      if(btn.hasAttribute('data-open-booking')){openBookingFromHome();return}
+      if(btn.dataset.homeSpecialty){openBookingFromHome({category:btn.dataset.homeSpecialty});return}
+      if(btn.dataset.homeDoctor){openBookingFromHome({doctorId:Number(btn.dataset.homeDoctor)});return}
+      if(btn.dataset.scrollTo){document.getElementById(btn.dataset.scrollTo)?.scrollIntoView({behavior:'smooth',block:'start'});return}
+      if(btn.dataset.demo){showHomeToast(btn.dataset.demo);return}
+      if(btn.classList.contains('icon-btn')){showHomeToast('Demo UI: this control is not connected to an account.');return}
+    });
+    $('#searchInput').addEventListener('input',()=>{
+      if(homeState.page==='home')showPage('book');
+    });
+    // The main CTA uses the original booking screen. Browser back/forward page selection is supported.
+    window.addEventListener('hashchange',()=>showPage(location.hash==='#book'?'book':'home'));
+    document.querySelectorAll('.sidebar .logo').forEach(el=>{el.style.cursor='pointer';el.setAttribute('title','Back to home');el.addEventListener('click',()=>showPage('home'));});
+    renderFeaturedDoctors();
+    $('#todayLabel').textContent=new Intl.DateTimeFormat('en-US',{weekday:'long',month:'short',day:'numeric'}).format(new Date());
+    showPage(location.hash==='#book'?'book':'home');
+
+    window.carelyQrImages = {"23058950378":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABUklEQVR42o1Uu07EMBAcJyflqtxRIh0EiS+g80lIzh9xoYEqj44q+SUXJ+U3HIx0UN2rcSTHS4egYGE7S6OdnZ0dC8JXjRG+1Y8HDGBbZI0D5O+wKCY3vSbbFBTAwNDk2YWb9vmwZGAzAEP7dH/+eAfbDcgesX3IwcFgyfmiByQFTsIk5rurwrYQEdeNiEyqUBCR40gbnXV9dnR+w5DCp8oDWUOm5GaDaGZFv6W5itiFnBK6lihHLDQD24Vx2K/XjZuKnFMalIc0pcwaTqmvtN8kEGQ7Fga12kiDJOb2Fu3aMV7itr1Dx8527ONa2iD9gnUhSNtpVD2xs1GtTAovehtYsxbaV9oeAM4sEJGpKG6VYSMzCIFufXkY407z12sqnQVleKW19KWyLeKD5CPzdn5ZFc6zFwIA3fO0BO+CJeeFW6XK1n8lKyTmhBuOVPzvR/oEiwqvtKBmxMMAAAAASUVORK5CYII=","23058950379":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABV0lEQVR42o1UMW7CQBCcs5GOJkAb6RQjJR9wd6nsLs8BPoBxHmDnBXlBPkDnAolXRDrrLCWpMNCcJfs2XZQULNnupNHu7MzOCcJPdQF+1Z8HDGDzKsodoBmYJWe9tKUjz8AC5Kl61sMhrWe4DBsBaMT24fz1CXDdAHWT7hYpOBgsuR4S0Dy3QYw/itgWEAHXjYgsEVZE5LiheRW1Mjq6fskNVUjeyy1eZDPhNq2Lbn6SOxonLLdeEDKyHlHpeE/Ja5U5xXpKPkHmzFpHOdNtVL92oGknfPPGurCRSjgDGXK6BUActrgvYpQpx62QZqmt1/3U8daTB7I9sYJQSVijF3vLXchoqAWAZvGI9ZULMZMkLBLDyRvUQoTH7W3bhWV1JVktIp8YftONppxsgbDVfGTqw1itXD+teFh4Fw8zsC4EyCp13s/pqTmBT1bdduaEOTdU/O9H+gaOW66n2byN/gAAAABJRU5ErkJggg==","23058950380":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABSklEQVR42o1UQU7DMBAcx0juhbRXpFDzhd58S35EygOS5gMO3+AXOVTKN1w5EnDCLRdHSrLcEBzYsjdLo5md3VkLwneNCX7Urwcc4ESnmwiYv2GJpIhSHVPQAgaGptBbM38Upw0DuwFwql+Gz/c3sGxAVuL4WICDwVOcSgUYWjgLs1i9bnfeQiQcGxH5hrAnosiJNp1elD7HqeREM6gBI57VkHJOh2o3P6kjrXK2N9/2ksgv0C3bG3UUTFbHjNspXKV0G11ldMOynSMFBUGeF216GYwPSnJzSzKMmeju7Q5twW3BKn8wfjHTmhUNkAeg7ontjWw+pZj2vecSgqnu6Nz5AFTmakKkzR17MichZjvehVG2HZ9eH6CX3PFOD4Zs7i1kMDzMiZ4osulNAOB2P2/Ab8FTnCpkae4PVy5ruBh3wcOacSr+9yN9AQYKtSr8CJDBAAAAAElFTkSuQmCC","23058950381":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXElEQVR42o2UsUoDQRCG/80G1movbeD0BJ/A7oTApfM9zAuYVFZJzsoq5wvEZ1lBSDqfQNhkD1J6e9Ue3Dl2EkEmTjfsx8/szPwjCD/R9HAUvxJYoL3PoFMgZTBHwVWw85S+GKyHfNwVm9EjdgNwGAD/8Kb/fjlOkhWucnMCW5huhuHnOKk4rBNnh4tmM4DocVhC1HlzWSsiw2AlGvhbG+UdqzacvY/EE/y4ZL9wGFwfVs25J9mNmSm0OovnipYKmh2WD7FWssrIB16NiFwRHIf1ymm+G2BYbYcRW9s8i6eU+CCXJ2pDRK4wVHGL1C0iW7/GflG+gN3e1BWUVIjnnJr0xfl+a5+V5NYSrjBWhFhDsn0jIouUVpldcH3bCRFPN0AjZ9zoJQWsb/q1wpprr1umbWRaACKccBYAncrVKQPeqf6k+JiBd32rYSPjKPDOKich26u4ZtTE/y7SN9KJoZ9wzlVRAAAAAElFTkSuQmCC","23058950382":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABa0lEQVR42o2Uz0rDQBDGv+0G0kuTegy0pNCbT5CCkNz0PXyB2gcwiScFm/QF1NfQWwQhggfBu7A1AY8mvbiBpuNNLOjUuQ37Y/58M7OC8G1NBz9sy4EC1jbB8gDvb6wjSZck1BS0AYMhDjA1D86w7LMYIKV+sH592XKcCuM424GFmbQD5yNwKw5rRbe0mrwP0eEwl6h9w2hlEmUMVqKRe7my45aLhrXIByIvIiihuRZ6E0ybYU2yDbikguT8kOzukJMXyvLUqSkrn2omqTE4OXKlLm/uSosT5D1qyl7gVI+OzdRmtOGFXmH8YprRLVNbUWu38os0o4rbtzZ5XqbxoA7La3b0iwYUjqb3E3b0sjLd+FwtTMnqVqSZW2t3A8npBiIqEo8SX4WavyyqiRKv4KJ1JOl2PjFWJq4CrrbIozRbA+AWyQDQzj5h7T9d7jrABMZx+jpjBSFNG1/ZWUE7OlU2uXXO7pv434/0BXCApmSMmEjmAAAAAElFTkSuQmCC","23058950383":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXUlEQVR42o2UwUrDQBCG/80W1lOSa2Elik/gbQUhvfkGvoMnqw+Qbn2Ati9Q36O3LRTiSwhpt9Br0l4ibDMeBKmgg3Mb9oOZnf+fEYTv+IhwEj8SVEBAjtgA5m8sktTu7LIagjowGMaDI5W3L1inLAZgZlbx7y+niX4cXI0di8FTSw3pwlDHfeEozrbzmzKFiLiiGREO7mKviBxf1He5n7ogWgajidKF8hYVh0Vre709LM4bkscBJ1ZSVrEiqxAbrrempU7JOqeG6y2MStnlftp6FqPOZDYPIxc4h4C6nBrKmlZaw88tG5OfOqp5sZJVvNTNaPvKSV/F0AllNXTBunejvH2rZkqmrJFq+NroApIbSKQTQuJ8mr9POCOtheiLO+BDPoPfLNksenuFOSe9tyYMEQCwRvraLMRGcr31AECU4um+f/nAixUKUyXOU8tv1k66fKP0nikq/neRPgFzC6c+/vEqeAAAAABJRU5ErkJggg==","23058950384":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABV0lEQVR42o2UwUrDQBCG/80K6cWk18JK+gq9rSAkz+ILmOI9bXyAxL6HL9BbhECOvkLKBtRTU3vZQLLjTfTg6NwWPmb+2f9nBOGrBg/f6scDLWAcotwC+nfMk2SnrV8HIAcGQ56onZ2OyWHOYBcAOgw35/c3sN0AdYv6LgGHwZClsgE0OW6FScw6WpsCwuO6EVEbxFgTkeWG5lXk/Ohkx5QbiizGbo9HvwvYTUvRwq9pFnPavKn3r3qNbEBYcdqcjnKrNlaxni7um+4yqSmRecWa9YyPl6Vw3ROn7TXcjMHKHGfLlMNUuF+eq6tihTLhXZC5NU6PIetCAZUCm4ZKDiPnI6zo1BguIRgzrVKYHsj0HwnZkCzilv3egxAyvF70gywrPr2GqsjFLb/pVlMfmwKy1zxmnE9k2fR6APCgpzl4FwxZcloFsdlq/oa0gkbEknNB/O8ifQLDhqycRS+oqAAAAABJRU5ErkJggg==","23058950385":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWElEQVR42o2UPW6DQBCF34KldWWc0hIyLnKBdJsKOh/HoBTpjLkAcIOcwx0FEtcArSU7lcEpskjApIuSIuNMt9Kn+XnzZgXhO3oLP+LXAzWgu8JLDKD+xiybDGhbLkATGAxJsFqr8Ro0SwabATi/vD5+vF/AZgNWY1DuAnAYNBmaJKBo4kYYxfyUP+kUwuKyEZEmQkREhiuaFF5SeZ0ZQrboNcbuGbk8LbhJvXVfvlUlzX2uN6tpJaCw7+EU3E6FgTBubFx2p24oqUVJgZ2w2UJFqYQgnXGCDJBERrfSZnWjxHitwl7ZqeKwg19HRk9qcNgtZAVEgbgitjfqqjouqKs055DZuPy83NDkOfZ3HFIvfDv1a1beRghEx1Xb21lx57K6uX2Q44E1+UENDukUdqt4TFNFZFj3WgBGJxqXQBZwWFy4odzQ9nQDf1nnh2N9w4azpfjfj/QFJcWyqwz0Uy8AAAAASUVORK5CYII=","23058950386":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXElEQVR42o1UsUrEQBSczR6sVe7ag4XcL9jtgZD8kefZWJ2bXnL4A/obposgxMpvSNhACguT2CRwybM7FPSd0y37eLMz894KwhGDh2/4cUABUIIg7gHzd5knqcdnVo4RTWC6OWvcpDRM4XPdAIzbc8yz326OmAGAr+o7sGVw1Duiw87QxJGO4gz7db2A8DjSgFC22XuniPPNq2IReArzVCzAkdpwReKiU8VlxJTp2/TFR9lAWlZpE8pJBTbkw4I/DNftSKlm7R2tqvZv9eI115xSLdJwwtBgKSJ2kELtG9coST07SLHcKjymh/ZENzchsMpZdiztgA4lZXqecYaIfEyUjm9WLKlLzGFjggmyZSSAiJwNZRIWbAqlEMsGBwyyZd42kzTUsao6hf0TJyGO8KDgP682J1Zm/FhXHXCf8XtaCMJVXoie3yxKoP2QTQEFUOxM0ObE+Sb+9yN9AZ97oDiXLfLgAAAAAElFTkSuQmCC","23058950387":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABTUlEQVR42o1UMWrDQBCckwJyJbk1yMhfcCeHwF2X58TOB2R9QMqTziDQN2TW4KTKKWlOIGnThaTIOtsdDDs7O7OnGN81BPhRvx7oACptVnog/xsWhOzBj00MniHAUJpVlU/v5rwUYHcAru7+4fPtFWI3IAWaJwMJBmI/Fi2Q8yxJmNTimhyoggqkbszcKcaBmb1EWto0abPej3uJFLEO3YCX6BJLSlfPwymIGl5ocbaxaDNmmpHV0myd8tT7tPCp6GnKyYZNwyYsrbSQ3kK1UEwiKR+jtPDkolDaW4Ckv7BZV1vURurmNLGnOR8T2QXPpUXRsjybi7LSct+SnJBq27A5J7v18UZCqOew0p243rNS03q3ckNYWzm9VNts1p2s9JiPe00VQpfLMHKa2bPsAjBVp2kJ2QViP8ZRGms63risy6HvPrBJBKXqfz/SFz76uZyMc8CeAAAAAElFTkSuQmCC","23058950388":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABSklEQVR42o1UsU7DMBB9riulS9OuSJbCZ7iTs/VzSD6AhIg9gc9h81Apv+HKkYCJlC6u5OTYEAxcuc3S03vv/O5OEL7rssCP+vWAA1yKrAmA/hu2kBRQJIcUNIOBocnVY5g+8uOWgS0BDPe74fz+BpYNyKQ93OXgYPAU4qYHNM1cC5NYvdalbyEWHBsR+dmgJKLAiTZWFUl2CrHgRNW6dukFT8mQsp2em+Vzf6CVYb1FGCfIz8g6zpurdDZqVQfFZQqiXongKp01LBs0qgSCPCsaRR/L4MdEsv8Wof0poNKy5bzFwjhoP+u4YVMgSzNQ98R6ozFBiih6P7OipUUKPwKVvjIhHcnWOHZljkJMx93NeJGd5afXdzabjeM7fdCxML6FHDW/MgOgyhA3lodBvExboMs5WG3Ven9L++ETV24IEGEkl4L430X6AnbNqaS4/zYcAAAAAElFTkSuQmCC","23058950389":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWElEQVR42o1UwUrDQBB92y1sT9leC9EIvXteQUhvfkh/oM3JU5P05MX6Bep39LYFof0JYUsCvSb1soUk401UdHRuA4+3+96bGUH4qFMPn+pLAwc0KSEwgPkd1pPkD9nGzUAdGBjyCY7qeon9kIH1AbQ6frn8geBbEwo7zi0LQ0G+0RQuDHWchFYMDunVdgjR4x6NiNoEF0dFZBlYiZPslNN5y7KN0hu83aGelKwEIiszYE4FK6FcqgaK9OCMsxduhiZQsoqp9lymEWHq3fO65FMgMR5iVO1GesKl0MVFFUe1l5n542+aigdLFTtv5/Eh2YR1Wj6xSrWPaooqhAuWLVOv2c5BSda3IrdRZ8IAkvMNROQCQ6vYpZy9eyFCKOAkE/Cbhem6f1R4ZO3NDNW2ASA8vzLt/S0CI1fg2ZpAYb51HBsK8k0QO20L8vwNccJG9ZadN/G/i/QOBkCf9t+5CV0AAAAASUVORK5CYII=","23058950390":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWklEQVR42o2Uz0rDQBDGv+1GtheTXAuRCN49ryAk79IXqH2ANPEB0ifwHTzaW4Rijj5BYUsCXje9uIGk401UdOrcBn58w/z5RhA+o5/gS3xLYIAhS+BrQP+NTSS5t/DZLEBHMBiKFKK+vcc+ZDAPwLh/3F7/IvAjiXxcFRWLoSFHRFGm6ci1MIppu76pQ4gJVzQmGi0uD4qoYrAWvZS1CYqRVZuFr9H5FF3asp3KZe/NNxcdyTHlluUnyBTlCr7mBpJjgJI2oc7xarFNmrVrWKyxaIiGVTVwFwKzUJGguHMy5zCyOu7IBBVZVg1KUkV50pQstnKyTGKLKGMwT4qgP3vRhZIhe0idI6vjEpIbyCTyVevDINmV3E73QsxyBfRyCd5ZUm68g8JDylmmeNqO08HDhXjnLYODhq9lecJZ8JU3X++WJ5w13NUmqBpy/A8xQR13NXtv4n8f6QP8YJtfeATcTwAAAABJRU5ErkJggg==","23058950391":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABVUlEQVR42o1UO2rDQBB9q3VYN5Gc0qBEBp/A3RoC0o1idUljyxeQkuO4kyrpGCvLkDKx0qxg7UkXYgjjTDfsY3Z4nxGEnxo8/KqLBgboCqJcA5qBdWQdYpNaOrOwTNOxlp/a+AzMA9BmCwTlXy8Xjcwas01YGDqyXY7wym7eSYwBXd8nwmOmjSJCu8d0r4jjzTvQcuY3alKJTcLAprKIJDlfddynoAxRjmhrI7IMzAlyaY2VdsJyuz0tD7eJQzM/cbvJXMV3u/eJrmTJqdBXoA2CYsarkCtJ1gG8Qxy0AQDtfNZIRR0GRAWZNadpSGn9IWao5hPWSL16fFVt+2y+Si4LK+3S2gEIOBWIqKOyy+KO9VsrBI6b03lAz/lN0qD63ahXeCv5ZJlNKTOA420EIOzVcGPH6cuVZD0s5lkTbpMrqV8redbR1vI3xAiic+w43sT/LtI3P9yjGUlSucwAAAAASUVORK5CYII=","23058950392":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABZUlEQVR42o1UQUrDQBR90wmMq2m3QuwIuha6i1BIDuE9bHuANvUAFQ+gnsOFkIKQ7HqF1BS6bJLVBCb57kRFf/27D4/3/rz//gjCZzU9fKlvDXLA6RA6AIK/YT1Jdl+u8wmoAwPDMsJDOr7DdsDAPABtXL5d/ULwozGH6GKZHIEtkjbG6SEyJQdrxcl+0KQDiB4HM0SocV4rooTxrSCb96m4T5ywDJtf9c0sQxXt2Ce0w0Z0zVlFso0YUddPnVYUK+iAmy2GKZUsQ6qY2byWUl/Y3fPLTnPL8uvR5c3mtczGHitaKlqSqayMuSD5eiQ6rIeZm3CGbGcb1GszXeyewKV3mjgdmhL+nBH15EAplwVLJblYolgFTljTQXK+gYhyYWkV5gtu9VshfK2ARs7AXxZur71a4TFidxo4kTgAbN4AYA7oQK5whE0rTNOcY0NB1gnK+0lB9shldVn4rvyaERX/+5E+AJLfoXcG3niQAAAAAElFTkSuQmCC","23058950393":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWklEQVR42o2UP0rEQBTGv9kRZhuTbYVoBE+w3QhC0nkc1wskmc4qewQv4AXsIiyk9AqzzsJqZbI2E5jkWQiihQ9f9+Dje7+Z90cQvmOY4Uf8SmABWzap8YD+WzaT5AG1iUATGBlMnkCP7/l2wciOAOwOw9XH2ytYNyA5zjc3OTgZHPlQKEDTxD1hFPP9YulqiBlXNCUaO3XqWqKGK2qa1LRp78OKKYoAZSOkhmzBsWE1XLyoDc0zlm1/ltl7j2JAzLLVOkQ6KX0Cli0mabwtdGo80yzZPSF6vhTT7gG8m4V2nZLkWTakxstJy5pjo1rJTrtJh5h1Mz4RDcqW1pyMpowqhNvWTeyHFNr1jQVQsGxErspknVl2ZbZCjP3jSTfIdcNvloznslJjxQ55panKXA3ZaX5ltv1dcusDNyFfyXJcAOuck5VNAnVO17sD+BviJhWQSa4L4n8X6RMGa6Xljv+sGQAAAABJRU5ErkJggg==","23058950394":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABVklEQVR42o2UQUrEMBSG/zSVDAqtB4iMMEsvEFednffwBHYOUKfu7XiBuYi4mAGhHiNjCi5NB4QU2j53MoI+fbtHfr6X/5E/gvBVXYSD+tbAAlQSEgOY32WRpNBga29AIxiaWxqb1hrGJhwNAK7Nc/LzyWGjgVm5YWVwFHpkujA0ckMHMXmruvoUIuJoROTaIJcZUWBoDTo8KJuWA0eLhoVC8YJ23rAWyJs+AXJyrIUmrWdeUTo5O2UXUgad19Jn1DIW0ItatuRWwXEyWezXkTInj0cXx0/c3US99ZgtjFqyTkdMS7LphrzhnmVObgQtM1exMhF0kU09dMHIYvl+1dypj1hJfm8eOg/TCpLdGxFZGKoye8vI4t05iAB0cgE+WVhdxnuF9ZxPVg/0AETgIyNXAYmR1R85JW+Q15ajwVGglmy6cWwWBjHZ3YvsVek9M1T870f6BHjFpTaGFaagAAAAAElFTkSuQmCC","23058950395":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWUlEQVR42o2UPWrDQBCFn7yCdbVya4iRIX0gnQyBdZeD5AK2q1T+yQFkXyA3yAXSbSr5EoE1K0iXrGQCK5A86UJCYJzphv0YeG/mbUT4rqaHH/WrgQUo11AZkDGYo2ATY5cZnVhsnVklL5BZxWAxAFHhcPXn5U8zXE0vN+YMtjI4muHHNPUc1kX9t9GkGCDqcVhK1C0wriWRYbASjThJm2w6dhroFg97VNOSkwDnYRUwJ8fZ20NSAJKS/mjATbPLTFSF8JqqwGBtVFCu3TY4DovLWVMeTef3NzG3eqoKq3RaBbFmMY/Ua5sY8hxmlYYCrbXLWUPqBhGNZy8TbvWxIBx2/c9YCs63yD1dj3f7sq7Fu+QkENl5oFzbVeCT1SpNecba2xMUcHyOa4nHKZ8sItMCiAIfGWzvoTKRn0lW52V8t31dgE99Ow82MY7OKHVeplXB3lv0vx/pCzuQqFdH7xbhAAAAAElFTkSuQmCC","23058950396":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABYElEQVR42o2UwUrDQBCG/80upBeTXoXUvEYEIbn1QTx5Kz15sqlnaXwBfQ57MkKhfQlh283Bi5CtiBtoMh5EUdCpc1v2Y+CfnW8F4asaD9/qxwEaIEsIEiD5G/MkuQoPegTqwGCYZu2Rf3KJdZ/FAND5Ivj95rMUgNgE6ursicNgyNGUoouEOi5CK3rVwfGyD+Fx3YhIh07mKZFjulVoAF+H09ZjkxZDue7BZhUXwTu08+i6GViSbca9wiSsAp/C3oAbr6purf9Squf7cuszSXejlOrUFM5Yx43XlhrpblLuuA2BsSSJYutkzmFUAyHpsKSaw7QgPQLlqZmxWFiaLo1rRBcMpuQmAK1elS/77CIVZZwncQfJDoSIDDmapXrCbchaiKgYAo0cgzerNXO19XGTcS5M7xbBqlEYiDfeLCkyBImc7RMQUKfF43ivWUsdloZ14cOsdONHW6ab+N+P9A7uUqSmEPp29AAAAABJRU5ErkJggg==","23058950397":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXUlEQVR42o1UMWrDQBCc0ynIlaU2cMEGvcDdFQHrKWlSxy7TWJIf4CR98D/SSRCQPmGQOUNaWWlOcNKmCzEkS7Zbbri52dk5Qfiu3sOPumjQAA2WtNOA/hvmSbIqLY6moBEMDHmCro7T5BixMOC0XyAsfju5bB4mTZ6wMBiypoVaWxo5CYOYYK+rm0R43G1E1AjrVksiy5GOWraQGbDhSLENEJKbBoYj9a7HvkE5/zzfpgVHeq5meYWVdsJySrP+fQOHOh4SBjYLU/Xcf0S6lDxpodZknipwpGhCUsI6gHUBDqARgHZTBibvb+zdlpro1QQHRoJalf60nKOMI9bTc6XWlWy1yVkJUyhRuRUQWn5DzAiTLQ27b0chBm85jD065m2+pN4Xb34X4IV1IdPNBjIDuLn5AGaShis7WT/yyRraOs5qlSd8smgXyFHPcssn69QtHILDjlEq/vcjfQGQXKSQxqhZvgAAAABJRU5ErkJggg==","23058950398":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABUElEQVR42o2UsWrDMBCGf0UGZXLSseDiQF5Cnaxn6ROk2RvbZI/bN3Im5yUCchXoGJylCsi6bqWB9uhthz7u1/2nkyB8x3WCH3GTwAKuIdppQP+NTST57ILetRTBYKjNOE6XpennLAZ83A2Ytb+d3CTj+mBrw2Jw5F2F7NlT5FoYxRSp7h6MmHCiORFWuH9XRC0nGrVsWlkBG04023bHcxlS5ThRUIQc2rz2OXmm2um1OO5UfzZHtppNkUcVVsg5QxBKshu4SlvhOQw6SwvXdGAxtyvCzAeAn0Im6sXTIYEe53wLRSiJGrKsvfn6qtb7BfZLthoNnYwK0K7mWrDCU9NRBcy4KeRRnYbHEwp3NgzWCzHGYoxXXJi7JZKuyfYzuSi8se+t0nYDWQGp5rEgKAiP0vObhRezrA5ZbfjNoljIqHPeN8BRS7EInG/ifz/SF2PGqU4LAOXnAAAAAElFTkSuQmCC","23058950399":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABUUlEQVR42o2UQWrDMBBFvy2DsrJzABsHegllpZylvUDaA8R2V13ZvUB6jnbnQKC5REFEhm5tbyqDnemuNFDGnd2gx8zoj748wk8MPn7FVQIDjDuNUAGKwSw5E9Vmp+jCYrkykDGUCRnMByBKdQz/PLlKYuCmqFkMlhx1FM/M5k/eotmv35fwfK5pSoRbrHpJVDNYg2HKpYmKia0WP8uV94Ru0/A33R7SZJ10JKYNhz3q6SwpWiRLVpCLErkUrabOMRhVZDyylbMsNkKZjMasHtkXYrbadpR2TuQcNma1zbWJamq5ZX36GlGR3mfNC6fb1A7o9Wp7WLccJnI5tScDKXjdcjWGKg4heN2IbOGo1CZzvLOo1VQqVl5fkJuKt6CX2DOrD1C8HsPTECDxvnjLoNggVKKccZaoXHBXfTzMO8tEtSU34ywM+izjnqnm/e9H+gbHt6cND8VjaQAAAABJRU5ErkJggg==","23058950400":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXElEQVR42o1UMU7DQBAc+4Kcyk4byYr5QrpLZXf5Bx8g/kCwP2DnA1Aj8QI6R4pkPoGU6CwlVL5AwVk6e+kQFGzY7qTRzO7s7DmE7+pc/KhfD+wBpRHlBpB/w1xBBhtv54MGMDDkyTQ3fZscJgxsBODYLpqPtxMuwKZXn6eH5JGDQZGhzAMkDdwIvTNu/Lkq4LgcGxGpMyElIsOJ5lWY1tHZ2BUnCnhi1mHjNT7rG+bNjbejceyyhtwGrzN9GDoEFdObDQxWMipNyO60oWXoY9smIufYVGki7cEhVTKGjPp22U/k0/3YWi5vaoAig7UUhWRHoEhLNUgbGJ4NaYW7mrjeQGVNGjat1cCKrkAaSgNreSEhOhZFvGftPThOXz5PdSfKir8s4b6IzOszNuSZtA6pAkLzecMxQ5gayyXEBdDrbT8ByoS/LBvUoR+r7MJlHdPF/h3XnKjzvx/pC2HjrrFtZ9SNAAAAAElFTkSuQmCC","23058950401":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXklEQVR42o1UMU7DQBCcsyM5DTaICsmR+QLdRUI6dy55SmLRJzE9dj7AB/gBVC4i+RsXzgWpiENzluxbOgQFK7Y7aTS7czO7gvBdvYcf9esBDRiqk8IC8m+Y55Mdo2wXghwYGIo0PsnxI92fM7AJgHb1evt5eAfLBsRb7BYpOBgMWeoaQJLjJIxi2j7lpoTwODYi0lDIichyTYs6DoOks8OSbfqY+W89tkEbckqT+xeIZkdTxc02aRd3COXe9Yhqhi1Gj26uLuyYp5z1odLC6pVMCk4plTAugCBTsTAXxLk1m8Dn/s1rT30zS2fuBhU327BUA6RxcohYF6iOAawb4mfbBMkGQ94YLiEYotrvar0EVpJPiCnIL5VmV2YvBM7mV8fer2o+vTpE4pTmlW4kOWVK+EfJr0z7gDi3A5eQCQCss/HygOqZY1vX8ba/pqw9gb8hOgwGKJ9zQfzvIn0BYvurm+lsnUAAAAAASUVORK5CYII=","23058950402":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWklEQVR42o1UMWrDQBCcswx2JdmlQY7yBXdnCEip8pxYpLekB0T2B/KXMxiULl+QOIOSypLTnOCkTReSIutsdzDM7OzOniB8VzfCj/r1QAnoFEFmAPk3bOSQwWZydEEDGBiyaDE3/TmqZgxsDKDOu7vPj3ewbIB/wfExAgeDJmNFAUgaOAu9mNbPsc4hRhwbEZUeISYiw4lmKqAiaI3dsKL9A7I19pOTyzrdryoqjjQNud7GgXaXkNXQwVOc6E1XiHU4N30cMbDT5q0ndThHTsawwbookwKC9I4ZyLhu7gMR65eptR3n9HLoW7UcVthFnGhC/lbqQVqP3UIjqVVICuJ6A+UTuLBxobmEwHrKCqVTYCuvJsTJw5I9mUoI0HrRdM5O8ekttwiGsOSdptJuQ53DaSR/MvXs1Y+NZRMCoH9q+xn4LWgyNiHfDXV65bJOrSgvuOVExf9+pC+dvrQOp89MPAAAAABJRU5ErkJggg==","23058950403":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABaklEQVR42o2UsUrEQBCG/80e5KpEuUqMLmKnld0eHCSdzyH4ADlsrJLcA3jRx7EyykHsDqwtcuzBWSZX5WSTsRMtHJxu4Gf2n2/5RxC+a+fgR/1qUAE2LU2mAf23zJHUSn888UA9GBlmUTcrF1us9hjZAABorN5uP8BOA+RNscgjcDIYak0GK1rquRU6MYSnN3eRcLhpRGQ9beOQqOUebQqTU+CXipXZKVGtg5QU621zNO4yd0HDZ86bE2AJ/3Ei2rBmuYlmM70s/WGXF+zXu7IOg7RkvYHywiahJAp8Fkgfqh5V4tqUkTkH2a7bL06dC+QRxy2lKgkVlTbmvJm5trFrE001hzeIl/IYgy3WDxwQU+vKb00PyQGR8+F18zk6b9yX+3c+WVRDZbriuA0k7VYnZXD4hCsOiMm0nbZqDpm3fGTW3us6dm0T8QFU4tJuG+Gd8cmiGqoOA+44DDoB4xEI1YjBK/53kb4ACPirISKEqYEAAAAASUVORK5CYII=","23058950404":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABW0lEQVR42o2UPU7DQBCF33otbSrbLZKDkdJTbxHJ7rhOfhqqZM0BHHEADpIKd6bjBJEcNlJaO9Vasj10CBAMTDfSpzc7b2ZWED6i8/ApviSogX5JCDSgf8c8Se4cinoBGsFgyLOhUfMHHCMG8wHgcTze/iDwLUkMZnnJYrDk+iCNN5pGroVBTM6mqyIIjyuaEA22vLkoopLBTuhkeFeH+cCp+XH+fLh0aLOa7zToqvV+2pIcMqZTMioZVQ+FQHMYuXhbASm1jil6XCm093a3P3Fv82UoIMqheZn7rL1G0TSbeVoZblhUoEdqdyU1mp1plRiQSW3BYfXSWaKkQbxht/f6dU6TQ6RkxC7SqMnopIDkfAMR2VFTkdZb1l4hrtYV0MkV+MuSRedfFJ640Vuje1H2AITjTwYLjUDLAn+oBSmWVc2pwZLrt64OS0uOv6wTTdI3FV+YouJ/P9I7rw+iQ2FOVPsAAAAASUVORK5CYII=","23058950405":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWklEQVR42o1UMWrDQBCckwJyJdmlQbYMyQfcnSupy3NikyZVJLmP5e+4k8GgfCJw4gxOKslOcwJJmy4kRdbZ7mDY2dmZPUH4rsbCj/r1gAIUEKQGkH/DLJsMRHFwQT0YGNIoiJ+6KiqHDOwGQEm7u8+Pd7DdAH+Nw0MEDgZNpnUdQFLPSejE4JTM9QbC4roRkc4IKyIyHGma+64TnE275EjHVXx63GHrHF1OqZ00by/3BxqE3GxWOSpmK9P1DbycgQX1nqwmHJluFTESWlG0kOpZBimnVLky2DgQpDPD7015RieOze3NOtLCrqJJP0d2ZTZfGN3L1rvigl0DcUH8bHWo05zOheYTMm26KirjxSRhzToX8Oh2Gqo1a5YQ2DbjurGznE+vEnnQh4pXmkhKQr2BXUv+ZErK/ZVp2YQAwGXfDcG7oMm0nvHdUCdXLuu4fFUXzDhS8b8f6Qv3lbGECaL8xwAAAABJRU5ErkJggg==","23058950406":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXElEQVR42o2UMU7DQBBF/3ojmQYnbSQnzhXSLZXdcQ8uALlAvKbHzgk4AQegNFIk5xgOawmoEifNWlp76BAUDEy30tP8/fN3VhC+qvPwrX4cUAN1WkaZBdTvmCfJSu1vA9AABkOWhPeqPyT7CYONADSXV8354x1sNyAEtrcJOAyGLA0+oGjgLPTiotksTQ7hcaIREU7+zFREJSealRFVUWvdHSc6TdPm1GHjNwEn2qSZK663dBFzd4NDLInqNaLCclgA2dqosCGbKW7i7iF5OSQyY5yO3ua7xfl5IYbmiU+hkoMy2pdkOVFadbKcDUsUCWvBd6k1g3JjzqnJVS1KpBWxA6EhduOS2spwLwQuUJGG0cCaw4jItCTzuGbHuxcCj9302Mmi5Derf91J7feaHa9WDrHJIY+Kx+pVRWSJTwGQc9VPwKdgyBJVYRAb/cdm7T3UJyzGjFPxvx/pE1GUsJp9YPOcAAAAAElFTkSuQmCC","23058950407":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABW0lEQVR42o1UMU7DQBAc54wuVexUKJIjI+UT19lf4QUkooEm2B2VDb/gGU5lvkCB5OQs0TpOwZ3k3NIhIsGG61a3mtHOzqxH+H52hB/vpEAD6C6hQgHq77aRIDMrsNUVOTBoOlPDRIpONRMODUC72iOofvs5KUQwbvKUbYMmox2ilSHHkR69MZ5UPU+9EYPmx4T2UPk7Saxu2imxr0QGrDnS2W1t5w/DRGqOFAPUsEScm5gMt4VCLqZ1e5O+82hBpfc1ZYg5QfyP7eXbvNdQL+KTQ/OMKEmXNTzDGWktRaeGJfgtRL2dlY8yVMcQrC2lcAmV1LDyxoW10/wKm0XIGymRmWyv75pDxZIq6uSwBAJuUiJqAJ0lmp1063miSI7Oouf8Jsj6Oxv1Es8Vn6zmoRIZwCXLBxAhsRdmvLo/k6xws8heozzlkzUAwqk4N2duSKbIJQOnm/e/i/QFObSgybNzb1gAAAAASUVORK5CYII=","23058950408":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABUElEQVR42o2UsU7DMBCGf8eVzGR4AJdE4gnYzJRuvE7LxEJJNqaWF+AhWJmSKX0JhIuREAOS0ymR3BwbohJcuO3kT//Jv++3IHxXn+BHHTRwgC8J2gL2byyR1BnUDqABjJovrIOV685pTg2AEVUffj05bPQmK2csBk+dX5PRlgZu6F4cgS6aAiJh1CYpATtkn4/E+Za83ffTsOlPkK1nDGbay+YUsr17fuWGbkO9byl7WWyOP5ib0pD7solzZTh7EW87oxWQU9txatTIIffU8VgEqK18UCmL+ZA7WBlyHqNgo0aEMoIdOlcRoJDTyrKvcD5ZUIZ6GrgNobJJB0WFkpwaHGxaKAB8FlJqaur8kDvNbe9WCHlV75MeO4wk6+H6LCi5GkkWlVUEwPk2AYCbJC6f3ucjar5s0gEyWD5ZtLJxqWjENzhRYQnD+Sb+9yN9ATRHpjcA1OJpAAAAAElFTkSuQmCC","23058950409":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABcUlEQVR42o2UMU7DQBBF/9pBTkMMokKQmJqOzkiR1h0cgJKKEyQdVWIfgJgLAC0SnIDKkSKFQ4Bka12QKk7S7Er2Dh2CgoHpVvqa+bv/zQrCVxkH3+rHATmgKgSJBsLfZY5LutmdzzogC0aGJApurptlVOwwshaAIj7ubxYf+EMWKO/jPnrkZFCkaeIBIVnuCo1olzhREwiH60ZE+ZgwJCLNDU2yIPaCla4H7NBYTiuDW6/scO/mWiN73ozakvPW2o/P37dsYQ38jEthbdzlqdzVzTDihvZk+ZBNl5GbMN1aTTW9vPCNsOUz562ks7ft16e7dl0bzttm1b9H154gZby1gq6vE6iDF7O34FKokI+A8ZxSLiyyUsWoxVxxhKAWWd1BPgBGIU+ISsmdyJxdmUIIXJn9yrhpxtObD7PAytxneYvDGlJN4FYhL1OrOZFm6XUAII2aHbApOBhnh74+orNyDX6zimWUr3HEYSn+9yN9ArDas3SjTTM6AAAAAElFTkSuQmCC","23058950410":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABZ0lEQVR42o1UMU7DQBCci4PsJnHaSEY28iculd1R8gdeEFOFBtvQJ+EBUPMFKpzK7vICpLMcKSVJKDhLtpcOgQQbtlvdaGdnd+cE4SvqHr7FjwQKUBHRXALyb1jPIO0MUVYZdWBgSEOQ5cdhOWJhwOZuDzv77eVHYiSFSkMWhoq0sjMn0tRxElphGfEsPw1Fj6tGRNVeN9OASDPVNjTxHixztBJxyElYriGoGZoVS1p1EnbmptrlSNHcmCrKjZ1sBNcbxLM3CJtl4bdMb/2tfa7OXjaQT8YHU80Rez+OYS88flmX63FXj8sJcaRQkXbiDJDNULKrN7ejgBb5ZsqRuqO6fhMeVj5/bwMbt2ZZztR7xnpBIsopAWx95EIoq5KgYu+tFKK9CtquxgFHnPVYOwcT91xvVSKVnRkJwM2tD8AtL+oTbUXXvLPaeeEnhZOGvLNokRuddFPNO6vc1Q3M1zmjVPzvR/oEt0ujtU7NdrAAAAAASUVORK5CYII=","23058950411":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABV0lEQVR42o2UMU7DMBSGf8eR3MnpiuS2A5cwk3MALoG4QJUDtMnGlMAB4CwZKnXsCZBcXAk2kk6JlPQxIKEy8Mrbnvzp6f/t91sQfqqPcFa/GniAcgdtActggbrQ1n5l6cRiufVQBtZrBvtu7Eb/cXLWGI3ror6ArWsscfWZLhoOG8XkfdpvpxARg4GIAnUyd0QdM+2AfsyUT4oxYrUViUwmaNPDBQvtTdPPWpJjylnIdtBqqCazKWuh6gwU4KhlLMi77e1Oj5v504eK+WnU0rCuB25DojHfxVV6HVmVc9pC0YXS+aSmhl2kkzPrmnIXSg7zS2u0WzQwK06bnCtZPPhHJacXtMnGGg3J3RuIKJwslc6vuQ3ZC2HEFuhlxj29pG7M+/io8JzyyRo0BgCi4yMjQw1tZXkhWXhBfF+9ZuBTT7nySR3YLIxism9b96bMkZkm/vcjfQGjSJtHk74h5QAAAABJRU5ErkJggg==","23058950412":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABZ0lEQVR42o1UMU7DQBCcsyM5DU4QFZKJg8QH0l0qu+MD/IMYUScxFZWdD/ADHmGkSKbLC5AuOksmVQwU+CTbS4egYMN2J41mdmdnTxC+y1j4Ub8eUICOMz+uAcnANNUKjk5r6hiYhTj0K9nuw+0Qf8N6ALbnnxcfu1eAYwO8o3B9HYKDQVNNlAOS760V/SKNdAJhcWxEpIkQEVHNicaZF+X+W93MWENcR6VTrJzC5SZtF9E4ytfUD7jeLFuneiTbzmCQcSPEmedKP609sIZ0jhLZ0z60Y4atV4qovNlMRVc8cjttK0fdTfRDv2kMa2+mO2l30k4kx3a7ebmCAszJjhmhHJny+P4sTu0lu9PK8Vw0Ua47VnQ0KfWmHEwxP5SQZWAngWLt3QqBmTmtjJ1mBy5rDr8L1IDN21JSFegEdiX5kykAL6obLiEWAKye2yGQhhxskXmQY7os3nHgsmDUO8acqPjfj/QFzNOud7oHS1UAAAAASUVORK5CYII=","23058950413":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABXUlEQVR42o2UsU7DMBCGf8dIZqHpihTkbsxs7pRsHXkUCCxMJN1RAw/QB+lmpEp9CZASuVIHBpKwOFLSY6tAgoPbLP/6rfvO/wnCoboAX+rbASVAC+i5B8zvskCSH25tNSS0B+PmclNCRTDliHMDIIsGof3p5lBHAECz3QNYWYDMDo3t3hNdc7JBHMtwuhtDBNyjmrD9sG+tIpaby0FErvAIPYtX9ZnVcyrvDSe7NnoPpOT2HLdopNaPKiqSs4AFgucJLmSxijhuKAVpIllYR55zOxFVlnQ1TkXCuFGtqDYuV5Jzgyt8j7gMLdWGG30ze00v43T2smR/SLg6z8YgG4WWa6FVa7HR4m7ScC24vYHw0T1kw7VARK4huYhLNjKVENEy6dHJxvLJqm66batQJH8kKyS3gOS5AbiablvgyfJujjzSTSnYYZHvYaJR7HLD7xA397rZEMdN/G8jfQLgRabEBiNzXwAAAABJRU5ErkJggg==","23058950414":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABWklEQVR42o1Uu07DQBCc8yGZhjgpIyU6Cn4gnSMh2R2fE9xR+cEHOHwIP0BnpEj3GxfOElAlDs1Zsm/pEBQsbHfSaGZnZ28F4av6AN/qxwMGMBOoygHx77BAkkOmdxOQBwNDlS66u/GQ7qcM7AxAGz1dfby/gWUDVIDdJgUHgyVHlQZi8pyFUZy3F5mtIQJOVBEB4dJqooYTrRpFWnVuuGVEMUwSk0NVZHKut9eXZ9yHOzpP2N7mM7ou3Oh7RA0XVrGW0z6ZuTFLueiFXkTO5LGqHBOWLFfYRL3w7SObQqdN4WwZSmLYQOQGxNLHsmbnlmkiZ308RByb9bBdg0LTlhWtSHUNddryG3IQ5gEtrZclWAtkK5J1YtgvsxdiLNbzYy+3Db+9tobyieGdljF1ZGvIY8zDDEIiR1wKAQDkq3EKbFMOVjSLU3hJN+0Jf9wQQQMSyaUg/neRPgGcVLW/L9P2FQAAAABJRU5ErkJggg==","23058950415":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABX0lEQVR42o1UMU7DQBCc81k6UmCnjWTkSHQU1IeEdPkLH0h4QGLnAUkqOvwPOqdyPoF0iS3ROkZItrC9dAgQbNhupdHs3szOCcJnNQ6+1LcGFmgXBE8D+m+YI6l+WQg7BfVgYIgnWKrbJfZDBuYC6OJ+f/0LwY8mAC7jlIUhp5piCuaaeu4JnTgrzm+yIYTDDQ2JugPGlSJKGViBBiKzftxxbKDe0DHLI1hRc2ybbZE0F0eS3YTTrVLj90HrPjTeFTd0hXaWAYaO3NAuJ3g6Xz8VrAtFslUORuVu5DO7ofUM9SaMaxlpzqx1mvfG+imVmrVejaJtOFsUCSev9bTsTVgimDNsriwHdrN7c5UcsocUwc7qwIPkdAMRWWhaGbvg5N0LEcwV0Mh78MlC1biVwuOE3U23U7QA2EMCgATwtFydSBZeM/du/Xx/IlktjPXTnOoTyQLMQQUVwyb+9yN9AIrNnn5Ary63AAAAAElFTkSuQmCC","23058950416":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABW0lEQVR42o1UMU7DQBCc80VyKjsSFZIj5wsUSFcg2R3v4AUkHVWweYAdnkPnSBbmGRfOEkQUsUlzluwsHYKCNdudNLqZudk5QfiezsGP+XWABvQaYWoB9TfMkWTxWJUe6AQGhjQObu6GQ7ybMbAJgHqjro77d7C3AYEoytsYHAyGbA8XUHTiLAxi+pZdmAzC4UhDouHVnZuKqOBI0yJYVWFr+yVHGiyjEh02bu1xpLtsK+fXJU0jThs0XO2TXiPMLQOjRPX3NsxtwGa6a9w6j7eHWKac0x4wbQVBhiXVq0qSNYkridXWWpMpeVIyY7RNhtnzpSk+gO5sz6XQqGBV4L6ikQeJtF9QWxluQ9D7Rb+ESYA124Umqr1o4UX6gc1UCByfzptO5sVIs/AiE3dI2CVPFGWRySAbxcO0T0SWuBQcACAxzIA8Hm1W4EUmGWtWa/UnFj7jVPzvR/oCAQKuBRTMM58AAAAASUVORK5CYII=","23058950417":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABVklEQVR42o1UMWrDQBCc0xnOTSS1Agcp+AXurghIr8gHUqVT8gBZygPkfCAPSSdDQP5EQOYMbiW5keDsTRdicNbZbrlhh9mZPUH4qdHBrzpr0ADWI7ga0H/DHEnDfimaFHQCA0ORoFf3r9j6LAw4nvSne/HlrAllNS8qFgZDg0U8yzSdOAlHMd2XY+1DOBxpSAQg6hVRxZMaIrOqrBiYaYGjZjRFl+xYpTust/LjtiN5TBhSKohKZaHgckpxI6JDNYEmw0mwUMhisxpMx0mQ5cK+IWg3gZewZqkoxdzRKmeVHoqmx7rc2JT3tKYWlMem1FfSm8Vhi1nGp7eO+s2Xr+SVWI61v4iycffI7Y2IDA1Uxs2S29tWiMBXwChfwF+WzMdJr/DOWW9ybb3KAmDzBgC9hqtlyZBOACBV4vkhuHu6clmparzK0MC7YNo47GrigiT+9yN9AwSInZph58+vAAAAAElFTkSuQmCC","23058950418":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABYElEQVR42o2UwUrDQBCG/2QD6ymba6A0hd49b6GQeCo+hw9g2xdo4slT6wvoe/SWgpC+RCF1Cx5N6mUDScebqOjUuQ187M7//8w4hM9qXHypbw1KgNIYvgb035gryO6rTTkFncBgyBIRFeM77AMG8wDg9ur58pcHfjQ9YJjlZ7BF3s0RviVRxWGdc/Hab4oAjsthEVFn8sFREuUMdkAj1KRUWefyn05GdI86OXASYDILlWNG5sSkADpJTGULCZ8LC+9rE8CDJsNJgC/HyprVmp3N3afN7gVhtQ1VwmC9hxiUDF0tU05p6SMiKlVOFSthVuyCTTRbHJ7Y6GmGYzyYbkZc9J7IruVpW9ZSBGwKlYavoyVEbbkUiExmaRmXC8v55jhhJYFGzMFvlug33lHiMeFmS3Wr8haAY/mVEXMNX4vlmc3qOuXdrHZz1hCyLeJS5YYsf0PMqojqgjjfnP9dpA8SEJdN7AShvgAAAABJRU5ErkJggg==","23058950419":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABTklEQVR42o1UMW7DMAw8WQGUyQ7QKYBR9wvd1Mn+UeI+wLE/IOU72TwESJ+hVAHSTI3bRQZss1vRDmXKTcCBxyPvJAjf1Uf4Ub8ecIDv2qwJgP4bFkkKgNrHoAkMDE2xNHp8L44LBjYDcBZPp8/LG9huwHLCflWAg8FTGNYK0DRxEkYxP98/egMRcd2IyFtCSUSBI23aNFZZF4Y1R4rV5vzaY6tOMas02WGr9jTPudmisVZpGcapR9KyEgIqndmQcjeFt0QUXKWzhlXaBW8UBHnLwq7Kd8HXSrJ7GyoNEeSkpWFmm0lptS0c0N9dOFKDNAY2B2JnozqnGoM4eM4hGKCzCW4NVJp3iEMuTe7YyByFQLJbXntpW969rmyzKXcJu95ak8m9gbxqPjIn0aZlGDiHRADG535cALa4law8jXNf30zWi/vAA0cq/vcjfQFb0qrT/qxLvwAAAABJRU5ErkJggg==","23058950420":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABU0lEQVR42o1UQUrDQBR9kymMqyYuC2mz8ATuRhCSG5lcoO1cIMEL6DncjVColxBSRqiumtbNBCb57kQX/vp3A4/337z3+ILwPX2EH/PrgRZohc2MB/TfsEiSR6k2U9AIBgZTpNDDodglDGwCYL/obz8/3sGyAekJm7sCHAyOfCgVoGnkvjCIi/3i2tUQEcdGRG1FqIjIc0uNTUuVHX0oNauNshGZoXapWd9uXs12Qxc5py2adeoq0cPYI7bM0hBbefRZ41M2U5QqPOD5UEjDs3lXKwhyDWcI1XmAdmsled9qTcZjqmWtz6Sw8m7UIWbYojcjcHqZm0au2UyPlJYI1dZxDZkM81N2aferBMtzDSlzWecta+9OCDw+zbpeNpZvb1vZbMzbmPVtrcmQqyE7zcNcp4g8294IAO7tkABNwWujTqfT3K01f0Mc2YBccg0R/7tIX0u3stHG3OtRAAAAAElFTkSuQmCC","23058950421":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABYElEQVR42o1UsUrEQBScvQ3sVcmJlbiyvYVgt4WQ+xX/IGBzlYnY2JjgB/ghVxnhID+hsHcRLE2u2oNNnp0o6Dtft+wwb5hhniB8zW6Cb/PjAQfQqNrCAvZv2ESSHw6WFzFoBAPDzRyZWm2xnjEwtIUNMUzvXcwtBSCv6lU1/+3nGxv5tq+D8DRybIOY4nHxfj8XE4YtMoRhg6ONIta3tq8dUp00hjwDo05RaXVOhtW2np2LjVrR9JnTNtFJRWZ5IXzacTBZ7KKtapLpUNWMtgClkeq8YbWBSksVSSKdeDYsdfIhXvOpy8AuhaFadjbE7FIinZOhJmQcrB3RdipcW+o4e/UtAYi2eHuo2Uy9rHxbQo57tLlYIUvbwu5pVl+bwjrOt0jSbn22ezl+wuWcrwyV1pSQFZ8C1ld3b5kKPcMWAdC0CNtexKd8s0LemC7V3HGIBgFHC0dwh4y94n8X6RNWT6wL2bQKnQAAAABJRU5ErkJggg==","23058950422":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABVUlEQVR42o2UPU7DQBCF33pBTmWnjWRkjrGWkOyOe3CC+ALYvsBuLgA1V0jnIlLouILDWkqo8lewkWwPHYKCMdOt9Gl+3rwdQfiOi4cf8euBBmjyOq4coP7GPEkOC38VgAYwGKosmqt+n22mDHYFYFsk7fljhxFsdv25e85eOAyWHB3XgKKBG6EXk/YptxrC47IRkTWEnIgcV7Sq48GPj66bs0WLAuclFn4bsLqFywb+iiapx2IPb22g+uGCsGZ668K6ES42LuJ2ii5IpVbNo4ordlKNSKwhyBrHZ4tLZUtf8rqVqgkdAiU11xsZskdnB9WFTDavpeQOrzeVkSW700NqNbp8bXmHVFXyjm2Y3JTjDpE6bdgvsxGi3yezw0Wamnev1YiHtAlHdKMhtRryoHjMEhE51r0eAJzQTwGTcVhRR0bc0n17wsgNCesOqeQcIv53kb4AwZuxgkAJORgAAAAASUVORK5CYII=","23058950423":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABX0lEQVR42o2UMWrDQBBF/0qGdRPZKQ02FrhLl06BgNT5IL6A7SqVLLlKEaxcwAdJt4GADDlDYM0K0kpyI4GkSRccSMaZbtjHDn/mzwjCd9QWzuJHAg008OF4gPc3ZtlUfUavegnqwGCIA4j0fovjkMUAXD28Ob+/nCfjk5rFisVgqKKCxqFHHSehFf1sf5cOISyu6JSoNcotJZFisAw1aK4Hccv+hmLuOgcUQcYqbeOXBvWkILsNGKWU+00oG0g4jFI0orIpBXwqKm70oTSdb5LKcJiF7a0LjPLDaBBwDimS1lYzy5MRWAmgggwpyjkJekV6CYp8s2OxENT50xzjkHXvdeqeHvWztHlblnWWrCZdnS0UJ4FIOx7tfL3h+nYUYlxKoLbX4DcLy7pXSuy50ZvIazaqASCYoj0A9lrCuXl/urSA+35vkXysL21WDj1Qhir+hmgH0yJl/Sb+d5G+AL2xpg8ntDahAAAAAElFTkSuQmCC","23058950424":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABTElEQVR42o1UO07EMBScxJFMlewBglJsxwlMldyFig5xgHxEu8ouB+AuKZAWiTOsZMgWlGsqR0oyVCCQ4IXXWR7NezN+44D4qiHEt/pxgAVY54gNYP6GhYr+xTX2BpwhsPW1sdApjI0lNgAozWP8+81nRQDSuznaXL9BbErPOU9Lw1lqOgVnx92wXyEIJTaSvfOqzkkvsB0xYKdt0kwSW5gyuZyf4IqjJCHEvcNuOHdUUyE+Vm5LPUJDshdkl80ayOkECRih2bDf+n4BhjHhWHWjvCEnva6KdWh0Ldo7G1vmPTueJAk22dukY533rQzzisxOSEtxtlc9VGeHlVarhe3NnM9aKNEQkrY0bHNbeTlZY0C2RrQ3VPSIh+hd46GQZ2PTjQACL0dmqjDGF88byAFUs4mutofbpWTV2iZdzwWlNugytxf3Lfjfj/QByq+sxV0VgsoAAAAASUVORK5CYII=","23058950425":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABUElEQVR42o1UMU7EMBAcxyflquRapIDvC9cZCSnpeA6H6O+SDyT3EB7hIlLo+IKDr4CKBBpHSrJ0CAo2bGdpNKuZnbEgfM8Q4Mf8esACrjeq8ID+GxZI8qDbOgLNYGAosgR6es/aDQNbAWi3+ubz7RUsG6AKU99l4GBw5GkOAU0zJ2ES6/Np50qIgGMjIhsT7onIc0sLk8SN6v24Z5ZijELZQRVkD6y9rk9OYU3rNGANOT3bo5/mAbHhJPR+hFaVT7ibwu5T1Xt70KpglK7U1VNN8SDm8yPnm40JsXd5KHnfSlCuEWlZalZC40rtZj3GLBsZ1wHHhioORmUIYahvHJ+Qlx2A9nh9mS8kxBHJMrVsZVohpny46AZZGT69rjdqTi2vNNcjUldCdpqH2Sgk8mx6AwDywUwboMoWmtWFSZS6fKFZ7WawH9hysRT/+5G+AFzitnwc5O/6AAAAAElFTkSuQmCC","23058950426":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABVUlEQVR42o1UMUrEQBR9k1mYrZJsGYgE2UtEECadN7C3tHM9gEkuEE/gQexSCLHzBMIss7BlJlYTSPLtZAX9+rvPPN7Me7w3gvA1Y4CT+bbAAOQ0whzIf4cFkvx+U5s70AKGzVa5gUqRm5BjAwDhX8KfT06XrMK2bv+Ale28IOmLzHGwWayP0UUXQwScBCIykZeVJvIM2wEjoExUzxxbkARvlzdrDMWBl0A7uXk+G0jOBfO2SXRpqCYocPaCqJ1CBWgaPMe2I1lp++gtBwuO8Qggca9JVHBK+2hssA1yVbH2upycttSS4ySYsrN1S5W2DQsT7VRS5pA+sOntSyXW77GSMZte8inybIFkfSMiW3tqtCk53/ZCJP0VMMp78M2S1bj6UHgq+GbRggmA8Hxl5o1HmMuGuXQFQJZr7K6T81veEHLaRK3lugAD2KHNho7Nm/jfj/QJV3edt9N+vZ0AAAAASUVORK5CYII=","23058950427":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF0AAABdAQAAAADvClduAAABTklEQVR42o1UsWrDMBQ8WQV1irIGDMovdHMme8vvtFsn28pcGvo52VQo+DdkbMhYy5MMdl6nlhbal94mdEi6e3cShC9MCb7hxwIeIOuMjUD2Ny2RFJdntEtBFzA02KIfVXpAu2ZpAMo7aPfrziduAEi9Pz+BpSWoHIDpvTADR1vELTCd1xAJd6khtAMwKuJ8S3or0lFBnwSnFBQaSc5Y8iVnb6t3OKAdIGvutFmTL1WKnB0WKEQzZOYYU5Y2VzRXJI+uo8iNXgipi2nARhSMb72mXpzOYj8Tlze6ZGSpI0cD9za/UjI4U6uuZmPZhU1VtORS7di8qTeo1D5uAyMBXZ15EdMSMkROApFHLp9zz1amFcJYN2OSwfHN6supHxWOBd+spVZYvW7vr1Zm14/Ai7uiFAoPjRec0o4i1Xm6ytkpwAO+akxoiPNN/O9H+gCtH55WN/BE1gAAAABJRU5ErkJggg=="};
+    // Interactive booking flow added to the user's original HTML without replacing the page.
+    const carelySlotDefinitions = [
+      {start:'10:00', label:'10.00 am - 11.00 am'},
+      {start:'14:00', label:'02.00 pm - 03.00 pm'},
+      {start:'15:00', label:'03.00 pm - 04.00 pm'}
+    ];
+    const carelyStoreKey='carely-bookings-from-original-prototype-v1';
+    let carelyBookings=[];
+    try {
+      const parsed=JSON.parse(localStorage.getItem(carelyStoreKey)||'[]');
+      if(Array.isArray(parsed))carelyBookings=parsed;
+    } catch(e) {carelyBookings=[];}
+    const carelyBookingState={mode:'online',date:null,month:null,time:null};
+    const carelyDayKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const carelyParseDay=key=>{const [year,month,day]=key.split('-').map(Number);return new Date(year,month-1,day)};
+    const carelyToday=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
+    function carelyNextBookable(){
+      const d=carelyToday(); d.setDate(d.getDate()+1);
+      while(d.getDay()===0)d.setDate(d.getDate()+1);
+      return d;
+    }
+    function carelyCanBookDate(day){
+      const min=carelyNextBookable();const max=new Date(min);max.setMonth(max.getMonth()+4);
+      return day>=min && day<=max && day.getDay()!==0;
+    }
+    const carelyMonthFormat=new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric'});
+    const carelyDateFormat=new Intl.DateTimeFormat('en-US',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    function carelyIsReserved(date,time){
+      return carelyBookings.some(b=>b.doctorId===current().id && b.date===date && b.start===time && b.status!=='cancelled');
+    }
+    function carelySlotOpen(date,time){return !carelyIsReserved(date,time);}
+    function carelyDateHasOpenSlot(date){return carelySlotDefinitions.some(s=>carelySlotOpen(date,s.start));}
+    function carelySyncSelectedTime(){
+      if(!carelyBookingState.date)return;
+      const possible=carelySlotDefinitions.filter(s=>carelySlotOpen(carelyBookingState.date,s.start));
+      if(!possible.some(s=>s.start===carelyBookingState.time))carelyBookingState.time=possible[0]?.start||null;
+    }
+    function carelyRenderCalendar(){
+      const month=carelyBookingState.month;
+      const monthTitle=document.getElementById('carelyMonthTitle');
+      monthTitle.textContent=carelyMonthFormat.format(month);
+      const first=new Date(month.getFullYear(),month.getMonth(),1);
+      const today=carelyToday();
+      document.getElementById('carelyPrevMonth').disabled=(month.getFullYear()===today.getFullYear()&&month.getMonth()===today.getMonth());
+      const latest=carelyNextBookable();latest.setMonth(latest.getMonth()+4);
+      document.getElementById('carelyNextMonth').disabled=new Date(month.getFullYear(),month.getMonth()+1,1)>latest;
+      const grid=document.getElementById('carelyCalendarDays');
+      const weekdayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      grid.replaceChildren();
+      for(const label of weekdayNames){const head=document.createElement('span');head.className='carely-weekday';head.textContent=label;grid.append(head)}
+      for(let i=0;i<first.getDay();i++){const spacer=document.createElement('span');grid.append(spacer)}
+      const daysInMonth=new Date(month.getFullYear(),month.getMonth()+1,0).getDate();
+      for(let n=1;n<=daysInMonth;n++){
+        const date=new Date(month.getFullYear(),month.getMonth(),n), key=carelyDayKey(date);
+        const usable=carelyCanBookDate(date)&&carelyDateHasOpenSlot(key);
+        const button=document.createElement('button');button.type='button';button.textContent=String(n);
+        button.className='carely-day '+(!usable?'unavailable':n%5===0?'limited':'available');
+        if(key===carelyBookingState.date)button.classList.add('selected');
+        button.disabled=!usable;
+        button.setAttribute('aria-label',carelyDateFormat.format(date));
+        button.setAttribute('aria-pressed',String(key===carelyBookingState.date));
+        button.dataset.carelyDate=key;
+        grid.append(button);
+      }
+    }
+    function carelyRenderTimes(){
+      const wrap=document.getElementById('carelyTimeList');wrap.replaceChildren();
+      carelySlotDefinitions.forEach(slot=>{
+        const button=document.createElement('button');
+        button.type='button';button.className='carely-slot';button.dataset.carelyTime=slot.start;
+        const available=carelyBookingState.date && carelySlotOpen(carelyBookingState.date,slot.start);
+        button.disabled=!available;
+        if(carelyBookingState.time===slot.start&&available)button.classList.add('active');
+        button.setAttribute('aria-pressed',String(carelyBookingState.time===slot.start&&!!available));
+        const radio=document.createElement('span');radio.className='carely-radio';radio.setAttribute('aria-hidden','true');
+        const label=document.createElement('span');label.textContent=slot.label;
+        button.append(radio,label);wrap.append(button);
+      });
+      document.getElementById('carelyConfirmBooking').disabled=!carelyBookingState.date||!carelyBookingState.time;
+    }
+    function carelyRenderMode(){
+      const canOnline=current().availability.some(x=>x.includes('Online'));
+      const canOffline=current().availability.some(x=>x.includes('Offline'));
+      document.querySelectorAll('[data-carely-mode]').forEach(btn=>{
+        const mode=btn.dataset.carelyMode;
+        btn.disabled=(mode==='online'&&!canOnline)||(mode==='offline'&&!canOffline);
+        btn.classList.toggle('active',mode===carelyBookingState.mode);
+        btn.setAttribute('aria-pressed',String(mode===carelyBookingState.mode));
+      });
+      document.getElementById('carelyConsultTitle').textContent=carelyBookingState.mode==='online'?'Online consultation with a doctor':'Offline consultation with a doctor';
+      document.getElementById('carelyConsultInfo').textContent=carelyBookingState.mode==='online'
+        ?'The clinic will send an online consultation link to your number. The doctor will be available at the time you choose.'
+        :'Please arrive at the clinic on time for your in-person consultation. The staff will help you check in.';
+      const fee=carelyBookingState.mode==='online'?35.90:45.90;
+      document.getElementById('carelyFee').textContent='$'+fee.toFixed(2);
+      document.getElementById('carelyTotal').textContent='$'+(fee+2).toFixed(2);
+    }
+    function carelyRenderBooking(){carelyRenderMode();carelyRenderCalendar();carelyRenderTimes()}
+    function carelyShowOverlay(id){
+      document.querySelectorAll('.carely-overlay').forEach(el=>el.hidden=el.id!==id);
+      document.body.style.overflow='hidden';
+      const backdrop=document.getElementById(id);
+      backdrop.querySelector('button:not(:disabled)')?.focus();
+    }
+    function carelyCloseOverlays(){document.querySelectorAll('.carely-overlay').forEach(el=>el.hidden=true);document.body.style.overflow=''}
+    function openCarelyBooking(){
+      const d=current();
+      carelyBookingState.mode=d.availability.some(x=>x.includes('Online'))?'online':'offline';
+      const first=carelyNextBookable();
+      let choice=new Date(first);
+      for(let i=0;i<120;i++){
+        if(carelyCanBookDate(choice)&&carelyDateHasOpenSlot(carelyDayKey(choice)))break;
+        choice.setDate(choice.getDate()+1);
+      }
+      carelyBookingState.date=carelyDayKey(choice);
+      carelyBookingState.month=new Date(choice.getFullYear(),choice.getMonth(),1);
+      carelyBookingState.time=null;carelySyncSelectedTime();
+      carelyRenderBooking();carelyShowOverlay('carelyBookingBackdrop');
+    }
+    function carelyConfirmBooking(){
+      if(!carelyBookingState.date||!carelyBookingState.time)return;
+      if(carelyIsReserved(carelyBookingState.date,carelyBookingState.time)){
+        carelySyncSelectedTime();carelyRenderBooking();return;
+      }
+      const booking={
+        id:String(23058950378+carelyBookings.length),
+        doctorId:current().id,doctor:current().name,specialty:current().category,
+        mode:carelyBookingState.mode,date:carelyBookingState.date,start:carelyBookingState.time,
+        time:carelySlotDefinitions.find(t=>t.start===carelyBookingState.time)?.label||'',
+        status:'confirmed',createdAt:new Date().toISOString()
+      };
+      carelyBookings.push(booking);
+      try{localStorage.setItem(carelyStoreKey,JSON.stringify(carelyBookings))}catch(e){}
+      carelyRenderSuccess(booking);
+      carelyShowOverlay('carelySuccessBackdrop');
+    }
+    function carelyRenderSuccess(b){
+      document.getElementById('carelySuccessNumber').textContent=b.id;
+      document.getElementById('carelySuccessDoctor').textContent=b.doctor;
+      document.getElementById('carelySuccessSpecialty').textContent=b.specialty+' Specialist';
+      document.getElementById('carelySuccessMode').textContent=b.mode==='online'?'Online':'Offline';
+      document.getElementById('carelySuccessDate').textContent=carelyDateFormat.format(carelyParseDay(b.date));
+      document.getElementById('carelySuccessTime').textContent=b.time;
+      const qr=document.getElementById('carelyQr');
+      const qrs=window.carelyQrImages||{};
+      qr.src=qrs[b.id]||qrs['23058950378'];
+    }
+    function carelyOpenSchedule(){
+      const list=document.getElementById('carelyScheduleList');list.replaceChildren();
+      if(!carelyBookings.length){const empty=document.createElement('p');empty.textContent='No appointments yet.';list.append(empty)}
+      for(const b of carelyBookings.slice().reverse()){
+        const item=document.createElement('div');item.className='carely-schedule-item';
+        const title=document.createElement('strong');title.textContent=b.doctor;
+        const summary=document.createElement('div');summary.textContent=carelyDateFormat.format(carelyParseDay(b.date))+' · '+b.time+' · '+b.mode;
+        const num=document.createElement('div');num.textContent='Booking #'+b.id;
+        item.append(title,summary,num);list.append(item);
+      }
+      carelyShowOverlay('carelyScheduleBackdrop');
+    }
+    document.addEventListener('click',e=>{
+      if(e.target.classList?.contains('carely-overlay')){carelyCloseOverlays();return}
+      if(e.target.closest('[data-close-carely]')){carelyCloseOverlays();return}
+      const mode=e.target.closest('[data-carely-mode]');if(mode){
+        if(!mode.disabled){carelyBookingState.mode=mode.dataset.carelyMode;carelyRenderMode()};return;
+      }
+      if(e.target.closest('#carelyPrevMonth')){
+        carelyBookingState.month=new Date(carelyBookingState.month.getFullYear(),carelyBookingState.month.getMonth()-1,1);
+        carelyRenderCalendar();return;
+      }
+      if(e.target.closest('#carelyNextMonth')){
+        carelyBookingState.month=new Date(carelyBookingState.month.getFullYear(),carelyBookingState.month.getMonth()+1,1);
+        carelyRenderCalendar();return;
+      }
+      const day=e.target.closest('[data-carely-date]');if(day&&!day.disabled){
+        carelyBookingState.date=day.dataset.carelyDate;carelyBookingState.time=null;
+        carelySyncSelectedTime();carelyRenderBooking();return;
+      }
+      const time=e.target.closest('[data-carely-time]');if(time&&!time.disabled){
+        carelyBookingState.time=time.dataset.carelyTime;carelyRenderTimes();return;
+      }
+      if(e.target.closest('#carelyConfirmBooking')){carelyConfirmBooking();return}
+      if(e.target.closest('#carelyBackToHome')){carelyCloseOverlays();showPage('home');return}
+      if(e.target.closest('#carelyViewSchedule')){carelyOpenSchedule();return}
+      if(e.target.closest('#carelyScheduleFindDoctor')){carelyCloseOverlays();showPage('book');return}
+      if(e.target.closest('[data-my-appointments]')){carelyOpenSchedule();return}
+    });
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape'&&document.querySelector('.carely-overlay:not([hidden])'))carelyCloseOverlays();
+    });
+
+  </script>
+</body>
+</html>
