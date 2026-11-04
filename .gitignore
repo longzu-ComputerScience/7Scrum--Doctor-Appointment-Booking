@@ -56,5 +56,5 @@ next-env.d.ts
 
 .agents/
 /.opencode
-AGENTS.md
 opencode.json
+AGENTS.md

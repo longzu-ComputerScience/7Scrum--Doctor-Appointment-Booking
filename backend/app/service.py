@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from typing import Any
 
 from app.config import is_database_configured
+from app.demo import DEMO_DOCTORS, demo_slots
 from app.schemas import ALLOWED_TRANSITIONS, BookingInput, BookingResponse, StaffSlotInput
 
 
@@ -98,6 +99,14 @@ def search_doctors(
     Scan ordered pages because accent-insensitive matching is implemented in
     Python, without requiring a schema change from the database owner.
     """
+    if not is_database_configured():
+        matches = [
+            doctor
+            for doctor in DEMO_DOCTORS
+            if doctor_matches(doctor, specialty or "", district or "", keyword or "")
+        ]
+        return {"doctors": matches, "demoMode": True}
+
     matches = []
     last_id = None
     try:
@@ -125,6 +134,12 @@ def search_doctors(
 
 
 def get_doctor(doctor_id: UUID) -> dict:
+    if not is_database_configured():
+        doctor = next((item for item in DEMO_DOCTORS if item["id"] == str(doctor_id)), None)
+        if doctor is None:
+            raise HTTPException(404, "Doctor not found")
+        return {"doctor": doctor, "demoMode": True}
+
     try:
         doctor = _require_active_doctor(get_client(), doctor_id)
         return {"doctor": _doctor_from_record(doctor), "demoMode": False}
@@ -135,6 +150,9 @@ def get_doctor(doctor_id: UUID) -> dict:
 
 
 def get_slots(doctor_id: UUID) -> dict:
+    if not is_database_configured():
+        return {"slots": demo_slots(doctor_id), "demoMode": True}
+
     try:
         client = get_client()
         doctor = _require_active_doctor(client, doctor_id)
