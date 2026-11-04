@@ -55,3 +55,6 @@ next-env.d.ts
 !**/.env.example
 
 .agents/
+
+# Local review evidence and preserved development/legacy source backups
+/output/
