@@ -49,11 +49,12 @@ def test_emergency_guardrail(client):
     assert data["doctors"] == []
 
 def test_booking_refuses_to_fake_success(client):
-    response = client.post("/api/appointments", json={
+    payload = {
         "slotId": "30000000-0000-4000-8000-000000000109",
         "patientName": "Demo Patient", "patientPhone": "0900000000",
-    })
-    assert response.status_code == 503
+    }
+    assert client.post("/api/appointments", json=payload).status_code == 401
+    assert client.post("/api/appointments", json=payload, headers={"Authorization": "Bearer token"}).status_code == 503
 
 @pytest.mark.parametrize("payload", [
     {"slotId": "bad", "patientName": "Demo", "patientPhone": "0900000000"},
@@ -61,7 +62,7 @@ def test_booking_refuses_to_fake_success(client):
     {"slotId": "30000000-0000-4000-8000-000000000109", "patientName": "Demo", "patientPhone": "bad"},
 ])
 def test_booking_validation(client, payload):
-    assert client.post("/api/appointments", json=payload).status_code == 422
+    assert client.post("/api/appointments", json=payload, headers={"Authorization": "Bearer token"}).status_code == 422
 
 def test_staff_requires_auth(client):
     assert client.get("/api/staff/appointments").status_code == 401
@@ -72,10 +73,10 @@ def test_transitions():
     assert not ALLOWED_TRANSITIONS["completed"]
 
 def test_conflict_returns_409(client, monkeypatch):
-    def fail(_payload):
+    def fail(_payload, _token):
         raise HTTPException(409, "Slot is no longer available")
     monkeypatch.setattr(main, "create_booking", fail)
-    response = client.post("/api/appointments", json={
+    response = client.post("/api/appointments", headers={"Authorization": "Bearer token"}, json={
         "slotId": "30000000-0000-4000-8000-000000000109",
         "patientName": "Demo Patient", "patientPhone": "0900000000",
     })
