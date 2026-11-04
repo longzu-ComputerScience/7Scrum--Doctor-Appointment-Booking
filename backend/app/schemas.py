@@ -221,9 +221,8 @@ class ScheduleInput(WeeklyIntervals):
     effectiveDate: CalendarDate
 
 
-class ScheduleUpdateResponse(BaseModel):
+class ScheduleUpdateResponse(WeeklyIntervals):
     effectiveDate: date
-    weeklyIntervals: list[WorkingInterval]
 
 
 class ScheduleResponse(ScheduleUpdateResponse):

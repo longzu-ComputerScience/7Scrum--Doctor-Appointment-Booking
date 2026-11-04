@@ -427,14 +427,13 @@ def get_doctor_schedule(token: str) -> dict:
         if not rows:
             raise HTTPException(404, "Doctor schedule not found")
         row = rows[0]
-        hours = sorted(row["doctor_working_hours"], key=lambda item: (item["weekday"], item["start_minute"]))
         intervals = [
             WorkingInterval(
                 dayOfWeek=interval["weekday"],
                 startTime=_format_minute(interval["start_minute"]),
                 endTime=_format_minute(interval["end_minute"]),
             )
-            for interval in hours
+            for interval in row["doctor_working_hours"]
         ]
         schedule = ScheduleResponse(
             timezone="Asia/Ho_Chi_Minh", effectiveDate=row["effective_from"], weeklyIntervals=intervals,
@@ -458,16 +457,15 @@ def update_doctor_schedule(payload: ScheduleInput, token: str) -> dict:
         }).execute().data
         UUID(version_id)
     except Exception as exc:
-        if (
-            getattr(exc, "code", None) == "PT409"
-            and getattr(exc, "message", None) == "Schedule conflicts with confirmed appointments"
-        ):
-            with _database_operation("Schedule conflict details unavailable"):
-                conflict = ScheduleConflict(
-                    error="SCHEDULE_CONFLICT", conflicts=json.loads(exc.details),
-                )
-            raise HTTPException(409, conflict.model_dump(mode="json")) from exc
-        raise _rpc_error(exc, "Doctor schedule unavailable", conflict="Schedule date already in use") from exc
+        if getattr(exc, "code", None) != "PT409":
+            raise _rpc_error(exc, "Doctor schedule unavailable") from exc
+        if getattr(exc, "message", None) == "A schedule already starts on that date":
+            raise HTTPException(409, "Schedule date already in use") from exc
+        with _database_operation("Schedule conflict details unavailable"):
+            conflict = ScheduleConflict(
+                error="SCHEDULE_CONFLICT", conflicts=json.loads(exc.details),
+            )
+        raise HTTPException(409, conflict.model_dump(mode="json")) from exc
     return payload.model_dump(mode="json")
 
 
