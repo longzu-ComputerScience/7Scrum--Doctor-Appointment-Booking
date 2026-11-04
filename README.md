@@ -78,6 +78,6 @@ One issue per branch/PR. Before work, read `docs/USER_STORIES.md`, `docs/DEFINIT
 
 **Important:** Apply both SQL migrations in order. Migration 002 makes bookings immediately confirmed for the demo and protects overlapping slots. The optional controlled chatbot prototype is not a medical diagnosis system.
 
-## Bat dau theo thu tu issue
+## Issue execution order
 
-Xem **[Thu tu trien khai 2 ngay](docs/EXECUTION_ORDER.md)** de biet issue nao can lam ngay, phu thuoc vao issue nao va viec FE/BE/QA co the thuc hien song song.
+See **[Two-day execution order (Vietnamese)](docs/EXECUTION_ORDER.md)** for immediate tasks, prerequisites, and work that FE/BE/QA can do in parallel.
