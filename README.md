@@ -72,7 +72,7 @@ No deployment is performed by the repository refactor itself.
 
 ## Team workflow
 
-Sáu issue chính: **#31 BE1, #32 BE2, #33 FE1, #34 FE2, #35 Tester, #36 Lead** (gồm việc US-02 còn thiếu và US-03 mới). Đọc `docs/DOCS_GUIDE.md`, `docs/USER_STORIES.md`, `docs/API_CONTRACT_V2.md`, `docs/DATA_DICTIONARY.md`, `docs/TEAM_WORKFLOW.md`, `docs/DEFINITION_OF_DONE.md`. `docs/API_CONTRACT.md` là legacy. PR cần review và test; không commit keys hoặc dữ liệu bệnh nhân thật.
+Sáu issue chính: **#31 BE1, #32 BE2, #33 FE1, #34 FE2, #35 Tester, #36 Lead** (gồm việc US-02 còn thiếu và US-03 mới). Đọc `docs/DOCS_GUIDE.md`, `docs/USER_STORIES.md`, `docs/API_CONTRACT_V2.md`, `docs/DATA_DICTIONARY.md`, `docs/TEAM_WORKFLOW.md`, `docs/DEFINITION_OF_DONE.md`. `docs/legacy/API_CONTRACT.md` là legacy. PR cần review và test; không commit keys hoặc dữ liệu bệnh nhân thật.
 
 ## PO-approved scope (2026-11-04)
 
@@ -82,4 +82,4 @@ Sáu issue chính: **#31 BE1, #32 BE2, #33 FE1, #34 FE2, #35 Tester, #36 Lead** 
 
 ## Issue execution order
 
-See [Current execution order](docs/EXECUTION_ORDER.md) and [6-role issue mapping](docs/ISSUE_MAPPING.md).
+See [Team workflow — ownership, issue mapping, execution order and sprint handoff](docs/TEAM_WORKFLOW.md).
