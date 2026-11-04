@@ -1,4 +1,8 @@
-import type { Doctor } from "./types";
+/** Public catalog view fields shared by V1 previews and V2 Doctor responses. */
+export type CatalogDoctor = {
+  id: string; name: string; specialty: string; bio: string; district: string;
+  address?: string; clinicName?: string; clinicAddress?: string;
+};
 
 // Translate catalog copy for the English patient UI without changing API IDs or stored data.
 const english: Record<string, string> = {
@@ -18,15 +22,16 @@ const english: Record<string, string> = {
   "Bình Thạnh, TP.HCM (demo address)": "Binh Thanh, Ho Chi Minh City (demo address)",
 };
 
-export function doctorForDisplay(doctor: Doctor): Doctor {
+export function doctorForDisplay<T extends CatalogDoctor>(doctor: T): T {
   const translate = (value: string) => english[value] ?? value;
   return {
     ...doctor,
     name: doctor.name.replace(/^BS\.\s*/, "Dr. "),
     specialty: translate(doctor.specialty),
     bio: translate(doctor.bio),
-    clinicName: translate(doctor.clinicName),
-    clinicAddress: translate(doctor.clinicAddress),
+    ...(typeof doctor.clinicName === "string" ? { clinicName: translate(doctor.clinicName) } : {}),
+    ...(typeof doctor.clinicAddress === "string" ? { clinicAddress: translate(doctor.clinicAddress) } : {}),
+    ...(typeof doctor.address === "string" ? { address: translate(doctor.address) } : {}),
     district: translate(doctor.district),
   };
 }

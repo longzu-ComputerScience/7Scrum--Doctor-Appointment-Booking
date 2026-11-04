@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AppointmentSlot } from "@/lib/types";
-import { dateKey, formatDay, formatTime } from "./doctors/[id]/book/booking-utils";
+import { bookingRange, dateKey, formatDay, formatTime, parseBookingSlots, type BookingSlot } from "./doctors/[id]/book/booking-utils";
 import styles from "./doctor-browser.module.css";
 
 type Availability = {
   status: "loading" | "ready" | "error";
-  slots: AppointmentSlot[];
+  slots: BookingSlot[];
   demoMode: boolean;
 };
 
@@ -18,17 +17,15 @@ export function DoctorAvailability({ doctorId }: { doctorId: string }) {
     const controller = new AbortController();
     async function load() {
       try {
-        const response = await fetch(`/api/doctors/${encodeURIComponent(doctorId)}/slots`, {
+        const range = bookingRange();
+        const response = await fetch(`/api/doctors/${encodeURIComponent(doctorId)}/slots?${new URLSearchParams(range)}`, {
           cache: "no-store",
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
         });
         if (!response.ok) throw new Error("Availability unavailable");
-        const data = await response.json() as { slots: AppointmentSlot[]; demoMode: boolean };
+        const data = await response.json() as { slots: unknown; demoMode: boolean };
         if (!Array.isArray(data.slots) || typeof data.demoMode !== "boolean") throw new Error("Invalid availability");
-        const now = Date.now();
-        const slots = data.slots.filter((slot) => slot.doctorId === doctorId &&
-          new Date(slot.startAt).getTime() > now && new Date(slot.endAt).getTime() > new Date(slot.startAt).getTime())
-          .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+        const slots = parseBookingSlots(data.slots, doctorId, range);
         if (!controller.signal.aborted) setAvailability({ status: "ready", slots, demoMode: data.demoMode });
       } catch {
         if (!controller.signal.aborted) setAvailability({ status: "error", slots: [], demoMode: false });

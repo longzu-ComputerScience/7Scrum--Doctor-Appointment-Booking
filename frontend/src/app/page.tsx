@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PatientShell } from "./patient-shell";
 import { DoctorBrowser } from "./doctor-browser";
 import styles from "./patient-shell.module.css";
@@ -35,6 +36,7 @@ const navItems = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [active, setActive] = useState("overview");
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -55,7 +57,9 @@ export default function HomePage() {
   const handleNavigate = (key: string) => {
     setActive(key);
     if (typeof window !== "undefined" && window.location.hash.replace("#", "") !== key) {
-      window.location.hash = key;
+      // Keep Next's history tree in sync so intercepted booking routes can
+      // close and reopen after a first-visit Dashboard section change.
+      router.push(`/#${key}`, { scroll: false });
     }
   };
 

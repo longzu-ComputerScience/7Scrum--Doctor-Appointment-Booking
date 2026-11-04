@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Doctor } from "@/lib/types";
-import { doctorForDisplay } from "@/lib/doctor-display";
+import { doctorForDisplay, type CatalogDoctor } from "@/lib/doctor-display";
 import { DoctorAvailability } from "./doctor-availability";
 import styles from "./doctor-browser.module.css";
 
 type Catalog = {
   status: "loading" | "ready" | "error";
-  doctors: Doctor[];
+  doctors: CatalogDoctor[];
   demoMode: boolean;
 };
 
@@ -42,7 +41,7 @@ export function DoctorBrowser({ query }: { query: string }) {
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
         });
         if (!response.ok) throw new Error("Doctor catalog unavailable");
-        const data = await response.json() as { doctors: Doctor[]; demoMode: boolean };
+        const data = await response.json() as { doctors: CatalogDoctor[]; demoMode: boolean };
         if (!Array.isArray(data.doctors) || typeof data.demoMode !== "boolean") {
           throw new Error("Invalid doctor catalog");
         }
@@ -63,7 +62,7 @@ export function DoctorBrowser({ query }: { query: string }) {
   const search = query.trim().toLocaleLowerCase();
   const doctors = catalog.doctors.filter((doctor) =>
     (specialty === null || doctor.specialty === specialty) &&
-    [doctor.name, doctor.specialty, doctor.clinicName, doctor.clinicAddress, doctor.district]
+    [doctor.name, doctor.specialty, doctor.clinicName ?? "", doctor.address ?? doctor.clinicAddress ?? "", doctor.district]
       .some((value) => value.toLocaleLowerCase().includes(search)),
   );
   // Resolve the selection from the visible list so filters never show an unrelated profile.
@@ -132,8 +131,8 @@ export function DoctorBrowser({ query }: { query: string }) {
                 </div>
                 {selectedDoctor.bio && <p className="detail-bio">{selectedDoctor.bio}</p>}
                 <div className="detail-info-grid">
-                  <div><small>Practice</small><strong>{selectedDoctor.clinicName}</strong></div>
-                  <div><small>Location</small><strong>{selectedDoctor.district}</strong><span>{selectedDoctor.clinicAddress}</span></div>
+                  <div><small>{selectedDoctor.clinicName ? "Practice" : "Visit type"}</small><strong>{selectedDoctor.clinicName || "In-person visit"}</strong></div>
+                  <div><small>Location</small><strong>{selectedDoctor.district}</strong><span>{selectedDoctor.address ?? selectedDoctor.clinicAddress}</span></div>
                 </div>
                 <section className={styles.education} aria-labelledby="doctor-education-title">
                   <h4 id="doctor-education-title">Education &amp; certificates</h4>
