@@ -1,10 +1,13 @@
 """HTTP payload contracts. Frontend uses camelCase property names."""
 import unicodedata
 from datetime import datetime, timedelta, timezone
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+UtcDatetime = Annotated[AwareDatetime, AfterValidator(lambda value: value.astimezone(timezone.utc))]
 
 
 class Doctor(BaseModel):
@@ -42,6 +45,58 @@ class AppointmentSlot(BaseModel):
 class SlotListResponse(BaseModel):
     slots: list[AppointmentSlot]
     demoMode: bool
+
+
+class DoctorProfile(BaseModel):
+    id: UUID
+    name: str
+    specialty: str
+    active: bool
+
+
+class DoctorProfileResponse(BaseModel):
+    doctor: DoctorProfile
+
+
+class DoctorSlot(BaseModel):
+    id: UUID
+    doctorId: UUID
+    startAt: UtcDatetime
+    endAt: UtcDatetime
+    isPublished: bool
+    available: bool
+
+
+class DoctorSlotListResponse(BaseModel):
+    slots: list[DoctorSlot]
+
+
+class DoctorSlotCreateResponse(BaseModel):
+    slot: DoctorSlot
+
+
+class DoctorSlotInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    startAt: UtcDatetime
+    endAt: UtcDatetime
+
+    @field_validator("startAt", "endAt", mode="before")
+    @classmethod
+    def parse_timestamp(cls, value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            return datetime.fromisoformat(value.strip())
+        raise ValueError("Timestamps must be ISO 8601 strings")
+
+    @model_validator(mode="after")
+    def check_period(self):
+        if self.startAt <= datetime.now(timezone.utc):
+            raise ValueError("Slot must be in the future")
+        if self.endAt - self.startAt != timedelta(minutes=30):
+            raise ValueError("Doctor slots must be exactly 30 minutes")
+        return self
 
 
 class AssistantInput(BaseModel):

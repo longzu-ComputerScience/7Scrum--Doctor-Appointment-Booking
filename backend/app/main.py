@@ -1,18 +1,21 @@
 """FastAPI application. Routes preserve the original frontend JSON contract."""
 from uuid import UUID
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.assistant import search_from_message
 from app.consult import consult
 from app.config import allowed_origins, is_database_configured
 from app.schemas import (
     APIErrorResponse, AssistantInput, BookingInput, BookingResponse, ConsultationInput, DoctorDetailResponse,
-    DoctorListResponse, SlotListResponse, StaffSlotInput, StatusInput,
+    DoctorListResponse, DoctorProfileResponse, DoctorSlotCreateResponse, DoctorSlotInput, DoctorSlotListResponse,
+    SlotListResponse, StaffSlotInput, StatusInput,
 )
 from app.service import (
+    create_doctor_slot, get_doctor_profile, list_doctor_slots,
     create_booking, get_doctor, get_slots, list_staff_appointments,
     search_doctors, update_status, list_staff_doctors, list_staff_slots, create_staff_slot,
 )
@@ -38,6 +41,44 @@ def _bearer(authorization: str | None) -> str:
     if not token:
         raise HTTPException(401, "Staff login required")
     return token
+
+
+def _doctor_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+) -> str:
+    if credentials is None or not credentials.credentials.strip():
+        raise HTTPException(401, "Doctor login required")
+    return credentials.credentials.strip()
+
+
+DOCTOR_ERRORS = {
+    401: {"model": APIErrorResponse, "description": "Doctor login required or session invalid"},
+    403: {"model": APIErrorResponse, "description": "Doctor access denied"},
+    503: {"model": APIErrorResponse, "description": "Doctor service unavailable"},
+}
+
+
+@app.get("/api/doctor/me", response_model=DoctorProfileResponse, responses=DOCTOR_ERRORS)
+def doctor_me(token: str = Depends(_doctor_token)) -> dict:
+    return get_doctor_profile(token)
+
+
+@app.get("/api/doctor/slots", response_model=DoctorSlotListResponse, responses=DOCTOR_ERRORS)
+def doctor_slots(token: str = Depends(_doctor_token)) -> dict:
+    return list_doctor_slots(token)
+
+
+@app.post(
+    "/api/doctor/slots",
+    status_code=201,
+    response_model=DoctorSlotCreateResponse,
+    responses={
+        **DOCTOR_ERRORS,
+        409: {"model": APIErrorResponse, "description": "Doctor or slot conflicts with the current schedule"},
+    },
+)
+def add_doctor_slot(payload: DoctorSlotInput, token: str = Depends(_doctor_token)) -> dict:
+    return create_doctor_slot(payload, token)
 
 
 @app.get("/api/health")

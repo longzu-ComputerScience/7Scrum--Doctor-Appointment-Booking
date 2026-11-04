@@ -9,11 +9,14 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
 from typing import Any
 
 from app.config import is_database_configured
 from app.demo import DEMO_DOCTORS, demo_slots
-from app.schemas import ALLOWED_TRANSITIONS, BookingInput, BookingResponse, StaffSlotInput
+from app.schemas import (
+    ALLOWED_TRANSITIONS, BookingInput, BookingResponse, DoctorProfile, DoctorSlot, DoctorSlotInput, StaffSlotInput,
+)
 
 
 def get_client() -> Any:
@@ -243,6 +246,133 @@ def create_booking(payload: BookingInput) -> dict:
         raise HTTPException(503, "Booking result unavailable") from exc
 
     return booking.model_dump(mode="json")
+
+
+def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
+    try:
+        client = get_client()
+        identity = client.auth.get_user(token)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        status = getattr(exc, "status", None)
+        code = getattr(exc, "code", None)
+        message = (getattr(exc, "message", "") or "").strip().casefold()
+        api_key_rejected = code == "invalid_api_key" or message.startswith(
+            ("invalid api key", "no api key found in request")
+        )
+        invalid_session = status in (401, 403) or code in (
+            "bad_jwt", "invalid_jwt", "session_not_found", "user_not_found",
+        )
+        if invalid_session and not api_key_rejected:
+            raise HTTPException(401, "Invalid doctor session") from exc
+        raise HTTPException(503, "Doctor authentication unavailable") from exc
+
+    if identity is None or identity.user is None:
+        raise HTTPException(401, "Invalid doctor session")
+    user_id = str(identity.user.id)
+
+    try:
+        rows = (
+            client.table("doctors")
+            .select("id,name,specialty,active")
+            .eq("auth_user_id", user_id)
+            .limit(2)
+            .execute()
+            .data
+        )
+        if not rows:
+            raise HTTPException(403, "Doctor access denied")
+        (row,) = rows
+        doctor = DoctorProfile.model_validate(row)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Doctor profile unavailable") from exc
+    return client, user_id, doctor
+
+
+def get_doctor_profile(token: str) -> dict:
+    _, _, doctor = _authorized_doctor(token)
+    return {"doctor": doctor.model_dump(mode="json")}
+
+
+def _doctor_slot_from_record(row: dict, *, available: bool) -> DoctorSlot:
+    return DoctorSlot(
+        id=row["id"],
+        doctorId=row["doctor_id"],
+        startAt=row["start_at"],
+        endAt=row["end_at"],
+        isPublished=row["is_published"],
+        available=available,
+    )
+
+
+def list_doctor_slots(token: str) -> dict:
+    client, user_id, doctor = _authorized_doctor(token)
+    try:
+        rows = (
+            client.table("appointment_slots")
+            .select("id,doctor_id,start_at,end_at,is_published,doctors!inner(active),appointments(status)")
+            .eq("doctor_id", str(doctor.id))
+            .eq("doctors.auth_user_id", user_id)
+            .gt("start_at", datetime.now(timezone.utc).isoformat())
+            .neq("appointments.status", "cancelled")
+            .order("start_at")
+            .order("id")
+            .limit(100)
+            .execute()
+            .data
+        )
+        slots = [
+            _doctor_slot_from_record(
+                row,
+                available=_one(row["doctors"])["active"] and row["is_published"] and not row["appointments"],
+            ).model_dump(mode="json")
+            for row in rows
+        ]
+    except Exception as exc:
+        raise HTTPException(503, "Doctor slots unavailable") from exc
+    return {"slots": slots}
+
+
+def create_doctor_slot(payload: DoctorSlotInput, token: str) -> dict:
+    client, user_id, doctor = _authorized_doctor(token)
+    if not doctor.active:
+        raise HTTPException(409, "Doctor is not accepting new slots")
+    try:
+        # The RPC resolves ownership and rechecks the slot in the write transaction.
+        (row,) = client.rpc(
+            "create_doctor_slot",
+            {
+                "p_user_id": user_id,
+                "p_start_at": payload.startAt.isoformat(),
+                "p_end_at": payload.endAt.isoformat(),
+            },
+        ).execute().data
+        slot = _doctor_slot_from_record(row, available=True)
+        if (
+            slot.doctorId != doctor.id or not slot.isPublished
+            or slot.startAt != payload.startAt or slot.endAt != payload.endAt
+        ):
+            raise ValueError("Slot RPC returned a different slot")
+    except Exception as exc:
+        code = getattr(exc, "code", None)
+        message = getattr(exc, "message", "") or ""
+        if code == "PT403":
+            raise HTTPException(403, "Doctor access denied") from exc
+        overlap = code == "23P01" and '"appointment_slots_no_overlap"' in message
+        duplicate_start = code == "23505" and '"appointment_slots_doctor_start_key"' in message
+        if code == "PT409" or overlap or duplicate_start:
+            raise HTTPException(409, "Doctor slot conflicts with the current schedule") from exc
+        if code == "PT422":
+            raise RequestValidationError([{
+                "loc": ("body",),
+                "msg": "Slot must be in the future and exactly 30 minutes",
+                "type": "value_error",
+            }]) from exc
+        raise HTTPException(503, "Doctor slot creation unavailable") from exc
+    return {"slot": slot.model_dump(mode="json")}
 
 
 def authorized_staff(token: str) -> tuple[Any, list[str]]:
