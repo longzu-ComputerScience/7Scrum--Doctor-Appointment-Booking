@@ -1,7 +1,7 @@
 """FastAPI application. Routes preserve the original frontend JSON contract."""
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -10,12 +10,12 @@ from app.assistant import search_from_message
 from app.consult import consult
 from app.config import allowed_origins, is_database_configured
 from app.schemas import (
-    APIErrorResponse, AssistantInput, BookingInput, BookingResponse, ConsultationInput, DoctorDetailResponse,
-    DoctorListResponse, DoctorProfileResponse, DoctorSlotCreateResponse, DoctorSlotInput, DoctorSlotListResponse,
-    SlotListResponse, StaffSlotInput, StatusInput,
+    APIErrorResponse, AssistantInput, BookingInput, BookingResponse, ConsultationInput, DoctorAppointmentListResponse,
+    DoctorDetailResponse, DoctorListResponse, DoctorProfileResponse, DoctorSlotCreateResponse, DoctorSlotInput,
+    DoctorSlotListResponse, SlotListResponse, StaffSlotInput, StatusInput,
 )
 from app.service import (
-    create_doctor_slot, get_doctor_profile, list_doctor_slots,
+    create_doctor_slot, get_doctor_profile, list_doctor_appointments, list_doctor_slots,
     create_booking, get_doctor, get_slots, list_staff_appointments,
     search_doctors, update_status, list_staff_doctors, list_staff_slots, create_staff_slot,
 )
@@ -61,6 +61,12 @@ DOCTOR_ERRORS = {
 @app.get("/api/doctor/me", response_model=DoctorProfileResponse, responses=DOCTOR_ERRORS)
 def doctor_me(token: str = Depends(_doctor_token)) -> dict:
     return get_doctor_profile(token)
+
+
+@app.get("/api/doctor/appointments", response_model=DoctorAppointmentListResponse, responses=DOCTOR_ERRORS)
+def doctor_appointments(response: Response, token: str = Depends(_doctor_token)) -> dict:
+    response.headers["Cache-Control"] = "no-store"
+    return list_doctor_appointments(token)
 
 
 @app.get("/api/doctor/slots", response_model=DoctorSlotListResponse, responses=DOCTOR_ERRORS)

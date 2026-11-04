@@ -15,7 +15,8 @@ from typing import Any
 from app.config import is_database_configured
 from app.demo import DEMO_DOCTORS, demo_slots
 from app.schemas import (
-    ALLOWED_TRANSITIONS, BookingInput, BookingResponse, DoctorProfile, DoctorSlot, DoctorSlotInput, StaffSlotInput,
+    ALLOWED_TRANSITIONS, BookingInput, BookingResponse, DoctorAppointment, DoctorProfile, DoctorSlot, DoctorSlotInput,
+    StaffSlotInput,
 )
 
 
@@ -295,6 +296,43 @@ def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
 def get_doctor_profile(token: str) -> dict:
     _, _, doctor = _authorized_doctor(token)
     return {"doctor": doctor.model_dump(mode="json")}
+
+
+def list_doctor_appointments(token: str) -> dict:
+    client, user_id, doctor = _authorized_doctor(token)
+    try:
+        rows = (
+            client.table("appointments")
+            .select(
+                "id,slot_id,patient_name,patient_phone,status,"
+                "appointment_slots!inner(doctor_id,start_at,doctors!inner(name))"
+            )
+            .eq("appointment_slots.doctor_id", str(doctor.id))
+            .eq("appointment_slots.doctors.auth_user_id", user_id)
+            .in_("status", ["confirmed", "checked_in", "completed", "cancelled"])
+            .order("created_at", desc=True)
+            .order("id", desc=True)
+            .limit(100)
+            .execute()
+            .data
+        )
+        appointments = []
+        for row in rows:
+            slot = _one(row["appointment_slots"])
+            appointment = DoctorAppointment(
+                id=row["id"],
+                slotId=row["slot_id"],
+                doctorId=slot["doctor_id"],
+                doctorName=_one(slot["doctors"])["name"],
+                patientName=row["patient_name"],
+                patientPhone=row["patient_phone"],
+                startAt=slot["start_at"],
+                status=row["status"],
+            )
+            appointments.append(appointment.model_dump(mode="json"))
+    except Exception as exc:
+        raise HTTPException(503, "Doctor appointments unavailable") from exc
+    return {"appointments": appointments}
 
 
 def _doctor_slot_from_record(row: dict, *, available: bool) -> DoctorSlot:

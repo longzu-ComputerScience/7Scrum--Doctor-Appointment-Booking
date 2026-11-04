@@ -58,6 +58,21 @@ class DoctorProfileResponse(BaseModel):
     doctor: DoctorProfile
 
 
+class DoctorAppointment(BaseModel):
+    id: UUID
+    slotId: UUID
+    doctorId: UUID
+    doctorName: str
+    patientName: str
+    patientPhone: str
+    startAt: UtcDatetime
+    status: Literal["confirmed", "checked_in", "completed", "cancelled"]
+
+
+class DoctorAppointmentListResponse(BaseModel):
+    appointments: list[DoctorAppointment]
+
+
 class DoctorSlot(BaseModel):
     id: UUID
     doctorId: UUID
