@@ -6,10 +6,6 @@ export const metadata: Metadata = {
   description: "Patient appointment dashboard.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {  
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
-    </html>
-  );
+export default function RootLayout({ children, booking }: Readonly<{ children: React.ReactNode; booking: React.ReactNode }>) {
+  return <html lang="en"><body>{children}{booking}</body></html>;
 }
