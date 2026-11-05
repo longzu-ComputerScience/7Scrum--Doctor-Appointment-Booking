@@ -72,3 +72,12 @@
 .visuallyHidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .login button:focus-visible,.dialog button:focus-visible,.panel button:focus-visible,.header button:focus-visible{outline:2px solid #10aba0;outline-offset:3px}
 @media(max-width:700px){.header{height:68px;padding:0 16px}.brand{font-size:20px}.brandMark{font-size:23px}.headerActions{gap:12px}.headerActions a,.headerActions button{font-size:11px}.main{padding:24px 14px}.login,.failure{padding:25px 20px;margin:32px auto}.heading{align-items:flex-start;flex-direction:column}.heading h1{font-size:28px}.pendingCount{flex-direction:row;align-items:center;gap:12px;padding:12px 20px}.pendingCount strong{font-size:26px}.toolbar{padding:17px;flex-wrap:wrap}.search{flex:1 1 100%}.dialog{padding:22px}.dialogIdentity{margin:22px 0}}
+
+.readOnlyNotice{display:flex;align-items:flex-start;gap:14px;line-height:1.7;margin:0 0 25px;padding:16px 20px;background:#eef8f6;border:1px solid #d5eae5;border-radius:13px;color:#426b64;font-size:12px}
+.readOnlyNotice strong{flex:none;color:#0b8980}
+.readOnlyNotice span{flex:1}
+.filterSelect{display:grid;gap:4px;font-size:10px;font-weight:800;color:#718c87}
+.filterSelect select{height:41px;padding:0 10px;min-width:145px;border:1px solid #d6e8e4;border-radius:10px;background:#fff;font-size:12px;color:#355e56}
+.status[data-active="true"]{background:#e6f5ee;color:#277b58}
+.status[data-active="false"]{background:#fff3e7;color:#996a27}
+@media(max-width:700px){.readOnlyNotice{display:block}.readOnlyNotice strong{display:block;margin-bottom:6px}.filterSelect{width:100%}}

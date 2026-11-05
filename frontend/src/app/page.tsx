@@ -9,6 +9,7 @@ import { PatientShell } from "./patient-shell";
 import { DoctorBrowser } from "./doctor-browser";
 import { Consultation } from "./consultation";
 import { PatientAppointmentsView } from "./patient/patient-appointments";
+import { useAvatarPreview } from "./profile/avatar-preview";
 import styles from "./patient-shell.module.css";
 import homeStyles from "./home.module.css";
 
@@ -44,6 +45,7 @@ const navItems = [
 export default function HomePage() {
   const router = useRouter();
   const { state: auth } = useAuth();
+  const { avatarFor } = useAvatarPreview();
   const accountName = auth.status === "ready" ? (auth.identity.role === "patient" ? auth.identity.patient.name : auth.identity.doctor.name) : "Guest Patient";
   const [active, setActive] = useState("overview");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -104,7 +106,7 @@ export default function HomePage() {
     </main>;
   }
 
-  const patientAvatar = auth.identity.role === "patient" ? auth.identity.patient.avatarUrl : null;
+  const patientAvatar = auth.identity.role === "patient" ? avatarFor(auth.identity.patient.id) : null;
   return <PatientShell active={active} items={navItems.map((item) => ({ ...item, icon: <Icon name={item.icon} /> }))} onNavigate={handleNavigate} onHelp={() => setChatOpen(true)}>
       <header className="dashboard-header"><div className="header-title"><span className="header-eyebrow">PATIENT PORTAL</span><h1>{activeLabel}</h1></div><div className="header-actions"><div className={`compact-search ${searchOpen ? "expanded" : ""}`}>{searchOpen && <input autoFocus value={search} onChange={(e) => { setSearch(e.target.value); handleNavigate("book"); }} placeholder="Search doctors or specialties..." aria-label="Search" />}<button onClick={() => setSearchOpen((value) => !value)} aria-label="Open search"><Icon name="search" /></button></div>{auth.status === "ready" && auth.identity.role === "doctor" ? <Link className="text-button" href="/doctor">Doctor dashboard</Link> : auth.status !== "ready" && <Link className="text-button" href="/patient/login">Sign in</Link>}<button className="header-icon-button" aria-label="My profile" onClick={() => handleNavigate("profile")}
       style={patientAvatar ? {

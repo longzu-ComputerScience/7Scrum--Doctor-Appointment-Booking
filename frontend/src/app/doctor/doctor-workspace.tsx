@@ -15,6 +15,7 @@ import { formatScheduleDay, formatScheduleTime } from "@/lib/schedule-time";
 import guestStyles from "./doctor-guest.module.css";
 import styles from "./doctor-workspace.module.css";
 import { AvatarEditor } from "../profile/avatar-editor";
+import { useAvatarPreview } from "../profile/avatar-preview";
 
 type Section = "overview" | "appointments" | "schedule" | "notifications" | "profile";
 function Glyph({ name }: { name: string }) {
@@ -61,8 +62,8 @@ function DoctorPendingApproval() {
   const { reload, signOut } = useAuth();
   return <main className={guestStyles.page}><section className={guestStyles.hero}>
     <div><span className={guestStyles.eyebrow}>DOCTOR APPLICATION</span>
-      <h2>Profile under review.</h2><p>Your professional documents have been received.
-      An administrator will review them before your account can accept appointments.</p>
+      <h2>Your doctor account is inactive.</h2><p>Contact the clinic administrator for
+      account status. Approval actions are not available in this database-free update.</p>
       <div className={guestStyles.actions}><button type="button" onClick={reload}>Check status</button>
         <button type="button" onClick={() => void signOut()}>Sign out</button></div>
     </div></section></main>;
@@ -88,7 +89,8 @@ function SchedulePreview() {
 }
 function Workspace({ token, doctor, appointmentId, initialSection, preview = false }: { token: string; doctor: DoctorProfile | null; appointmentId?: string; initialSection: Section; preview?: boolean }) {
   const router = useRouter();
-  const { reload } = useAuth();
+  const { avatarFor } = useAvatarPreview();
+  const doctorAvatar = doctor ? avatarFor(doctor.id) : null;
   const [section, setSection] = useState<Section>(initialSection);
   const [filter, setFilter] = useState("all");
   const [mutationError, setMutationError] = useState("");
@@ -147,10 +149,10 @@ function Workspace({ token, doctor, appointmentId, initialSection, preview = fal
         <div className={styles.headerActions}><details className={styles.bellMenu}><summary aria-label={`Notifications${data ? `, ${unread} unread` : ""}`}><Glyph name="notifications" />{unread > 0 && <span className={styles.count}>{unread}</span>}</summary>
           <div className={styles.dropdown}><div className={styles.cardHeading}><h2>Notifications</h2><button className={styles.textButton} onClick={e => { e.currentTarget.closest("details")?.removeAttribute("open"); navigate("notifications"); }}>View all</button></div>
             {data ? <NotificationList rows={data.notifications} busyId={busyId} onRead={readNotification} compact /> : <p className={styles.help}>Notifications are unavailable until your dashboard loads.</p>}</div></details>
-          <span className={styles.avatar} style={doctor?.avatarUrl ? {
-            backgroundImage: "url(" + JSON.stringify(doctor.avatarUrl) + ")",
+          <span className={styles.avatar} style={doctorAvatar ? {
+            backgroundImage: "url(" + JSON.stringify(doctorAvatar) + ")",
             backgroundPosition: "center", backgroundSize: "cover"
-          } : undefined}>{doctor?.avatarUrl ? null : doctor?.name.trim().slice(0, 1) ?? "✳"}</span><div className={styles.headerIdentity}><strong>{doctor?.name ?? "Doctor preview"}</strong><small>{doctor?.specialty ?? "Explore the workspace"}</small></div>
+          } : undefined}>{doctorAvatar ? null : doctor?.name.trim().slice(0, 1) ?? "✳"}</span><div className={styles.headerIdentity}><strong>{doctor?.name ?? "Doctor preview"}</strong><small>{doctor?.specialty ?? "Explore the workspace"}</small></div>
         </div>
       </header>
       <div className={styles.body}>
@@ -183,7 +185,7 @@ function Workspace({ token, doctor, appointmentId, initialSection, preview = fal
           {section === "notifications" && <section className={styles.card}><div className={styles.cardHeading}><div><h2>Notifications {data && <span className={styles.inlineCount}>{unread} unread</span>}</h2><p>Latest 100 booking updates · saved to your account</p></div><button className={styles.textButton} onClick={refresh}>Refresh ↻</button></div>{data && <NotificationList rows={data.notifications} busyId={busyId} onRead={readNotification} />}</section>}
           {section === "schedule" && (preview ? <SchedulePreview /> : <DoctorWorkingHours token={token} onSaved={refresh} />)}
           {section === "profile" && <section className={styles.card}><span className={styles.eyebrow}>YOUR DOCTOR PROFILE</span><h2>{doctor?.name ?? "Doctor profile"}</h2>{doctor && !preview &&
-              <AvatarEditor token={token} name={doctor.name} avatarUrl={doctor.avatarUrl} onSaved={reload} />}{doctor ? <div className={styles.detailGrid}><div><small>Specialty</small><strong>{doctor.specialty}</strong></div><div><small>Profile status</small><strong>{doctor.active ? "Active" : "Inactive"}</strong></div><div><small>Doctor ID</small><code>{doctor.id}</code></div></div> : <p className={styles.help}>Sign in to see the profile linked to your account.</p>}</section>}
+              <AvatarEditor userId={doctor.id} name={doctor.name} />}{doctor ? <div className={styles.detailGrid}><div><small>Specialty</small><strong>{doctor.specialty}</strong></div><div><small>Profile status</small><strong>{doctor.active ? "Active" : "Inactive"}</strong></div><div><small>Doctor ID</small><code>{doctor.id}</code></div></div> : <p className={styles.help}>Sign in to see the profile linked to your account.</p>}</section>}
         </>}
         <footer className={styles.footer}><span>carely. · Thoughtful care, made simple.</span><span role="status">{preview ? "Preview · No account data" : snapshot.status === "ready" ? `${live ? "Live updates" : "Auto-refresh every 5 seconds"} · Vietnam time` : "Waiting for current data"}</span></footer>
       </div>

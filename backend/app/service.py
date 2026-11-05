@@ -10,7 +10,7 @@ import unicodedata
 from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
@@ -310,22 +310,11 @@ def _authenticated_user(token: str) -> tuple[Any, str, str | None]:
     return client, str(identity.user.id), identity.user.email
 
 
-def _signed_avatar(client: Any, path: str | None) -> str | None:
-    if not path:
-        return None
-    try:
-        response = client.storage.from_("profile-avatars").create_signed_url(path, 3600)
-        return response.get("signedURL") or response.get("signed_url")
-    except Exception:
-        logger.warning("Profile avatar URL could not be generated")
-        return None
-
-
 def _doctor_identity(client: Any, user_id: str) -> DoctorProfile | None:
     try:
         rows = (
             client.table("doctor_accounts")
-            .select("doctors!inner(id,name,specialty,active,avatar_path)")
+            .select("doctors!inner(id,name,specialty,active)")
             .eq("auth_user_id", user_id)
             .limit(2)
             .execute()
@@ -334,8 +323,7 @@ def _doctor_identity(client: Any, user_id: str) -> DoctorProfile | None:
         if not rows:
             return None
         (row,) = rows
-        doctor_row = _one(row["doctors"])
-        doctor = DoctorProfile.model_validate({**doctor_row, "avatarUrl": _signed_avatar(client, doctor_row.get("avatar_path"))})
+        doctor = DoctorProfile.model_validate(_one(row["doctors"]))
     except HTTPException:
         raise
     except Exception as exc:
@@ -364,13 +352,12 @@ def get_doctor_profile(token: str) -> dict:
 def _patient_identity(client: Any, user_id: str, email: str | None) -> PatientProfile:
     with _database_operation("Patient profile unavailable"):
         rows = (
-            client.table("patient_profiles").select("full_name,phone,avatar_path")
+            client.table("patient_profiles").select("full_name,phone")
             .eq("auth_user_id", user_id).limit(1).execute().data
         )
         if not rows or not email:
             raise HTTPException(403, "Patient access denied")
-        patient = PatientProfile(id=user_id, name=rows[0]["full_name"], phone=rows[0]["phone"], email=email,
-                                 avatarUrl=_signed_avatar(client, rows[0].get("avatar_path")))
+        patient = PatientProfile(id=user_id, name=rows[0]["full_name"], phone=rows[0]["phone"], email=email)
     return patient
 
 
@@ -924,51 +911,3 @@ def list_patient_appointments(token: str) -> dict:
                 "status": row["status"], "bookingReference": row["booking_reference"],
             })
     return {"appointments": appointments}
-
-
-AVATAR_MAX_BYTES = 2 * 1024 * 1024
-AVATAR_TYPES = {
-    "image/png": ("png", b"\x89PNG\r\n\x1a\n"),
-    "image/jpeg": ("jpg", b"\xff\xd8\xff"),
-    "image/webp": ("webp", b"RIFF"),
-}
-
-
-def update_profile_avatar(token: str, image: bytes, content_type: str) -> dict:
-    """Upload server-side after JWT verification. Never accept a client-chosen storage path."""
-    extension, signature = AVATAR_TYPES.get(content_type, (None, b""))
-    if (extension is None or not 0 < len(image) <= AVATAR_MAX_BYTES
-            or not image.startswith(signature)
-            or (extension == "webp" and image[8:12] != b"WEBP")):
-        raise HTTPException(422, "Upload a JPEG, PNG or WebP image up to 2 MB")
-    client, user_id, email = _authenticated_user(token)
-    doctor = _doctor_identity(client, user_id)
-    if doctor is None:
-        _patient_identity(client, user_id, email)
-        table, field, record_id, prefix = "patient_profiles", "auth_user_id", user_id, "patient"
-    else:
-        table, field, record_id, prefix = "doctors", "id", str(doctor.id), "doctor"
-    path = f"{prefix}/{record_id}/{uuid4().hex}.{extension}"
-    bucket = client.storage.from_("profile-avatars")
-    with _database_operation("Avatar upload unavailable"):
-        previous = client.table(table).select("avatar_path").eq(field, record_id).limit(1).execute().data
-        if not previous:
-            raise HTTPException(403, "Profile unavailable")
-        bucket.upload(path, image, {"content-type": content_type})
-        try:
-            updated = client.table(table).update({"avatar_path": path}).eq(field, record_id).execute().data
-            if not updated:
-                raise ValueError("Avatar profile update did not persist")
-        except Exception:
-            try:
-                bucket.remove([path])
-            except Exception:
-                logger.warning("Avatar upload cleanup requires reconciliation")
-            raise
-        old = previous[0].get("avatar_path")
-        if isinstance(old, str) and old.startswith(f"{prefix}/{record_id}/") and old != path:
-            try:
-                bucket.remove([old])
-            except Exception:
-                logger.warning("Previous avatar cleanup requires reconciliation")
-    return {"avatarUrl": _signed_avatar(client, path)}

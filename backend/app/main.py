@@ -28,7 +28,7 @@ from app.service import (
     get_doctor, get_doctor_profile,
     get_doctor_schedule,
     get_patient_profile, get_slots, list_doctor_appointments, list_doctor_notifications, list_doctor_slots,
-    list_patient_appointments, list_specialties, update_profile_avatar, AVATAR_MAX_BYTES,
+    list_patient_appointments, list_specialties,
     list_staff_appointments, list_staff_doctors, list_staff_slots, mark_doctor_notification_read, register_doctor,
     register_patient, search_doctors, update_doctor_appointment_status, update_doctor_schedule, update_status,
 )
@@ -115,12 +115,6 @@ def patient_me(response: Response, token: str = Depends(_session_token)) -> dict
 def patient_appointments(response: Response, token: str = Depends(_session_token)) -> dict:
     response.headers["Cache-Control"] = "no-store"
     return list_patient_appointments(token)
-
-
-@app.put("/api/profile/avatar", responses={**AUTH_ERRORS, **INVALID_INPUT})
-def upload_profile_avatar(image: Annotated[UploadFile, File()], token: str = Depends(_session_token)) -> dict:
-    content = image.file.read(AVATAR_MAX_BYTES + 1)
-    return update_profile_avatar(token, content, image.content_type or "")
 
 
 @app.get("/api/doctor/me", response_model=DoctorProfileResponse, response_model_exclude_none=True, responses=AUTH_ERRORS)

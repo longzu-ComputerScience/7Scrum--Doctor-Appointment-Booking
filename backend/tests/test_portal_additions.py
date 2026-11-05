@@ -16,17 +16,12 @@ def test_patient_appointments_need_auth():
     assert response.status_code == 401
 
 
-def test_avatar_rejects_spoofed_content_before_storage(monkeypatch):
-    def unexpected_auth(_token):
-        raise AssertionError("Invalid image must not invoke Auth or Storage")
-
-    monkeypatch.setattr(service, "_authenticated_user", unexpected_auth)
-    response = TestClient(app).put(
+def test_avatar_upload_endpoint_is_disabled_without_storage_schema():
+    assert TestClient(app).put(
         "/api/profile/avatar",
-        headers={"Authorization": "Bearer invalid"},
-        files={"image": ("avatar.png", b"not a png", "image/png")},
-    )
-    assert response.status_code == 422
+        headers={"Authorization": "Bearer anything"},
+        files={"image": ("avatar.png", b"fake", "image/png")},
+    ).status_code == 404
 
 
 def test_specialties_can_be_derived_from_active_demo_catalog(monkeypatch):

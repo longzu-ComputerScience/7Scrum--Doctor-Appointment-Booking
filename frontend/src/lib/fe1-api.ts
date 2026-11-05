@@ -1,8 +1,8 @@
 import { ContractApiError, isInstant, isRecord, isUuid } from "./contract-api";
 
 export type Role = "patient" | "doctor";
-export type PatientProfile = { id: string; name: string; phone: string; email: string; avatarUrl?: string | null };
-export type DoctorProfile = { id: string; name: string; specialty: string; active: boolean; avatarUrl?: string | null };
+export type PatientProfile = { id: string; name: string; phone: string; email: string };
+export type DoctorProfile = { id: string; name: string; specialty: string; active: boolean };
 export type Identity = { role: "patient"; patient: PatientProfile } | { role: "doctor"; doctor: DoctorProfile };
 export type AppointmentStatus = "confirmed" | "completed" | "cancelled";
 export type PatientAppointment = {
@@ -48,13 +48,13 @@ export function parsePatient(data: unknown): PatientProfile {
   const p = isRecord(data) ? data.patient : null;
   if (!isRecord(p) || !isUuid(p.id) || typeof p.name !== "string" || !p.name.trim() ||
     typeof p.phone !== "string" || typeof p.email !== "string") throw new ContractApiError("invalid");
-  return { id: p.id, name: p.name, phone: p.phone, email: p.email, avatarUrl: typeof p.avatarUrl === "string" ? p.avatarUrl : null };
+  return { id: p.id, name: p.name, phone: p.phone, email: p.email };
 }
 export function parseDoctorProfile(data: unknown): DoctorProfile {
   const d = isRecord(data) ? data.doctor : null;
   if (!isRecord(d) || !isUuid(d.id) || typeof d.name !== "string" || !d.name.trim() ||
     typeof d.specialty !== "string" || typeof d.active !== "boolean") throw new ContractApiError("invalid");
-  return { id: d.id, name: d.name, specialty: d.specialty, active: d.active, avatarUrl: typeof d.avatarUrl === "string" ? d.avatarUrl : null };
+  return { id: d.id, name: d.name, specialty: d.specialty, active: d.active };
 }
 export async function loadIdentity(token: string, signal?: AbortSignal): Promise<Identity> {
   const data = await fe1Request("/api/auth/me", { token, signal });

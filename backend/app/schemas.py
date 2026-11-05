@@ -71,7 +71,6 @@ class DoctorProfile(BaseModel):
     name: str
     specialty: str
     active: bool
-    avatarUrl: str | None = None
 
 
 class DoctorProfileResponse(BaseModel):
@@ -316,7 +315,6 @@ class PatientProfile(BaseModel):
     name: str
     phone: str
     email: str
-    avatarUrl: str | None = None
 
 
 class PatientProfileResponse(BaseModel):

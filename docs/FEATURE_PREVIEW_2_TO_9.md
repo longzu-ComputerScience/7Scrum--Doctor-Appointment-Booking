@@ -1,35 +1,36 @@
-# 7Scrum Feature Preview (items 2–9)
+# 7Scrum PR #63 — no Supabase changes
 
-Branch: `feat/doctor-portal-improvements-20261105`. No database Production changes, no deployment to Render Production, no merge into main.
+This branch updates frontend and FastAPI while leaving existing Supabase database, schema, RLS and Storage unchanged. Do not run any migration for this PR.
 
-## Scope
-- Specialist dropdown, search by name/keyword and district, shared specialties in Doctor Registration (derived from active doctor catalog).
-- Existing /admin login + pending applications from local work, /staff redirect to /admin.
-- Private avatar upload for Patient and Doctor dashboards, with JWT-bound backend ownership and signed private URLs.
-- Persisted Supabase browser Auth session via one shared client (no extra session table).
-- My Appointments is loaded through a Patient JWT-scoped API, not localStorage or mock cards.
-- Home and login/register restrained transitions, story rotation, subtle hover states, stronger chatbot affordance; motion reduced by OS preferences.
-- Doctor registration with certificate upload remains as on current main; no reintroduction of invitation-code flow.
+## Existing-database functionality
 
-## Schema deployment prerequisites
-1. Check Production migration history and backup. On the branch, `007_doctor_profile_registration.sql` is from main, not changed.
-2. Apply `008_admin_doctor_approval.sql` **once** after 007, then `009_profile_media_and_doctor_approvals.sql`.
-3. 009 creates nullable avatar_path on public.patient_profiles and public.doctors; a **private** profile-avatars bucket; a trigger which queues **new** doctor self-registrations as pending and sets the new doctor inactive; and an atomic admin approval RPC to activate the doctor. Existing active doctors are not reclassified.
-4. Bootstrap an initial Admin by creating a trusted Supabase Auth account then securely inserting its UUID into public.admin_accounts. Do not provide a public Admin signup.
-5. Render backend and Vercel frontend must be released against the **same DB schema** after migrations; otherwise new profile queries and API routes will not work. Treat the auto-generated Vercel Preview primarily as a UI/build review if its BACKEND_URL still points to an unchanged production Render service.
+- Specialist dropdown and doctor keyword/district filtering; Doctor Registration specialty dropdown comes from the active doctor catalog.
+- Patient My Appointments uses JWT-backed GET /api/patient/appointments to read existing appointments and doctors data. This uses the columns from the existing recurring-booking system (005); no new table or policy.
+- Session persistence uses existing Supabase Auth browser storage with automatic token refresh.
+- Admin login and read-only doctor directory at /admin, using the existing doctors table. /staff redirects to /admin.
+- Browser-only avatar preview (no upload, no DB column, no Storage bucket). Reverts on a full page reload.
+- Home/login/register motion polish and emphasized chat launcher, honoring reduced-motion settings.
 
-## Verify before merging
-- Run backend pytest/Ruff, frontend npm lint/tsc/build, Vercel Preview statuses.
-- Confirm anonymous doctor catalog contains only active doctors, and pending new doctors cannot book/manage schedules.
-- Test logged-in Patient booking -> My Appointments after reload; confirm no other Patient's appointments can be read.
-- Test Patient and Doctor avatar upload with two different accounts; path ownership and signed URLs are verified server-side, no public Storage policies.
-- Admin login: ordinary Patient/Doctor denied, Admin gets pending applications and signed 5-minute document links, approval activates the account, rejection keeps it inactive.
-- Test both doctor/patient session persistence after reload and logout.
-- Responsive UI and prefers-reduced-motion checks.
+## Admin setup: Render configuration only
 
-## Rollback
-No destructive migration is included. If backend deploy fails, keep previous production deployment available. Migrations may add columns/tables/trigger that older backend simply ignores. For a functional rollback of the new Doctor application trigger, explicitly review disabling it; do not drop data or revoke existing Auth accounts automatically.
+Admin access is fail-closed and requires a backend environment variable:
 
-## Known limitations
-- Existing doctor registrations created before 009 are **not retroactively queued**, since automatically disabling already-active clinicians might interrupt real appointments.
-- Applying migrations to Production and verifying a real Render backend/Storage roundtrip are outside this branch/Preview step.
+ADMIN_USER_IDS=<existing-Supabase-Auth-user-UUID>
+
+Use comma-separated Auth user UUIDs if multiple admins are required. The backend verifies the bearer token using Supabase Auth and compares the authenticated immutable user ID to this allowlist; it does not trust role, email or user metadata from the browser. No new Supabase user or table is created. Remove the variable to disable admin access.
+
+The Admin directory is read-only. The existing doctor table contains an active flag but does not contain durable application history and review permissions. This PR does not promise Approve/Reject. Inactive doctors are labeled inactive, not pending approval. Approval needs a separately agreed persistent workflow.
+
+## Deployment/testing
+
+1. No Supabase actions required. No SQL migration is included in this PR.
+2. Preview frontend may require a matching backend Preview/staging deployment for /api/patient/appointments and /api/admin/doctors.
+3. To enable read-only Admin, set ADMIN_USER_IDS on Render and redeploy the backend. No Supabase environment variable changes are required.
+4. Verify frontend lint/typecheck/build, backend Ruff/pytest, and a Patient booking followed by My Appointments fetch.
+
+## Limitations
+
+- Doctor Registration follows the existing 007_doctor_profile_registration.sql contract on main. This PR does not modify that registration flow or automatically enroll doctors for approval.
+- If Production is missing a migration already required by main, this PR cannot repair that schema. It introduces no additional DB requirements for Admin/avatar.
+- Avatar preview is temporary, local to browser memory; no data is persisted across refresh or devices.
+- The Admin directory is limited to the first 500 doctor records sorted by name, preventing unbounded queries.

@@ -1,91 +1,75 @@
-"""Admin auth boundary tests; do not require a live Supabase database."""
+"""Read-only admin authorization and doctor-directory contracts."""
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from app.admin import admin_context
 from app.main import app
 
 client = TestClient(app)
+ADMIN_ID = "00000000-0000-4000-8000-000000000001"
 
 
-def test_admin_requires_authentication():
-    response = client.get("/api/admin/doctor-applications")
-    assert response.status_code == 401
-    response = client.post(
-        "/api/admin/doctor-applications/00000000-0000-0000-0000-000000000001/review",
-        json={"decision": "approved"},
+def test_admin_directory_requires_login():
+    assert client.get("/api/admin/doctors").status_code == 401
+
+
+def test_admin_denied_without_server_side_allowlist(monkeypatch):
+    monkeypatch.delenv("ADMIN_USER_IDS", raising=False)
+    monkeypatch.setattr(
+        "app.admin._authenticated_user", lambda token: (object(), ADMIN_ID, "admin@example.test")
     )
-    assert response.status_code == 401
+    assert client.get("/api/admin/doctors", headers={"Authorization": "Bearer valid"}).status_code == 403
 
 
-def test_admin_cannot_review_without_reason():
-    class FakeClient:
-        pass
-
-    app.dependency_overrides[admin_context] = lambda: (FakeClient(), "00000000-0000-0000-0000-000000000001")
-    try:
-        response = client.post(
-            "/api/admin/doctor-applications/00000000-0000-0000-0000-000000000001/review",
-            json={"decision": "rejected", "reason": " "},
-        )
-        assert response.status_code == 422
-    finally:
-        app.dependency_overrides.clear()
+def test_admin_allowlist_does_not_trust_email_or_metadata(monkeypatch):
+    monkeypatch.setenv("ADMIN_USER_IDS", "00000000-0000-4000-8000-000000000002")
+    monkeypatch.setattr(
+        "app.admin._authenticated_user", lambda token: (object(), ADMIN_ID, "admin@example.test")
+    )
+    assert client.get("/api/admin/doctors", headers={"Authorization": "Bearer valid"}).status_code == 403
 
 
-def test_admin_decision_schema_rejects_invalid_status():
-    app.dependency_overrides[admin_context] = lambda: (object(), "00000000-0000-0000-0000-000000000001")
-    try:
-        response = client.post(
-            "/api/admin/doctor-applications/00000000-0000-0000-0000-000000000001/review",
-            json={"decision": "pending"},
-        )
-        assert response.status_code == 422
-    finally:
-        app.dependency_overrides.clear()
+def test_admin_directory_reads_existing_table_only():
+    calls = []
 
-
-def test_admin_lists_only_pending_applications():
-    from types import SimpleNamespace
-
-    class FakeQuery:
-        def __init__(self):
-            self.filters = []
-
-        def select(self, _columns):
+    class Query:
+        def select(self, columns):
+            calls.append(("select", columns))
             return self
-
-        def eq(self, key, value):
-            self.filters.append((key, value))
+        def order(self, column):
+            calls.append(("order", column))
             return self
-
-        def order(self, *_args, **_kwargs):
+        def limit(self, count):
+            calls.append(("limit", count))
             return self
-
-        def limit(self, _count):
-            return self
-
         def execute(self):
-            assert ("status", "pending") in self.filters
-            return SimpleNamespace(data=[{
-                "id": "00000000-0000-0000-0000-000000000001",
-                "full_name": "Demo Doctor", "email": "doctor@example.test",
-                "specialty": "Dermatology", "license_number": "DEMO-01",
-                "hospital": "Demo clinic", "experience_years": 5,
-                "submitted_at": "2026-11-05T01:00:00+00:00",
-                "status": "pending", "bio": "", "documents": [], "review_note": None,
-            }])
+            return SimpleNamespace(data=[
+                {"id": ADMIN_ID, "name": "Dr Example", "specialty": "Cardiology",
+                 "active": True, "bio": "Example", "address": "Clinic A",
+                 "district": "District 1", "certificates": []}
+            ])
 
-    class FakeClient:
-        def table(self, table_name):
-            assert table_name == "doctor_applications"
-            return FakeQuery()
+    class Db:
+        def table(self, name):
+            calls.append(("table", name))
+            return Query()
 
-    app.dependency_overrides[admin_context] = lambda: (FakeClient(), "00000000-0000-0000-0000-000000000002")
+    app.dependency_overrides[admin_context] = lambda: (Db(), ADMIN_ID)
     try:
-        response = client.get("/api/admin/doctor-applications")
-        assert response.status_code == 200
-        assert response.headers["cache-control"] == "no-store"
-        assert len(response.json()["applications"]) == 1
-        assert response.json()["applications"][0]["status"] == "pending"
+        resp = client.get("/api/admin/doctors")
+        assert resp.status_code == 200
+        assert resp.headers["cache-control"] == "no-store"
+        assert resp.json()["doctors"][0]["name"] == "Dr Example"
+        assert ("table", "doctors") in calls
+        assert all(call[0] not in {"insert", "update", "delete", "rpc"} for call in calls)
     finally:
         app.dependency_overrides.clear()
+
+
+def test_review_endpoint_is_not_exposed_without_approval_schema():
+    assert client.post(
+        f"/api/admin/doctor-applications/{ADMIN_ID}/review",
+        json={"decision": "approved"},
+        headers={"Authorization": "Bearer anything"},
+    ).status_code == 404
