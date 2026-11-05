@@ -88,3 +88,34 @@
 .skipLogin:focus-visible{outline:2px solid #10aba0;outline-offset:3px;border-radius:5px}
 .demoError{padding:14px 23px;display:flex;justify-content:space-between;align-items:center;gap:12px;color:#a64350;font-size:12px;background:#fff4f4;border-block:1px solid #f1d5da}
 @media(max-width:700px){.demoError{flex-wrap:wrap}}
+
+/* Full admin demo surface: illustrative pending applications, no backend writes. */
+.demoTabs{display:flex;align-items:center;gap:8px;margin:0 0 18px;flex-wrap:wrap}
+.demoTabs button{display:inline-flex;align-items:center;gap:10px;cursor:pointer;border:1px solid #d8e9e6;background:white;color:#587a77;border-radius:10px;padding:12px 17px;font-size:12px;font-weight:800;transition:background .18s,transform .18s}
+.demoTabs button:hover{background:#f0faf7;transform:translateY(-1px)}
+.demoTabs button[aria-pressed="true"]{background:#0f968d;color:#fff;border-color:#0f968d}
+.demoTabs button span{background:#ffffff38;border-radius:8px;padding:2px 7px}
+.demoTabs button:focus-visible{outline:2px solid #079d93;outline-offset:3px}
+.demoSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 0 20px}
+.demoSummary>div{display:flex;flex-direction:column;gap:8px;background:#fff;border:1px solid #e4eded;box-shadow:0 8px 18px #163b3b07;border-radius:16px;padding:22px}
+.demoSummary span{font-size:10px;color:#779195;letter-spacing:.07em;font-weight:800}
+.demoSummary strong{font-size:29px;line-height:1;color:#178d85;font-weight:800}
+.demoSummary small{color:#82989a;font-size:11px}
+.demoSectionTitle{font-size:18px;letter-spacing:-.035em;color:#294851;margin:0 0 7px}
+.demoSectionCaption{font-size:11px;color:#78939a;margin:0}
+.demoPending{display:inline-flex;background:#fff4df;color:#a27a23;font-size:11px;font-weight:800;border-radius:15px;padding:7px 10px}
+.demoHint{padding:17px 21px;color:#5a7778;font-size:12px;line-height:1.8;border:1px dashed #bfd9d3;background:#f3faf8;border-radius:12px;margin-top:18px}
+.demoHint strong{color:#237b75}
+.demoActionExplanation{padding:14px 16px;background:#f1f7f6;color:#597b75;border-radius:10px;line-height:1.7;font-size:12px;margin:25px 0 17px}
+.demoReviewActions{display:flex;gap:12px;margin-top:8px}
+.demoReviewActions button{flex:1;min-height:44px;border-radius:10px;font-size:12px;font-weight:800;border:1px solid transparent}
+.demoApprove{background:#d8f3e9;color:#187d5b;border-color:#add9c6!important}
+.demoReject{background:#fde8eb;color:#ac4858;border-color:#efbbc3!important}
+.demoReviewActions button:disabled{opacity:.78;cursor:not-allowed}
+@media(max-width:700px){.demoSummary{grid-template-columns:1fr 1fr}.demoSummary>div{padding:16px}.demoSummary>div:nth-child(1){grid-column:1/-1}.demoSectionTitle{font-size:16px}.demoReviewActions{flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.demoTabs button{transition:none}.demoTabs button:hover{transform:none}}
+
+.demoTableActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.demoTableActions .demoReviewActions{margin:0;gap:6px}
+.demoTableActions .demoReviewActions button{min-height:34px;padding:0 9px;font-size:10px}
+@media(max-width:850px){.demoTableActions{min-width:230px}}

@@ -6,6 +6,7 @@ import type { Session } from "@supabase/supabase-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { fe1Request } from "@/lib/fe1-api";
 import { parseCatalog } from "@/lib/doctor-catalog";
+import { DemoApprovalQueue } from "./demo-approval-queue";
 import styles from "./admin.module.css";
 
 type DoctorRow = {
@@ -21,6 +22,7 @@ type DoctorRow = {
 
 type PageState = "checking" | "signed-out" | "verifying" | "authorized" | "denied" | "error";
 type StatusFilter = "all" | "active" | "inactive";
+type DemoTab = "applications" | "directory";
 
 export default function AdminPage() {
   const client = useMemo(() => getSupabaseBrowser(), []);
@@ -37,6 +39,7 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [demoTab, setDemoTab] = useState<DemoTab>("applications");
   const [demoDoctors, setDemoDoctors] = useState<DoctorRow[]>([]);
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoError, setDemoError] = useState("");
@@ -72,6 +75,7 @@ export default function AdminPage() {
     setSelected(null);
     setSearch("");
     setFilter("all");
+    setDemoTab("applications");
     setDemoMode(true);
     void fetchDemoDoctors();
   };
@@ -257,23 +261,32 @@ export default function AdminPage() {
                   <div className={styles.heading}>
                     <div>
                       <span className={styles.eyebrow}>{demoMode ? "ADMIN DASHBOARD · DEMO" : "QUẢN TRỊ BÁC SĨ"}</span>
-                      <h1>Danh sách bác sĩ</h1>
+                      <h1>{demoMode && demoTab === "applications" ? "Quản lý hồ sơ bác sĩ" : "Danh sách bác sĩ"}</h1>
                       <p>{demoMode
-                        ? "Bản xem thử giao diện Admin với dữ liệu bác sĩ công khai."
+                        ? "Giao diện Admin đầy đủ để trình bày luồng quản trị và xét duyệt."
                         : "Xem hồ sơ hiện có và tình trạng hoạt động của bác sĩ."}</p>
                     </div>
                     <div className={styles.pendingCount}>
-                      <strong>{displayedDoctors.length}</strong><span>{demoMode ? "Bác sĩ công khai" : "Tổng bác sĩ"}</span>
+                      <strong>{demoMode && demoTab === "applications" ? 3 : displayedDoctors.length}</strong>
+                      <span>{demoMode && demoTab === "applications" ? "Hồ sơ mẫu đang chờ" : demoMode ? "Bác sĩ công khai" : "Tổng bác sĩ"}</span>
                     </div>
                   </div>
                   <div className={styles.readOnlyNotice} role="note">
                     <strong>{demoMode ? "Chế độ demo" : "Chế độ chỉ xem"}</strong>
                     <span>{demoMode
-                      ? "Không cần đăng nhập. Chỉ xem danh sách bác sĩ công khai; không có quyền Admin thật, không xem hồ sơ riêng tư và không thể duyệt/từ chối đơn."
+                      ? "Đã vào giao diện Admin demo. Hồ sơ chờ duyệt là dữ liệu giả lập; Approve/Reject hiển thị để thuyết trình nhưng không xử lý thật. Danh sách bác sĩ lấy từ catalog công khai, không cấp quyền Admin thật."
                       : "Không thay đổi Supabase. Chức năng duyệt/từ chối đơn chưa khả dụng; trạng thái không hoạt động không đồng nghĩa hồ sơ đang chờ duyệt."}
                       {demoMode && catalogIsDemo && " Backend đang trả dữ liệu bác sĩ mẫu."}</span>
                   </div>
-                  <div className={styles.panel}>
+                  {demoMode && <div className={styles.demoTabs} role="group" aria-label="Chức năng Admin demo">
+                    <button type="button" aria-pressed={demoTab === "applications"}
+                      onClick={() => setDemoTab("applications")}>Hồ sơ chờ duyệt <span>3</span></button>
+                    <button type="button" aria-pressed={demoTab === "directory"}
+                      onClick={() => setDemoTab("directory")}>Danh sách bác sĩ</button>
+                  </div>}
+                  {demoMode && demoTab === "applications"
+                    ? <DemoApprovalQueue />
+                    : <div className={styles.panel}>
                     <div className={styles.toolbar}>
                       <label className={styles.search}>
                         <span className={styles.visuallyHidden}>Tìm kiếm bác sĩ</span>
@@ -326,7 +339,7 @@ export default function AdminPage() {
                           </div>}
                     <div className={styles.footer}>{visible.length} / {displayedDoctors.length} bác sĩ
                       {demoMode && " · Demo chỉ xem"}</div>
-                  </div>
+                  </div>}
                 </section>}
     </main>
 
