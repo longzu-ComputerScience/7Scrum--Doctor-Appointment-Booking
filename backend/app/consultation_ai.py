@@ -5,7 +5,7 @@ import os
 from typing import Literal
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 TIMEOUT = 10
 MAX_QUESTION = 240
