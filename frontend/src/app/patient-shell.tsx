@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./auth/auth-provider";
 import styles from "./patient-shell.module.css";
 
 type NavigationItem = { key: string; label: string; icon: ReactNode };
 type Props = {
+  portal?: "patient" | "doctor";
   active: string;
   items: NavigationItem[];
   onNavigate: (key: string) => void;
@@ -57,7 +60,18 @@ function NavigationIcon({ name }: { name: "menu" | "close" | "help" | "logout" }
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export function PatientShell({ active, items, onNavigate, onHelp, children }: Props) {
+export function PatientShell({ active, items, onNavigate, onHelp, children, portal = "patient" }: Props) {
+  const { state, signOut } = useAuth();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  async function leave() {
+    if (signingOut) return;
+    setSigningOut(true); setLogoutError("");
+    try { await signOut(); router.replace(`/${portal}/login`); }
+    catch { setLogoutError("Could not sign out. Try again."); }
+    finally { setSigningOut(false); }
+  }
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktopCollapsed = useSyncExternalStore(subscribe, getSidebarSnapshot, getServerSnapshot);
   const navigation = useRef<HTMLElement>(null);
@@ -111,15 +125,15 @@ export function PatientShell({ active, items, onNavigate, onHelp, children }: Pr
   return (
     <div className={`dashboard-shell ${styles.shell} ${desktopCollapsed ? styles.compact : ""} ${mobileOpen ? styles.open : ""}`}>
       <aside id="patient-navigation" ref={navigation} className={styles.sidebar}
-        role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen || undefined} aria-label="Patient navigation">
+        role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen || undefined} aria-label={`${portal === "doctor" ? "Doctor" : "Patient"} navigation`}>
         <div className={styles.top}>
           <div className={styles.brandRow}>
-            <Link href="/" className={styles.brand} aria-label="Carely home" onClick={() => navigate("overview")}>
+            <Link href={portal === "doctor" ? "/doctor" : "/"} className={styles.brand} aria-label="Carely home" onClick={() => navigate("overview")}>
               <span className={styles.logoMark} aria-hidden="true" /><span className={styles.brandText}>carely.</span>
             </Link>
             <button className={styles.mobileClose} onClick={() => setMobileOpen(false)} aria-label="Close navigation"><NavigationIcon name="close" /></button>
           </div>
-          <nav className={styles.links} aria-label="Patient sections">
+          <nav className={styles.links} aria-label={`${portal === "doctor" ? "Doctor" : "Patient"} sections`}>
             {items.map((item) => (
               <button key={item.key} className={`${styles.item} ${active === item.key ? styles.active : ""}`}
                 aria-label={item.label} aria-current={active === item.key ? "page" : undefined} onClick={() => navigate(item.key)}>
@@ -132,7 +146,9 @@ export function PatientShell({ active, items, onNavigate, onHelp, children }: Pr
           <button className={styles.item} aria-label="Help" onClick={() => { setMobileOpen(false); onHelp(); }}>
             <NavigationIcon name="help" /><span className={styles.label} aria-hidden="true">Help</span>
           </button>
-          <button className={styles.item} aria-label="Log out"><NavigationIcon name="logout" /><span className={styles.label} aria-hidden="true">Log out</span></button>
+          {state.status === "ready" || state.status === "error" ? <button className={styles.item} aria-label="Log out" disabled={signingOut} onClick={() => void leave()}><NavigationIcon name="logout" /><span className={styles.label} aria-hidden="true">{signingOut ? "Signing out…" : "Log out"}</span></button>
+            : <Link className={styles.item} href={`/${portal}/login`} aria-label="Sign in"><NavigationIcon name="logout" /><span className={styles.label}>Sign in</span></Link>}
+          {logoutError && <p role="alert">{logoutError}</p>}
           <button className={styles.desktopToggle} onClick={toggleSidebarCollapsed}
             aria-label={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!desktopCollapsed} aria-controls="patient-navigation">
             <svg className={`${styles.chevron} ${desktopCollapsed ? styles.chevronCollapsed : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
