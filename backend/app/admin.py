@@ -41,7 +41,7 @@ def list_applications(response: Response, ctx=Depends(admin_context)):
         records = client.table("doctor_applications").select(
             "id,full_name,email,specialty,license_number,hospital,experience_years,"
             "submitted_at,status,bio,documents,review_note"
-        ).order("submitted_at", desc=True).limit(200).execute().data
+        ).eq("status", "pending").order("submitted_at", desc=True).limit(200).execute().data
     except Exception as exc:
         raise HTTPException(503, "Applications unavailable (apply migration 006)") from exc
     return {"applications": [{
