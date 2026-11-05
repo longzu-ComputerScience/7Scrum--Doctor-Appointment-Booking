@@ -25,9 +25,11 @@ def test_chatbot_followup_and_dermatology(monkeypatch):
     data = second.json()
     assert data["followUpRequired"] is False
     assert data["specialty"] == "Da liễu"
-    # No configured catalog: never present demo doctors as real recommendations.
-    assert data["doctors"] == []
+    # Synthetic records are explicitly marked demo and booking remains disabled.
     assert data["demoMode"] is True
+    assert len(data["doctors"]) == 1
+    assert data["doctors"][0]["name"].endswith("(Demo)")
+    assert "MẪU" in data["reply"]
     assert data["mode"] == "rule-based"
 
 

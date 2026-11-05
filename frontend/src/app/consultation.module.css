@@ -46,3 +46,34 @@
 .reset{margin:0 23px 15px;align-self:flex-start;background:none;border:0;padding:0;color:#218e83;font-size:11px;font-weight:800;cursor:pointer}
 .reset:disabled{opacity:.5;cursor:default}
 @media(max-width:620px){.intro{padding:19px 18px 15px}.intro h2{font-size:22px}.conversation{padding:16px;gap:11px}.message{max-width:93%}.urgent,.recommendation,.error,.limit{margin:0 16px 12px}.composer{padding:13px 16px}.reset{margin:0 16px 14px}}
+
+
+/* Compact, scrollable recommendation results; the composer remains reachable. */
+.conversation .recommendation{margin:0;align-self:stretch}
+.conversation .recommendation button,.noSpecialty button{border:0;background:#248d77;color:#fff;border-radius:9px;padding:10px 13px;font-weight:750;font-size:12px;margin-top:12px;cursor:pointer}
+.conversation .recommendation button:hover,.noSpecialty button:hover{background:#1b705f}
+.scriptedBadge{display:inline-flex;margin-top:8px;padding:5px 7px;border:1px solid #d0e4dc;border-radius:7px;font-size:10px;font-weight:800;color:#357f70}
+.doctorSuggestions{align-self:stretch;min-width:0;padding:14px;border:1px solid #d8e8e2;border-radius:16px;background:#fff}
+.suggestionsTitle{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.suggestionsTitle strong{font-size:13px;color:#264e42}
+.suggestionsTitle small{font-size:10px;color:#698e80;white-space:nowrap}
+.demoDisclaimer{padding:10px 12px;margin:0 0 12px;border:1px solid #f0debf;background:#fffaef;color:#805a2b;font-size:11px;line-height:1.55;border-radius:10px}
+.doctorCards{display:flex;flex-direction:column;gap:10px}
+.doctorCard{display:flex;gap:11px;align-items:flex-start;border:1px solid #e5eeea;border-radius:12px;padding:12px;background:linear-gradient(125deg,#fff,#f9fdfa)}
+.doctorAvatar{display:grid;place-items:center;width:37px;height:37px;flex:none;border-radius:12px;background:#dff2e9;color:#268878;font-size:17px;font-weight:800}
+.doctorInfo{min-width:0;flex:1}
+.doctorInfo>strong{display:block;font-size:13px;color:#234b3f}
+.doctorInfo>span{display:block;font-size:11px;font-weight:750;color:#239784;margin:3px 0}
+.doctorInfo>small{display:block;font-size:10px;color:#748c84;line-height:1.6;overflow-wrap:anywhere}
+.doctorInfo>p{font-size:11px;line-height:1.5;color:#6e887f;margin:7px 0 0}
+.doctorInfo>button{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;margin-top:9px;background:#1c8a7b;color:#fff;border:0;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer}
+.doctorInfo>button:hover{background:#126d60}
+.doctorInfo>button:focus-visible,.quickReplies button:focus-visible{outline:2px solid #1d887c;outline-offset:3px}
+.bookingSteps{font-size:10px;line-height:1.55;color:#799085;margin:12px 0 0}
+.noSpecialty{align-self:stretch;border:1px solid #deece8;background:#f5faf7;border-radius:12px;padding:13px}
+.noSpecialty strong{color:#32574b;font-size:12px}
+.noSpecialty p{color:#6c8279;font-size:11px;line-height:1.65;margin:7px 0 0}
+.quickReplies{display:flex;flex-wrap:wrap;gap:7px;padding:9px 20px 0;background:#fff;border-top:1px solid #e4eeed}
+.quickReplies button{border:1px solid #c9e6dd;background:#f2faf7;color:#277765;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:750;cursor:pointer}
+.quickReplies button:hover{background:#def3ea}
+@media(max-width:620px){.doctorSuggestions{padding:10px}.doctorCard{padding:10px}.quickReplies{padding:9px 14px 0}.quickReplies button{font-size:10px}}
