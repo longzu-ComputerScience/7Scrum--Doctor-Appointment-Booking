@@ -207,7 +207,11 @@ def add_doctor_slot(payload: DoctorSlotInput, token: str = Depends(_session_toke
 
 
 @app.get("/api/health")
-def health() -> dict:
+def health(response: Response) -> dict:
+    # Lets a frontend preview distinguish an outdated Render backend from a
+    # failure in Patient data. No credentials or implementation details exposed.
+    response.headers["X-Carely-Backend-Capabilities"] = "patient-appointments-v1"
+    response.headers["Cache-Control"] = "no-store"
     return {"status": "ok", "databaseConfigured": is_database_configured()}
 
 

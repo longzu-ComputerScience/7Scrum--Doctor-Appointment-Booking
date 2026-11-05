@@ -4,11 +4,38 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../auth/auth-provider";
 import { fe1Request, parsePatientAppointments, type PatientAppointment } from "@/lib/fe1-api";
+import { ContractApiError } from "@/lib/contract-api";
 import { formatScheduleDay, formatScheduleTime } from "@/lib/schedule-time";
 import styles from "./patient-appointments.module.css";
 
-type State = { kind: "loading" | "error" | "ready"; rows: PatientAppointment[]; checkedAt: number };
+type State = { kind: "loading" | "error" | "ready"; rows: PatientAppointment[]; checkedAt: number; error?: string };
 type Filter = "upcoming" | "past" | "cancelled" | "all";
+
+/** A Preview frontend can be ahead of the backend it proxies through BACKEND_URL. */
+async function explainAppointmentError(error: unknown, signal: AbortSignal): Promise<string> {
+  const status = error instanceof ContractApiError ? error.status : "network";
+  if (status === 404) {
+    try {
+      const health = await fetch("/api/health", { cache: "no-store", signal });
+      if (health.ok && !health.headers.get("X-Carely-Backend-Capabilities")?.includes("patient-appointments-v1")) {
+        return "This Preview uses an older backend without My Appointments. Deploy the PR backend to Render Preview and update Vercel Preview BACKEND_URL. (HTTP 404)";
+      }
+    } catch {
+      // The original HTTP 404 is still enough to diagnose a missing endpoint.
+    }
+    return "The appointment API returned HTTP 404. Check that Vercel Preview points to the matching FastAPI deployment.";
+  }
+  if (status === 503) {
+    return "The backend cannot currently load appointments (HTTP 503). Check Render and its existing Supabase connection.";
+  }
+  if (status === 401) return "Your session has expired. Sign in again to view appointments. (HTTP 401)";
+  if (status === 403) return "This account is not authorized to view Patient appointments. (HTTP 403)";
+  if (status === "invalid") {
+    return "The API returned an unexpected response. Verify Vercel's API rewrite and matching Render backend.";
+  }
+  if (status === "network") return "Cannot reach the appointment service. Check Render availability and try again.";
+  return "Cannot load appointments (HTTP " + status + "). Try again or check the backend logs.";
+}
 
 export function PatientAppointmentsView() {
   const { state } = useAuth();
@@ -25,8 +52,12 @@ export function PatientAppointmentsView() {
       setSnapshot(current => ({ ...current, kind: "loading" }));
       const payload = await fe1Request("/api/patient/appointments", { token, signal: controller.signal });
       if (!controller.signal.aborted) setSnapshot({ kind: "ready", rows: parsePatientAppointments(payload), checkedAt: Date.now() });
-    }).catch(() => {
-      if (!controller.signal.aborted) setSnapshot({ kind: "error", rows: [], checkedAt: 0 });
+    }).catch(async error => {
+      if (controller.signal.aborted) return;
+      const message = await explainAppointmentError(error, controller.signal);
+      if (!controller.signal.aborted) {
+        setSnapshot({ kind: "error", rows: [], checkedAt: 0, error: message });
+      }
     });
     return () => controller.abort();
   }, [token, version]);
@@ -56,7 +87,7 @@ export function PatientAppointmentsView() {
     </div>
     {snapshot.kind === "loading" && <div className={styles.empty} role="status">Loading your visits…</div>}
     {snapshot.kind === "error" && <div className={styles.empty} role="alert">
-      Could not load appointments. Please try again.
+      <p>{snapshot.error ?? "Could not load appointments. Please try again."}</p>
       <button className={styles.action} onClick={() => setVersion(value => value + 1)}>Retry</button>
     </div>}
     {snapshot.kind === "ready" && !rows.length && <div className={styles.empty}>

@@ -21,6 +21,28 @@ Use comma-separated Auth user UUIDs if multiple admins are required. The backend
 
 The Admin directory is read-only. The existing doctor table contains an active flag but does not contain durable application history and review permissions. This PR does not promise Approve/Reject. Inactive doctors are labeled inactive, not pending approval. Approval needs a separately agreed persistent workflow.
 
+## Why Vercel Preview can show "Could not load appointments"
+
+The Next.js Preview is a **frontend deployment**, not a deployment of the FastAPI code in this PR. Its `/api/*` rewrite points to the configured `BACKEND_URL`. If this URL is an older Render deployment (e.g. production `main`), `GET /api/patient/appointments` will be missing even when the website and Patient login render correctly. A `READY` Vercel status proves a frontend build, **not** API compatibility.
+
+A 404 means the endpoint is not present at the routed API path. A 503 means the endpoint was reached but the backend could not serve the query. A non-JSON response can indicate an incorrect rewrite or deployment protection. The UI now shows this distinction rather than hiding all causes under a generic Retry prompt.
+
+Before accepting a functional Preview:
+
+1. Deploy **the same PR branch commit** to a Render **preview** backend (do not redeploy Production solely for testing).
+2. Check the public origin **without a token**:
+
+   ```bash
+   python backend/scripts/check_deployed_patient_api.py https://YOUR-RENDER-PREVIEW.onrender.com
+   ```
+
+   PASS requires `GET /api/health` = 200 with capability `patient-appointments-v1`, and `GET /api/patient/appointments` = **401**, not 404. The 401 is correct because no Patient JWT was supplied. This smoke test performs no writes.
+3. Set Vercel project `7-scrum` **Preview** `BACKEND_URL` to that preview origin, without a trailing `/api`. Redeploy the frontend Preview.
+4. Only then test with an existing Patient account: authenticated `GET /api/patient/appointments` must return 200 JSON and the UI must display appointments stored in the existing database.
+5. Do **not** change `BACKEND_URL` for Vercel Production. Avoid copying Production service-role keys into an untrusted preview environment; use access-controlled staging credentials where possible.
+
+No SQL migration or Supabase schema edit is required by this PR. If no Render preview service is available, a green Vercel Preview cannot establish end-to-end functionality; the backend must be deployed through an authorized path first.
+
 ## Deployment/testing
 
 1. No Supabase actions required. No SQL migration is included in this PR.
