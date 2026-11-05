@@ -90,6 +90,19 @@ class DoctorAppointmentListResponse(BaseModel):
     appointments: list[DoctorAppointment]
 
 
+class PatientAppointment(AvailableSlot):
+    bookingReference: str = Field(pattern=r"^[0-9A-F]{12}$")
+    doctorName: str
+    specialty: str
+    address: str
+    district: str
+    status: AppointmentStatus
+
+
+class PatientAppointmentListResponse(BaseModel):
+    appointments: list[PatientAppointment]
+
+
 DoctorAppointmentStatusTarget = Literal["completed", "cancelled"]
 
 

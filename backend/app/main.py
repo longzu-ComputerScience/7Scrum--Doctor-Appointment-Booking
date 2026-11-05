@@ -18,7 +18,7 @@ from app.schemas import (
     DoctorAppointmentStatusInput, DoctorAppointmentStatusResponse, DoctorDetailResponse, DoctorListResponse,
     DoctorNotificationListResponse, DoctorProfileResponse, DoctorRegistrationInput, DoctorRegistrationResponse,
     DoctorSlotCreateResponse, DoctorSlotInput, DoctorSlotListResponse, NotificationReadInput, NotificationReadResponse,
-    PatientProfileResponse, PatientRegistrationInput, PatientRegistrationResponse, ScheduleConflict, ScheduleInput,
+    PatientAppointmentListResponse, PatientProfileResponse, PatientRegistrationInput, PatientRegistrationResponse, ScheduleConflict, ScheduleInput,
     ScheduleResponse, ScheduleUpdateResponse, SlotListResponse, StaffSlotInput, StatusInput, ValidationErrorResponse,
     ValidationIssue,
 )
@@ -27,6 +27,7 @@ from app.service import (
     get_doctor, get_doctor_profile,
     get_doctor_schedule,
     get_patient_profile, get_slots, list_doctor_appointments, list_doctor_notifications, list_doctor_slots,
+    list_patient_appointments,
     list_staff_appointments, list_staff_doctors, list_staff_slots, mark_doctor_notification_read, register_doctor,
     register_patient, search_doctors, update_doctor_appointment_status, update_doctor_schedule, update_status,
 )
@@ -106,6 +107,12 @@ def doctor_registration(details: Annotated[str, Form()], evidence: Annotated[Upl
 def patient_me(response: Response, token: str = Depends(_session_token)) -> dict:
     response.headers["Cache-Control"] = "no-store"
     return get_patient_profile(token)
+
+
+@app.get("/api/patient/appointments", response_model=PatientAppointmentListResponse, responses=AUTH_ERRORS)
+def patient_appointments(response: Response, token: str = Depends(_session_token)) -> dict:
+    response.headers["Cache-Control"] = "no-store"
+    return list_patient_appointments(token)
 
 
 @app.get("/api/doctor/me", response_model=DoctorProfileResponse, responses=AUTH_ERRORS)

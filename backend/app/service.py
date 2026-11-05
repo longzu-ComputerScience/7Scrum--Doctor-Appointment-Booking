@@ -22,7 +22,7 @@ from app.schemas import (
     ALLOWED_TRANSITIONS, AvailableSlot, BookingInput, BookingResponse, Doctor, DoctorAppointment,
     DoctorAppointmentStatusInput,
     DoctorAppointmentStatusResult, DoctorNotification, DoctorProfile, DoctorRegistrationInput, ManualDoctorSlot,
-    DoctorSlot, DoctorSlotInput, NotificationReadResult, PatientProfile, PatientRegistrationInput, ScheduleConflict,
+    DoctorSlot, DoctorSlotInput, NotificationReadResult, PatientAppointment, PatientProfile, PatientRegistrationInput, ScheduleConflict,
     ScheduleInput, ScheduleResponse, StaffSlotInput, WorkingInterval,
 )
 
@@ -359,6 +359,42 @@ def _patient_identity(client: Any, user_id: str, email: str | None) -> PatientPr
 def get_patient_profile(token: str) -> dict:
     client, user_id, email = _authenticated_user(token)
     return {"patient": _patient_identity(client, user_id, email)}
+
+
+def list_patient_appointments(token: str) -> dict:
+    client, user_id, email = _authenticated_user(token)
+    _patient_identity(client, user_id, email)
+    with _database_operation("Patient appointments unavailable"):
+        rows = (
+            client.table("appointments")
+            .select("id,booking_reference,booking_doctor_id,booking_start_at,booking_end_at,status")
+            .eq("patient_auth_user_id", user_id)
+            .in_("status", ["confirmed", "completed", "cancelled"])
+            .order("created_at", desc=True).order("id", desc=True)
+            .limit(100).execute().data
+        )
+        if not rows:
+            return {"appointments": []}
+        doctor_ids = sorted({str(row["booking_doctor_id"]) for row in rows})
+        doctor_rows = (
+            client.table("doctors").select("id,name,specialty,address,district")
+            .in_("id", doctor_ids).execute().data
+        )
+        doctors = {str(row["id"]): row for row in doctor_rows}
+        if len(doctors) != len(doctor_ids):
+            raise HTTPException(503, "Patient appointments unavailable")
+        appointments = []
+        for row in rows:
+            doctor = doctors[str(row["booking_doctor_id"])]
+            appointments.append(PatientAppointment(
+                id=row["id"], doctorId=row["booking_doctor_id"],
+                bookingReference=row["booking_reference"],
+                doctorName=doctor["name"], specialty=doctor["specialty"],
+                address=doctor["address"], district=doctor["district"],
+                startAt=row["booking_start_at"], endAt=row["booking_end_at"],
+                status=row["status"],
+            ))
+    return {"appointments": appointments}
 
 
 def get_auth_identity(token: str) -> dict:

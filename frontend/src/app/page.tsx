@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "./auth/auth-provider";
 import { PatientProfileView } from "./patient/profile/patient-profile";
+import { MyAppointments } from "./patient/my-appointments";
 import { PatientShell } from "./patient-shell";
 import { DoctorBrowser } from "./doctor-browser";
 import { Consultation } from "./consultation";
@@ -110,7 +111,7 @@ export default function HomePage() {
       ) : active === "book" ? (
         <DoctorBrowser query={search} />
       ) : active === "appointments" ? (
-        <AppointmentsEmptyView onBook={() => handleNavigate("book")} onChat={() => setChatOpen(true)} />
+        <MyAppointments token={auth.session.access_token} onBook={() => handleNavigate("book")} />
       ) : (
         <PatientProfileView />
       )}
@@ -128,37 +129,6 @@ function ConsultationPanel({ open, onClose, onExploreSpecialty, canExploreDoctor
     <div className={homeStyles.consultTop}><strong>Carely consultation</strong><button type="button" onClick={onClose} aria-label="Close chat"><Icon name="close" /></button></div>
     <Consultation onExploreSpecialty={onExploreSpecialty} canExploreDoctors={canExploreDoctors} />
   </div></>;
-}
-
-function AppointmentsEmptyView({ onBook, onChat }: { onBook: () => void; onChat: () => void }) {
-  return (
-    <section className={styles.emptyContainer} aria-labelledby="appointments-empty-title">
-      <div className={styles.emptyCard}>
-        <div className={styles.emptyIconBadge} aria-hidden="true">
-          <Icon name="calendar" />
-        </div>
-        <span className={styles.emptyEyebrow}>SCHEDULED VISITS</span>
-        <h2 id="appointments-empty-title" className={styles.emptyTitle}>Your appointment details</h2>
-        <p className={styles.emptyDescription}>
-          Appointment history is not available here yet. Keep the reference shown after a successful booking and contact your doctor for visit details.
-        </p>
-        <div className={styles.emptyActions}>
-          <button type="button" className={styles.emptyPrimaryBtn} onClick={onBook}>
-            Book an appointment
-          </button>
-          <button type="button" className={styles.emptySecondaryBtn} onClick={onChat}>
-            Need help? Chat with Carely
-          </button>
-        </div>
-        <div className={styles.emptyTipBox}>
-          <span className={styles.emptyTipSpark} aria-hidden="true">✦</span>
-          <p>
-            <strong>Quick tip:</strong> Choose a doctor to view their latest available times.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
 }
 
 function Overview({ onBook, onChat }: { onBook: () => void; onChat: () => void }) {
