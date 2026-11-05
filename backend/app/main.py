@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.admin import router as admin_router
 from app.assistant import search_from_message
 from app.consult import consult
 from app.config import allowed_origins, is_database_configured
@@ -33,6 +34,7 @@ app = FastAPI(
     description="Scheduling and doctor discovery only; not a medical diagnostic service.",
     version="0.2.0",
 )
+app.include_router(admin_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins(),
