@@ -25,16 +25,16 @@ async function withFetch(handler, run) {
 
 test("Patient identity comes from a Bearer-authenticated profile, never a role supplied by the UI", async () => {
   await withFetch(async (path, options) => {
-    assert.equal(path, "/api/patient/me"); assert.equal(options.headers.Authorization, "Bearer patient-jwt"); assert.equal(options.cache, "no-store");
-    return json({ patient: { id, name: "Test", phone: "0900000000", email: "test@example.invalid" } });
+    assert.equal(path, "/api/auth/me"); assert.equal(options.headers.Authorization, "Bearer patient-jwt"); assert.equal(options.cache, "no-store");
+    return json({ role: "patient", patient: { id, name: "Test", phone: "0900000000", email: "test@example.invalid" } });
   }, async () => assert.equal((await api.loadIdentity("patient-jwt")).role, "patient"));
 });
-test("Doctor identity requires a verified doctor profile after Patient role is refused", async () => {
+test("Doctor identity comes from one verified backend identity request", async () => {
   const paths = [];
-  await withFetch(async path => { paths.push(path); return path === "/api/patient/me" ? json({}, 403) : json({ doctor: { id, name: "Test Doctor", specialty: "Test", active: true } }); }, async () => {
+  await withFetch(async path => { paths.push(path); return json({ role: "doctor", doctor: { id, name: "Test Doctor", specialty: "Test", active: true } }); }, async () => {
     const result = await api.loadIdentity("doctor-jwt"); assert.equal(result.role, "doctor"); assert.equal(result.doctor.id, id);
   });
-  assert.deepEqual(paths, ["/api/patient/me", "/api/doctor/me"]);
+  assert.deepEqual(paths, ["/api/auth/me"]);
 });
 test("401, 503 and malformed patient profiles never become a Doctor session", async () => {
   for (const status of [401, 503, 200]) {
@@ -92,11 +92,32 @@ test("Patient registration normalizes names/contact, preserves password and uses
     return json({ userId: id }, 201);
   }, async () => api.registerAccount("patient", value, []));
 });
-test("Doctor registration preview does not send an unsupported certificate payload", async () => {
+test("Doctor registration sends the invitation and chosen working hours to the real contract", async () => {
+  const weeklyIntervals = [{ dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }];
+  const value = { email: " doctor@example.invalid ", password: "exact password ", invitationCode: "  " + "i".repeat(43) + "  ", name: "ignored", phone: "ignored" };
+  await withFetch(async (path, options) => {
+    assert.equal(path, "/api/auth/doctors/register");
+    assert.deepEqual(JSON.parse(options.body), { email: "doctor@example.invalid", password: value.password, invitationCode: "i".repeat(43), weeklyIntervals });
+    return json({ doctorId: id }, 201);
+  }, async () => api.registerAccount("doctor", value, weeklyIntervals));
+});
+
+test("Doctor registration refuses empty/overlapping hours before sending a mutation", async () => {
   let calls = 0;
   await withFetch(async () => { calls++; return json({ doctorId: id }, 201); }, async () => {
-    await assert.rejects(api.registerAccount("doctor", {}), ContractApiError);
+    for (const intervals of [[], [{ dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }, { dayOfWeek: 1, startTime: "11:00", endTime: "13:00" }]]) {
+      await assert.rejects(api.registerAccount("doctor", {}, intervals), error => error.status === 422);
+    }
     assert.equal(calls, 0);
+  });
+});
+
+test("Invitation refusal stays a failure and has an actionable message", async () => {
+  await withFetch(async () => json({ error: "Access denied" }, 403), async () => {
+    await assert.rejects(api.registerAccount("doctor", { email: "doctor@example.invalid", password: "test-password", invitationCode: "i".repeat(43) },
+      [{ dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }]), error => {
+      assert.match(api.registrationMessage(error), /invitation.*expired/i); return true;
+    });
   });
 });
 test("Registration rejects ambiguous/wrong 2xx success and does not retry mutations", async () => {
@@ -108,18 +129,20 @@ test("Registration rejects ambiguous/wrong 2xx success and does not retry mutati
     });
   }
 });
-test("Form validation checks Unicode codepoints, phone digits, password confirmation and certificate details", () => {
-  const base = { name: "😀".repeat(100), email: "test@example.invalid", phone: "+84 (90) 123-4567", password: "test-password", confirmation: "test-password", address: "123 Test", specialty: "Test", certificateName: "Test license", certificateIssuer: "Test authority", certificateNumber: "TEST-1" };
+test("Form validation checks patient details and requires an invitation rather than doctor self-asserted credentials", () => {
+  const base = { name: "😀".repeat(100), email: "test@example.invalid", phone: "+84 (90) 123-4567", password: "test-password", confirmation: "test-password", invitationCode: "i".repeat(43) };
   assert.deepEqual(api.registrationErrors(base, "patient"), {});
   const errors = api.registrationErrors({ ...base, name: "😀".repeat(101), phone: "---------", confirmation: "wrong" }, "patient");
   assert.ok(errors.name && errors.phone && errors.confirmation);
-  assert.ok(api.registrationErrors({ ...base, certificateNumber: " " }, "doctor").certificateNumber);
+  assert.ok(api.registrationErrors({ ...base, invitationCode: " " }, "doctor").invitationCode);
+  assert.deepEqual(api.registrationErrors({ ...base, name: "", phone: "" }, "doctor"), {});
 });
 test("Return URLs cannot leave the origin or cross role boundaries", () => {
   for (const path of ["https://evil.invalid", "//evil.invalid", "/\\evil.invalid", "/doctor", "/patient/login", "/%2fevil.invalid"]) assert.equal(api.safeReturnTo(path, "patient"), "/");
   assert.equal(api.safeReturnTo(`/doctors/${id}/book`, "patient"), `/doctors/${id}/book`);
   assert.equal(api.safeReturnTo(`/doctor/appointments/${id}`, "doctor"), `/doctor/appointments/${id}`);
   assert.equal(api.safeReturnTo("/patient/profile", "doctor"), "/doctor");
+  assert.equal(api.safeReturnTo("/patient/profile", "patient"), "/patient/profile");
 });
 test("Catalog rejects invalid rows, excludes inactive doctors and retains rating/certificates", () => {
   const doctor = { id, name: "Synthetic Doctor", specialty: "Test", bio: "", address: "Test address", district: "Test", rating: 4.5, ratingCount: 2, certificates: [] };

@@ -10,6 +10,19 @@
   color: #151515;
 }
 
+.compact {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.compact .settingsCard {
+  width: 100%;
+  max-width: none;
+}
+
+.compact .calendarCard {
+  display: none;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Left Panel: Settings */
 /* ------------------------------------------------------------------------- */

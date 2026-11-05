@@ -7,6 +7,7 @@ import { useAuth } from "./auth-provider";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { apiMessage, ContractApiError, isRecord } from "@/lib/contract-api";
 import { normalize, registerAccount, registrationErrors, registrationMessage, safeReturnTo, type Registration, type Role } from "@/lib/fe1-api";
+import { WeeklyScheduleEditor, validateWeeklySchedule, hasWeeklyErrors, type WorkingInterval, type WeeklyScheduleErrors } from "../doctor/weekly-schedule-editor";
 import styles from "./auth.module.css";
 
 function loginMessage(error: unknown) {
@@ -19,8 +20,9 @@ function loginMessage(error: unknown) {
 export function AuthForm({ role, register = false }: { role: Role; register?: boolean }) {
   const { state, configured, signOut, reload } = useAuth();
   const router = useRouter();
-  const [value, setValue] = useState<Registration>({ name: "", email: "", phone: "", password: "", confirmation: "", address: "", specialty: "", certificateName: "", certificateIssuer: "", certificateNumber: "" });
-  const [evidence, setEvidence] = useState<File | null>(null);
+  const [value, setValue] = useState<Registration>({ name: "", email: "", phone: "", password: "", confirmation: "", invitationCode: "" });
+  const [weeklyIntervals, setWeeklyIntervals] = useState<WorkingInterval[]>([]);
+  const [weeklyErrors, setWeeklyErrors] = useState<WeeklyScheduleErrors>({ intervals: {} });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [notice, setNotice] = useState("");
@@ -51,7 +53,8 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
     if (!client) return;
     lock.current = true; setBusy(true); setMessage("");
     try {
-      const { error } = await client.auth.resend({ type: "signup", email });
+      const { error } = await client.auth.resend({ type: "signup", email,
+        options: { emailRedirectTo: `${window.location.origin}/${role}/login` } });
       if (error) throw error;
       setNotice("Confirmation requested. Check your inbox and spam folder, then return to sign in."); setResendAfter(Date.now() + 60_000);
     } catch { setMessage("Could not send the confirmation email. Please wait and try again."); }
@@ -59,31 +62,28 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (lock.current || (!configured && !(register && role === "doctor")) || created || uncertain) return;
+    if (lock.current || !configured || created || uncertain) return;
     const validation: Record<string, string> = register ? registrationErrors(value, role) : {
       ...(!normalize(value.email) ? { email: "Enter your email address." } : {}),
       ...(!value.password ? { password: "Enter your password." } : {}),
     };
-    if (register && role === "doctor" && !evidence) validation.evidence = "Choose a certificate document.";
-    if (evidence && (evidence.size > 10 * 1024 * 1024 || !["application/pdf", "image/png", "image/jpeg", "image/webp"].includes(evidence.type))) validation.evidence = "Use a PDF or image under 10 MB.";
+    const scheduleValidation = register && role === "doctor" ? validateWeeklySchedule(weeklyIntervals) : { intervals: {} };
+    setWeeklyErrors(scheduleValidation);
     setErrors(validation); setMessage(""); setNotice("");
-    if (Object.keys(validation).length) {
+    if (Object.keys(validation).length || hasWeeklyErrors(scheduleValidation)) {
       setMessage("Please check the highlighted fields."); requestAnimationFrame(() => summary.current?.focus()); return;
-    }
-    if (register && role === "doctor") {
-      setNotice("Details are ready for preview. Your account and certificate have not been submitted; the registration API needs to support these fields and file upload.");
-      return;
     }
     const client = getSupabaseBrowser();
     if (!client) return;
     lock.current = true; setBusy(true);
     try {
       if (register) {
-        await registerAccount(role, value);
-        setCreated(true); setValue(current => ({ ...current, password: "", confirmation: "" }));
+        await registerAccount(role, value, weeklyIntervals);
+        setCreated(true); setValue(current => ({ ...current, password: "", confirmation: "", invitationCode: "" }));
         setNotice("Your account was created. Confirm your email before signing in.");
         try {
-          const { error } = await client.auth.resend({ type: "signup", email: normalize(value.email) });
+          const { error } = await client.auth.resend({ type: "signup", email: normalize(value.email),
+            options: { emailRedirectTo: `${window.location.origin}/${role}/login` } });
           if (error) throw error;
           setResendAfter(Date.now() + 60_000);
         } catch { setMessage("Your account was created, but the confirmation email could not be sent. Use Resend confirmation below."); }
@@ -101,6 +101,7 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
         for (const item of error.body.detail) if (isRecord(item) && Array.isArray(item.loc)) {
           const field = item.loc[1];
           if (typeof field === "string" && field in value) fieldErrors[field] = "Check this value and try again.";
+          if (field === "weeklyIntervals") setWeeklyErrors(current => ({ ...current, summary: "Review your weekly hours. Intervals must not overlap and must last a multiple of 30 minutes." }));
         }
         setErrors(fieldErrors);
       }
@@ -133,7 +134,15 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
           <Link href={`/doctor/${register ? "register" : "login"}`} aria-current={role === "doctor" ? "page" : undefined}>Doctor</Link>
         </div>
         {!register && <span className={styles.eyebrow}>{role.toUpperCase()} PORTAL</span>}<h1>{title}</h1>
-        {state.status === "error" && <div className={styles.alert} role="alert"><p>{apiMessage(state.error)}</p><button type="button" onClick={reload}>Retry session</button></div>}
+        {register && role === "doctor" && <p className={styles.subtitle}>Use the email and invitation code provided by your clinic. Your invitation links your existing doctor profile and credentials. Choose your weekly hours to start accepting appointments.</p>}
+        {!configured && <p className={styles.alert} role="alert">Account services are not configured. Please contact the clinic or try again later.</p>}
+        {state.status === "error" && <div className={styles.alert} role="alert">
+          <p>{state.error instanceof ContractApiError && state.error.status === 403
+            ? "Your account is not linked to a patient or doctor profile. Contact your clinic or sign out to use another account."
+            : apiMessage(state.error)}</p>
+          <button type="button" onClick={reload}>Retry session</button>{" · "}
+          <button type="button" onClick={() => void signOut().catch(() => setMessage("Could not sign out. Please try again."))}>Sign out</button>
+        </div>}
         {state.status === "ready" ? <div className={styles.notice}>
           <p>You are signed in as a {state.identity.role}. {state.identity.role !== role && "This portal is for a different account role."}</p>
           <Link href={state.identity.role === "doctor" ? "/doctor" : "/patient/profile"}>Open my account</Link>
@@ -143,26 +152,20 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
           {notice && <p className={styles.notice} role="status">{notice}</p>}
           {!created && <form onSubmit={submit} noValidate aria-busy={busy}>
             <div className={styles.fields}>
-              {register && field("name", "Full name", "text", "name")}
+              {register && role === "patient" && field("name", "Full name", "text", "name")}
               {field("email", "Email address", "email", "email")}
-              {register && field("phone", "Phone number", "tel", "tel")}
-              {register && role === "doctor" && <>{field("address", "Address", "text", "street-address")}{field("specialty", "Specialty")}</>}
+              {register && role === "patient" && field("phone", "Phone number", "tel", "tel")}
+              {register && role === "doctor" && field("invitationCode", "Invitation code")}
               {field("password", "Password", showPassword ? "text" : "password", register ? "new-password" : "current-password")}
               {register && field("confirmation", "Confirm password", showPassword ? "text" : "password", "new-password")}
             </div>
             <label className={styles.showPassword}><input type="checkbox" checked={showPassword} onChange={e => setShowPassword(e.target.checked)} /> Show password</label>
-            {register && role === "doctor" && <div className={styles.certificate}><h2>Practice certificate</h2>
-              {field("certificateName", "Certificate name")}{field("certificateIssuer", "Issuing organization")}{field("certificateNumber", "Certificate number")}
-              <label className={styles.field} htmlFor="doctor-evidence">Supporting document
-                <input id="doctor-evidence" type="file" accept=".pdf,image/png,image/jpeg,image/webp" disabled={busy}
-                  onChange={event => { setEvidence(event.target.files?.[0] ?? null); setErrors(current => ({ ...current, evidence: "" })); setNotice(""); }}
-                  aria-invalid={Boolean(errors.evidence)} aria-describedby={errors.evidence ? "error-evidence" : undefined} />
-                {evidence && <span className={styles.fileName}>{evidence.name}</span>}
-                {errors.evidence && <span className={styles.fieldError} id="error-evidence">{errors.evidence}</span>}
-              </label>
+            {register && role === "doctor" && <div className={styles.weekly}>
+              <WeeklyScheduleEditor compact value={weeklyIntervals} disabled={busy} errors={weeklyErrors}
+                onChange={intervals => { setWeeklyIntervals(intervals); setWeeklyErrors({ intervals: {} }); setMessage(""); }} />
             </div>}
-            <button className={styles.primary} type="submit" disabled={busy || (!configured && !(register && role === "doctor")) || uncertain || (state.status === "loading" && !(register && role === "doctor"))}>
-              {busy ? "Please wait…" : register && role === "doctor" ? "Review details" : register ? "Create account" : "Sign in"}
+            <button className={styles.primary} type="submit" disabled={busy || !configured || uncertain || state.status === "loading"}>
+              {busy ? "Please wait…" : register ? "Create account" : "Sign in"}
             </button>
           </form>}
           {(!register || created || uncertain) && <button className={styles.textButton} type="button" disabled={busy || !configured} onClick={() => void resend()}>Resend confirmation email</button>}

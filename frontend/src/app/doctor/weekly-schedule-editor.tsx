@@ -21,6 +21,7 @@ export type WeeklyScheduleEditorProps = {
   value: WorkingInterval[];
   onChange: (value: WorkingInterval[]) => void;
   disabled?: boolean;
+  compact?: boolean;
   errors?: WeeklyScheduleErrors;
   children?: ReactNode;
 };
@@ -36,6 +37,7 @@ export function WeeklyScheduleEditor({
   value,
   onChange,
   disabled = false,
+  compact = false,
   errors,
   children,
 }: WeeklyScheduleEditorProps) {
@@ -146,7 +148,7 @@ export function WeeklyScheduleEditor({
   }
 
   return (
-    <div className={styles.splitLayout}>
+    <div className={`${styles.splitLayout} ${compact ? styles.compact : ""}`}>
       {/* ------------------------------------------------------------------- */}
       {/* Left Panel: Availability Settings & Working Hours Form              */}
       {/* ------------------------------------------------------------------- */}

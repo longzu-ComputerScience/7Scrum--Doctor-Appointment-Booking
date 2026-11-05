@@ -12,7 +12,7 @@ from app.assistant import search_from_message
 from app.consult import consult
 from app.config import allowed_origins, is_database_configured
 from app.schemas import (
-    APIErrorResponse, AssistantInput, BookingInput, BookingResponse, CalendarDate, ConsultationInput,
+    APIErrorResponse, AssistantInput, AuthIdentityResponse, BookingInput, BookingResponse, CalendarDate, ConsultationInput,
     DoctorAppointmentListResponse,
     DoctorAppointmentStatusInput, DoctorAppointmentStatusResponse, DoctorDetailResponse, DoctorListResponse,
     DoctorNotificationListResponse, DoctorProfileResponse, DoctorRegistrationInput, DoctorRegistrationResponse,
@@ -22,7 +22,8 @@ from app.schemas import (
     ValidationIssue,
 )
 from app.service import (
-    create_booking, create_doctor_slot, create_staff_slot, get_doctor, get_doctor_profile, get_doctor_schedule,
+    create_booking, create_doctor_slot, create_staff_slot, get_auth_identity, get_doctor, get_doctor_profile,
+    get_doctor_schedule,
     get_patient_profile, get_slots, list_doctor_appointments, list_doctor_notifications, list_doctor_slots,
     list_staff_appointments, list_staff_doctors, list_staff_slots, mark_doctor_notification_read, register_doctor,
     register_patient, search_doctors, update_doctor_appointment_status, update_doctor_schedule, update_status,
@@ -68,6 +69,12 @@ AUTH_ERRORS = {
 NOT_FOUND = {404: {"model": APIErrorResponse, "description": "Resource not found"}}
 INVALID_INPUT = {422: {"model": ValidationErrorResponse, "description": "Invalid request or input"}}
 REGISTRATION_CONFLICT = {409: {"model": APIErrorResponse, "description": "Registration conflicts with existing data"}}
+
+
+@app.get("/api/auth/me", response_model=AuthIdentityResponse, responses=AUTH_ERRORS)
+def auth_me(response: Response, token: str = Depends(_session_token)) -> dict:
+    response.headers["Cache-Control"] = "no-store"
+    return get_auth_identity(token)
 
 
 @app.post(

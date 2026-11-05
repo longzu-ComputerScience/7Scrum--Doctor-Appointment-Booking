@@ -49,6 +49,7 @@ next-env.d.ts
 **/__pycache__/
 **/.pytest_cache/
 **/.ruff_cache/
+**/.auth-integration-state.json
 **/*.pyc
 **/.env
 **/.env.*

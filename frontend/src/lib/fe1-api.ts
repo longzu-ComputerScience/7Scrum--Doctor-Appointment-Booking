@@ -1,4 +1,5 @@
 import { ContractApiError, isInstant, isRecord, isUuid } from "./contract-api";
+import { validateWeeklySchedule, hasWeeklyErrors, type WorkingInterval } from "../app/doctor/weekly-schedule-utils";
 
 export type Role = "patient" | "doctor";
 export type PatientProfile = { id: string; name: string; phone: string; email: string };
@@ -51,11 +52,10 @@ export function parseDoctorProfile(data: unknown): DoctorProfile {
   return { id: d.id, name: d.name, specialty: d.specialty, active: d.active };
 }
 export async function loadIdentity(token: string, signal?: AbortSignal): Promise<Identity> {
-  try { return { role: "patient", patient: parsePatient(await fe1Request("/api/patient/me", { token, signal })) }; }
-  catch (error) {
-    if (!(error instanceof ContractApiError) || error.status !== 403) throw error;
-  }
-  return { role: "doctor", doctor: parseDoctorProfile(await fe1Request("/api/doctor/me", { token, signal })) };
+  const data = await fe1Request("/api/auth/me", { token, signal });
+  if (isRecord(data) && data.role === "patient") return { role: "patient", patient: parsePatient(data) };
+  if (isRecord(data) && data.role === "doctor") return { role: "doctor", doctor: parseDoctorProfile(data) };
+  throw new ContractApiError("invalid");
 }
 const validRange = (row: Record<string, unknown>) => isInstant(row.startAt) && isInstant(row.endAt) && Date.parse(row.endAt) > Date.parse(row.startAt);
 const status = (value: unknown): value is AppointmentStatus => value === "confirmed" || value === "completed" || value === "cancelled";
@@ -100,30 +100,35 @@ export async function updateAppointment(id: string, next: "completed" | "cancell
 
 export const normalize = (value: string) => value.normalize("NFC").trim();
 export type Registration = { name: string; email: string; phone: string; password: string; confirmation: string;
-  address: string; specialty: string; certificateName: string; certificateIssuer: string; certificateNumber: string };
+  invitationCode: string };
 export function registrationErrors(value: Registration, role: Role): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalize(value.email))) errors.email = "Enter a valid email address.";
   if (value.password.length < 8) errors.password = "Use at least 8 characters.";
+  if (value.password.length > 72) errors.password = "Use no more than 72 characters.";
   if (value.password !== value.confirmation) errors.confirmation = "Passwords do not match.";
-  const length = Array.from(normalize(value.name)).length;
-  if (length < 2 || length > 100) errors.name = "Enter a name between 2 and 100 characters.";
-  const phone = normalize(value.phone);
-  if (!/^\+?[0-9 ()-]{9,20}$/.test(phone) || (phone.match(/[0-9]/g)?.length ?? 0) < 9) errors.phone = "Enter a phone number with at least 9 digits.";
-  if (role === "doctor") for (const key of ["address", "specialty", "certificateName", "certificateIssuer", "certificateNumber"] as const) {
-    const count = Array.from(normalize(value[key])).length;
-    if (!count || count > 200) errors[key] = "Enter this detail (up to 200 characters).";
+  if (role === "patient") {
+    const length = Array.from(normalize(value.name)).length;
+    if (length < 2 || length > 100) errors.name = "Enter a name between 2 and 100 characters.";
+    const phone = normalize(value.phone);
+    if (!/^\+?[0-9 ()-]{9,20}$/.test(phone) || (phone.match(/[0-9]/g)?.length ?? 0) < 9) errors.phone = "Enter a phone number with at least 9 digits.";
+  } else {
+    const count = Array.from(normalize(value.invitationCode)).length;
+    if (count < 24 || count > 128) errors.invitationCode = "Enter the invitation code provided by your clinic.";
   }
   return errors;
 }
-export async function registerAccount(role: Role, value: Registration) {
-  if (role !== "patient") throw new ContractApiError(503);
-  const body = { name: normalize(value.name), email: normalize(value.email), phone: normalize(value.phone), password: value.password };
-  const data = await fe1Request("/api/auth/patients/register", { method: "POST", body, expected: 201 });
-  if (!isRecord(data) || !isUuid(data.userId)) throw new ContractApiError("invalid");
+export async function registerAccount(role: Role, value: Registration, weeklyIntervals: WorkingInterval[] = []) {
+  if (role === "doctor" && hasWeeklyErrors(validateWeeklySchedule(weeklyIntervals))) throw new ContractApiError(422);
+  const body = role === "patient"
+    ? { name: normalize(value.name), email: normalize(value.email), phone: normalize(value.phone), password: value.password }
+    : { email: normalize(value.email), password: value.password, invitationCode: normalize(value.invitationCode), weeklyIntervals };
+  const data = await fe1Request(`/api/auth/${role}s/register`, { method: "POST", body, expected: 201 });
+  if (!isRecord(data) || !isUuid(data[role === "patient" ? "userId" : "doctorId"])) throw new ContractApiError("invalid");
 }
 export function registrationMessage(error: unknown) {
   if (error instanceof ContractApiError) {
+    if (error.status === 403) return "The invitation is invalid, expired, already used, or belongs to a different email. Contact your clinic for a new code.";
     if (error.status === 409) return "This account is already registered. Try signing in or contact support.";
     if (error.uncertain) return "Registration could not be verified. It may have been saved. Try signing in or contact support before registering again.";
   }
@@ -134,5 +139,5 @@ export function safeReturnTo(value: string | null, role: Role) {
   const fallback = role === "doctor" ? "/doctor" : "/";
   if (!value || !value.startsWith("/") || value.startsWith("//") || /[\\\r\n]/.test(value)) return fallback;
   if (role === "doctor") return /^\/doctor(?:\/appointments\/[\da-f-]{36})?(?:[?#].*)?$/i.test(value) ? value : fallback;
-  return /^\/(?:[?#].*)?$/.test(value) || /^\/doctors\/[\da-f-]{36}\/book(?:[?#].*)?$/i.test(value) ? value : fallback;
+  return /^\/(?:[?#].*)?$/.test(value) || /^\/patient\/profile(?:[?#].*)?$/.test(value) || /^\/doctors\/[\da-f-]{36}\/book(?:[?#].*)?$/i.test(value) ? value : fallback;
 }
