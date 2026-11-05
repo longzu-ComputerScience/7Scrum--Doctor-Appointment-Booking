@@ -58,3 +58,7 @@ next-env.d.ts
 /.opencode
 opencode.json
 AGENTS.md
+
+# Local BE2 notes
+/docs/BE2_IMPLEMENTATION_REPORT.md
+/docs/BE2_WORKLOG.md

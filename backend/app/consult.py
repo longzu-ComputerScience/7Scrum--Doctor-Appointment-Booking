@@ -1,47 +1,66 @@
-"""Limited two-turn specialty navigation demo. No diagnosis or persistent chat history."""
-from __future__ import annotations
+"""Two-turn specialty navigation with backend-controlled replies."""
 
-from app.assistant import URGENT, conservative_filters, search_from_message
+import unicodedata
+
+from starlette.concurrency import run_in_threadpool
+
+from app.assistant import URGENT, conservative_filters, try_ai_filters
+from app.schemas import ConsultationResponse
+from app.service import ALIASES, _normalize, search_doctors
+
+SPECIALTIES = {**ALIASES, **{_normalize(name): name for name in ALIASES.values()}}
 
 
-async def consult(messages: list[str]) -> dict:
-    # The client sends only user-authored messages (bounded by Pydantic).
-    message = " ".join(messages).strip()
+async def consult(messages: list[str]) -> ConsultationResponse:
+    # Check the full patient history before asking a question or calling another service.
+    history = " ".join(messages)
+    message = unicodedata.normalize("NFC", " ".join(history.split()))
     if URGENT.search(message):
-        return {
-            "reply": "Nếu có dấu hiệu nguy hiểm, hãy liên hệ cấp cứu 115 hoặc đến cơ sở cấp cứu gần nhất.",
-            "followUpRequired": False, "specialty": None, "doctors": [], "urgent": True,
-            "demoMode": False, "usedAI": False, "mode": "controlled-prototype",
-        }
+        return ConsultationResponse(
+            reply="Hãy liên hệ cấp cứu 115 hoặc đến cơ sở cấp cứu gần nhất.",
+            urgent=True,
+            mode="emergency",
+        )
 
-    # PO requires at least one basic follow-up for supported consultation.
     if len(messages) == 1:
-        return {
-            "reply": "Triệu chứng này bắt đầu từ khi nào? Bạn có thể bổ sung thời gian hoặc mức độ khó chịu.",
-            "followUpRequired": True, "specialty": None, "doctors": [], "urgent": False,
-            "demoMode": False, "usedAI": False, "mode": "controlled-prototype",
-        }
+        return ConsultationResponse(
+            reply="Triệu chứng này bắt đầu từ khi nào? Bạn có thể bổ sung thời gian hoặc mức độ khó chịu.",
+            followUpRequired=True,
+            mode="follow-up",
+        )
 
-    # Controlled fallback understands a limited set of skin-rash/skin-care/general scenarios.
     filters = conservative_filters(message)
-    if not filters["specialty"]:
-        filters["specialty"] = "Nội tổng quát"
-    # Use existing AI-filter + catalog path when a model key is supplied.
-    search = await search_from_message(message)
-    if not search["doctors"]:
-        from starlette.concurrency import run_in_threadpool
-        from app.service import search_doctors
-        search = {
-            **(await run_in_threadpool(search_doctors, specialty=filters["specialty"])),
-            "usedAI": False, "urgent": False,
-        }
     specialty = filters["specialty"]
-    if search["doctors"]:
-        specialty = search["doctors"][0]["specialty"]
-    return {
-        "reply": f"Bạn có thể tham khảo chuyên khoa {specialty}. Đây không phải chẩn đoán y khoa.",
-        "followUpRequired": False,
-        "specialty": specialty, "doctors": search["doctors"],
-        "urgent": False, "demoMode": search["demoMode"],
-        "usedAI": search["usedAI"], "mode": "controlled-prototype",
-    }
+    used_ai = False
+    if specialty is None:
+        ai_filters = await try_ai_filters(message)
+        if ai_filters and ai_filters["specialty"]:
+            specialty = SPECIALTIES.get(_normalize(ai_filters["specialty"]))
+            used_ai = specialty is not None
+    if specialty is None:
+        return ConsultationResponse(
+            reply="Chưa đủ thông tin để gợi ý chuyên khoa. Bạn có thể bắt đầu lại và mô tả rõ hơn triệu chứng.",
+            mode="rule-based",
+        )
+
+    # Only the verified specialty and a district recognized from patient input reach the catalog.
+    search = await run_in_threadpool(search_doctors, specialty=specialty, district=filters["district"])
+    demo_mode = search["demoMode"]
+    # The shared catalog accepts partial matches for free-text search.
+    normalized_specialty = _normalize(specialty)
+    doctors = [] if demo_mode else [
+        doctor for doctor in search["doctors"] if _normalize(doctor["specialty"]) == normalized_specialty
+    ]
+    reply = f"Bạn có thể tham khảo chuyên khoa {specialty}. Đây không phải chẩn đoán y khoa."
+    if demo_mode:
+        reply += " Danh mục bác sĩ thật chưa được cấu hình trong môi trường này."
+    elif not doctors:
+        reply += " Chưa có bác sĩ phù hợp trong danh mục."
+    return ConsultationResponse(
+        reply=reply,
+        specialty=specialty,
+        doctors=doctors,
+        demoMode=demo_mode,
+        usedAI=used_ai,
+        mode="ai-assisted" if used_ai else "rule-based",
+    )
