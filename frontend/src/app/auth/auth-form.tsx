@@ -113,7 +113,7 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
     </label>;
   }
   return <main className={styles.page}>
-    <AuthStory />
+    <AuthStory role={role} />
     <section className={styles.formSide}>
       <Link className={styles.back} href="/">Back to Carely</Link>
       <div className={styles.formContent}>
