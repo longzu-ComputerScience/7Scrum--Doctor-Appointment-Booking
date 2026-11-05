@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { fe1Request } from "@/lib/fe1-api";
+import { parseCatalog } from "@/lib/doctor-catalog";
+import { DemoApprovalQueue } from "./demo-approval-queue";
 import styles from "./admin.module.css";
 
 type DoctorRow = {
@@ -19,6 +22,7 @@ type DoctorRow = {
 
 type PageState = "checking" | "signed-out" | "verifying" | "authorized" | "denied" | "error";
 type StatusFilter = "all" | "active" | "inactive";
+type DemoTab = "applications" | "directory";
 
 export default function AdminPage() {
   const client = useMemo(() => getSupabaseBrowser(), []);
@@ -34,6 +38,54 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<DoctorRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoTab, setDemoTab] = useState<DemoTab>("applications");
+  const [demoDoctors, setDemoDoctors] = useState<DoctorRow[]>([]);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoError, setDemoError] = useState("");
+  const [catalogIsDemo, setCatalogIsDemo] = useState(false);
+
+  // Demo is intentionally isolated from the protected /api/admin/* endpoints.
+  // It can only consume information already available to anonymous visitors.
+  const fetchDemoDoctors = useCallback(async () => {
+    setDemoLoading(true);
+    setDemoError("");
+    try {
+      const { doctors: publicDoctors, demoMode: isDemo } = parseCatalog(await fe1Request("/api/doctors"));
+      setCatalogIsDemo(isDemo);
+      setDemoDoctors(publicDoctors.map(doctor => ({
+        id: doctor.id,
+        name: doctor.name,
+        specialty: doctor.specialty,
+        active: true, // Public catalog includes active doctors only.
+        bio: doctor.bio,
+        address: doctor.address || "",
+        district: doctor.district,
+        certificates: [], // Never expose internal approval documents in a public preview.
+      })));
+    } catch {
+      setDemoDoctors([]);
+      setDemoError("Không thể tải danh sách bác sĩ công khai. Kiểm tra kết nối backend rồi thử lại.");
+    } finally {
+      setDemoLoading(false);
+    }
+  }, []);
+
+  const enterDemo = () => {
+    setSelected(null);
+    setSearch("");
+    setFilter("all");
+    setDemoTab("applications");
+    setDemoMode(true);
+    void fetchDemoDoctors();
+  };
+
+  const exitDemo = () => {
+    setSelected(null);
+    setDemoMode(false);
+    setDemoError("");
+    setDemoDoctors([]);
+  };
 
   const fetchDoctors = useCallback(async (accessToken: string, initial = true) => {
     const version = ++requestVersion.current;
@@ -133,15 +185,17 @@ export default function AdminPage() {
     }
   }
 
-  const visible = doctors.filter(doctor => {
+  const displayedDoctors = demoMode ? demoDoctors : doctors;
+  const visible = displayedDoctors.filter(doctor => {
     const statusMatches = filter === "all" ||
       (filter === "active" ? doctor.active : !doctor.active);
     const text = [doctor.name, doctor.specialty, doctor.district, doctor.address]
       .join(" ").toLocaleLowerCase("vi");
     return statusMatches && text.includes(search.trim().toLocaleLowerCase("vi"));
   });
-  const inactive = doctors.filter(row => !row.active).length;
+  const inactive = displayedDoctors.filter(row => !row.active).length;
   const authorized = pageState === "authorized";
+  const directoryVisible = authorized || demoMode;
 
   return <div className={styles.page}>
     <header className={styles.header}>
@@ -151,30 +205,34 @@ export default function AdminPage() {
       </Link>
       <nav className={styles.headerActions}>
         <Link href="/">Về trang chủ</Link>
-        {token && <button type="button" onClick={() => void signOut()} disabled={busy}>Đăng xuất</button>}
+        {demoMode
+          ? <button type="button" onClick={exitDemo}>Thoát demo</button>
+          : token && <button type="button" onClick={() => void signOut()} disabled={busy}>Đăng xuất</button>}
       </nav>
     </header>
 
     <main className={styles.main}>
-      {pageState === "checking" || pageState === "verifying"
+      {!demoMode && (pageState === "checking" || pageState === "verifying")
         ? <div className={styles.loading} role="status">Đang xác thực quyền truy cập…</div>
-        : pageState === "denied"
+        : !demoMode && pageState === "denied"
           ? <section className={styles.failure}>
               <h1>Quyền truy cập bị từ chối</h1>
               <p role="alert">{error}</p>
               <button className={styles.primary} type="button" onClick={() => void signOut()} disabled={busy}>
                 Đăng xuất để sử dụng tài khoản khác
               </button>
+              <button type="button" className={styles.skipLogin} onClick={enterDemo}>Skip login · Xem demo</button>
             </section>
-          : pageState === "error"
+          : !demoMode && pageState === "error"
             ? <section className={styles.failure}>
                 <h1>Chưa thể tải dữ liệu</h1>
                 <p role="alert">{error}</p>
                 {token && <button className={styles.primary} type="button" onClick={() => void fetchDoctors(token)}>
                   Thử lại
                 </button>}
+                <button type="button" className={styles.skipLogin} onClick={enterDemo}>Skip login · Xem demo</button>
               </section>
-            : !authorized
+            : !directoryVisible
               ? <section className={styles.login}>
                   <div className={styles.loginSymbol}>✳</div>
                   <span className={styles.eyebrow}>QUẢN TRỊ HỆ THỐNG</span>
@@ -193,26 +251,42 @@ export default function AdminPage() {
                       {busy ? "Đang đăng nhập…" : "Đăng nhập"}
                     </button>
                   </form>
+                  <button type="button" className={styles.skipLogin} onClick={enterDemo}>
+                    Skip login · Xem demo
+                  </button>
                   {error && <p className={styles.error} role="alert">{error}</p>}
                   {!client && <p className={styles.error}>Frontend chưa cấu hình Supabase Auth.</p>}
                 </section>
               : <section className={styles.content}>
                   <div className={styles.heading}>
                     <div>
-                      <span className={styles.eyebrow}>QUẢN TRỊ BÁC SĨ</span>
-                      <h1>Danh sách bác sĩ</h1>
-                      <p>Xem hồ sơ hiện có và tình trạng hoạt động của bác sĩ.</p>
+                      <span className={styles.eyebrow}>{demoMode ? "ADMIN DASHBOARD · DEMO" : "QUẢN TRỊ BÁC SĨ"}</span>
+                      <h1>{demoMode && demoTab === "applications" ? "Quản lý hồ sơ bác sĩ" : "Danh sách bác sĩ"}</h1>
+                      <p>{demoMode
+                        ? "Giao diện Admin đầy đủ để trình bày luồng quản trị và xét duyệt."
+                        : "Xem hồ sơ hiện có và tình trạng hoạt động của bác sĩ."}</p>
                     </div>
                     <div className={styles.pendingCount}>
-                      <strong>{doctors.length}</strong><span>Tổng bác sĩ</span>
+                      <strong>{demoMode && demoTab === "applications" ? 3 : displayedDoctors.length}</strong>
+                      <span>{demoMode && demoTab === "applications" ? "Hồ sơ mẫu đang chờ" : demoMode ? "Bác sĩ công khai" : "Tổng bác sĩ"}</span>
                     </div>
                   </div>
                   <div className={styles.readOnlyNotice} role="note">
-                    <strong>Chế độ chỉ xem</strong>
-                    <span>Không thay đổi Supabase. Chức năng duyệt/từ chối đơn chưa khả dụng;
-                      trạng thái không hoạt động không đồng nghĩa hồ sơ đang chờ duyệt.</span>
+                    <strong>{demoMode ? "Chế độ demo" : "Chế độ chỉ xem"}</strong>
+                    <span>{demoMode
+                      ? "Đã vào giao diện Admin demo. Hồ sơ chờ duyệt là dữ liệu giả lập; Approve/Reject hiển thị để thuyết trình nhưng không xử lý thật. Danh sách bác sĩ lấy từ catalog công khai, không cấp quyền Admin thật."
+                      : "Không thay đổi Supabase. Chức năng duyệt/từ chối đơn chưa khả dụng; trạng thái không hoạt động không đồng nghĩa hồ sơ đang chờ duyệt."}
+                      {demoMode && catalogIsDemo && " Backend đang trả dữ liệu bác sĩ mẫu."}</span>
                   </div>
-                  <div className={styles.panel}>
+                  {demoMode && <div className={styles.demoTabs} role="group" aria-label="Chức năng Admin demo">
+                    <button type="button" aria-pressed={demoTab === "applications"}
+                      onClick={() => setDemoTab("applications")}>Hồ sơ chờ duyệt <span>3</span></button>
+                    <button type="button" aria-pressed={demoTab === "directory"}
+                      onClick={() => setDemoTab("directory")}>Danh sách bác sĩ</button>
+                  </div>}
+                  {demoMode && demoTab === "applications"
+                    ? <DemoApprovalQueue />
+                    : <div className={styles.panel}>
                     <div className={styles.toolbar}>
                       <label className={styles.search}>
                         <span className={styles.visuallyHidden}>Tìm kiếm bác sĩ</span>
@@ -223,16 +297,25 @@ export default function AdminPage() {
                         <select value={filter} onChange={event => setFilter(event.target.value as StatusFilter)}>
                           <option value="all">Tất cả</option>
                           <option value="active">Đang hoạt động</option>
-                          <option value="inactive">Chưa hoạt động ({inactive})</option>
+                          {!demoMode && <option value="inactive">Chưa hoạt động ({inactive})</option>}
                         </select>
                       </label>
                       <button type="button" className={styles.secondary}
-                        onClick={() => token && void fetchDoctors(token, false)} disabled={refreshing}>
-                        ↻ {refreshing ? "Đang tải…" : "Làm mới"}
+                        onClick={() => demoMode ? void fetchDemoDoctors() : token && void fetchDoctors(token, false)}
+                        disabled={demoMode ? demoLoading : refreshing}>
+                        ↻ {(demoMode ? demoLoading : refreshing) ? "Đang tải…" : "Làm mới"}
                       </button>
                     </div>
-                    {doctors.length === 0
-                      ? <div className={styles.empty}>Chưa có hồ sơ bác sĩ trong database.</div>
+                    {demoMode && demoError && <div className={styles.demoError} role="alert">
+                      {demoError}
+                      <button type="button" onClick={() => void fetchDemoDoctors()} className={styles.secondary}>Thử lại</button>
+                    </div>}
+                    {demoMode && demoLoading
+                      ? <div className={styles.empty} role="status">Đang tải danh sách bác sĩ công khai…</div>
+                      : displayedDoctors.length === 0
+                      ? <div className={styles.empty}>{demoMode
+                        ? "Chưa có bác sĩ công khai để hiển thị."
+                        : "Chưa có hồ sơ bác sĩ trong database."}</div>
                       : visible.length === 0
                         ? <div className={styles.empty}>Không tìm thấy bác sĩ phù hợp.</div>
                         : <div className={styles.tableScroll}>
@@ -254,12 +337,13 @@ export default function AdminPage() {
                               </tr>)}</tbody>
                             </table>
                           </div>}
-                    <div className={styles.footer}>{visible.length} / {doctors.length} bác sĩ</div>
-                  </div>
+                    <div className={styles.footer}>{visible.length} / {displayedDoctors.length} bác sĩ
+                      {demoMode && " · Demo chỉ xem"}</div>
+                  </div>}
                 </section>}
     </main>
 
-    {selected && authorized && <div className={styles.overlay}
+    {selected && directoryVisible && <div className={styles.overlay}
       onMouseDown={event => { if (event.target === event.currentTarget) setSelected(null); }}>
       <section className={styles.dialog} role="dialog" aria-modal="true" aria-label="Thông tin bác sĩ">
         <div className={styles.dialogTop}>
@@ -279,7 +363,9 @@ export default function AdminPage() {
         <h3>Giới thiệu</h3><p className={styles.bio}>{selected.bio || "Chưa có giới thiệu."}</p>
         <h3>Chứng chỉ được khai báo</h3>
         <div className={styles.documents}>
-          {selected.certificates.length
+          {demoMode
+            ? <span>Không hiển thị hồ sơ/chứng chỉ nội bộ trong chế độ demo.</span>
+            : selected.certificates.length
             ? selected.certificates.map((cert, i) =>
                 <span key={i}>{cert.name}{cert.issuer ? " · " + cert.issuer : ""}</span>)
             : <span>Chưa có thông tin chứng chỉ.</span>}
