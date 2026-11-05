@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "./auth/auth-provider";
+import { PatientProfileView } from "./patient/profile/patient-profile";
 import { PatientShell } from "./patient-shell";
 import { DoctorBrowser } from "./doctor-browser";
 import styles from "./patient-shell.module.css";
+import homeStyles from "./home.module.css";
 
 type IconName = "menu" | "home" | "calendar" | "appointments" | "profile" | "help" | "communication" | "logout" | "search" | "bell" | "settings" | "arrow" | "check" | "close";
 
@@ -37,10 +41,16 @@ const navItems = [
 
 export default function HomePage() {
   const router = useRouter();
+  const { state: auth } = useAuth();
+  const accountName = auth.status === "ready" ? (auth.identity.role === "patient" ? auth.identity.patient.name : auth.identity.doctor.name) : "Guest Patient";
   const [active, setActive] = useState("overview");
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
+
+  useEffect(() => {
+    if (auth.status === "ready" && auth.identity.role === "doctor") router.replace("/doctor");
+  }, [auth, router]);
 
   useEffect(() => {
     const handleHash = () => {
@@ -65,8 +75,22 @@ export default function HomePage() {
 
   const activeLabel = navItems.find((item) => item.key === active)?.label || "Overview";
 
+  if (auth.status === "loading" || (auth.status === "ready" && auth.identity.role === "doctor")) {
+    return <main className={homeStyles.guest}><p className={homeStyles.loading} role="status">Opening your care portal…</p></main>;
+  }
+  if (auth.status !== "ready") {
+    return <main className={homeStyles.guest}>
+      <header className={homeStyles.guestHeader}><Link href="/" className={styles.brand} aria-label="Carely home"><span className={styles.logoMark} aria-hidden="true" /><span className={styles.brandText}>carely.</span></Link>
+        <div className={homeStyles.guestActions}><Link href="/doctor/login">Doctor portal</Link><Link href="/patient/login">Sign in</Link><Link className={homeStyles.getStarted} href="/patient/register">Get started</Link></div>
+      </header>
+      <div className={homeStyles.overviewLabel}><span className="header-eyebrow">WELCOME TO CARELY</span><h1>Overview</h1></div>
+      <Overview onBook={() => router.push("/patient/login?next=%2F%23book")} onChat={() => router.push("/patient/login")} />
+      <footer className="dashboard-footer"><span><b>carely.</b> Thoughtful care, made simple.</span><span>Your health, at your pace.</span></footer>
+    </main>;
+  }
+
   return <PatientShell active={active} items={navItems.map((item) => ({ ...item, icon: <Icon name={item.icon} /> }))} onNavigate={handleNavigate} onHelp={() => setChatOpen(true)}>
-      <header className="dashboard-header"><div className="header-title"><span className="header-eyebrow">PATIENT PORTAL</span><h1>{activeLabel}</h1></div><div className="header-actions"><div className={`compact-search ${searchOpen ? "expanded" : ""}`}>{searchOpen && <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search doctors or specialties..." aria-label="Search" />}<button onClick={() => setSearchOpen((value) => !value)} aria-label="Open search"><Icon name="search" /></button></div><button className="header-icon-button has-badge" aria-label="Notifications"><Icon name="bell" /></button><button className="header-icon-button" aria-label="Settings"><Icon name="settings" /></button><div className="header-greeting"><span>Hello,</span><strong>Guest Patient <span className="greeting-wave">✳</span></strong></div></div></header>
+      <header className="dashboard-header"><div className="header-title"><span className="header-eyebrow">PATIENT PORTAL</span><h1>{activeLabel}</h1></div><div className="header-actions"><div className={`compact-search ${searchOpen ? "expanded" : ""}`}>{searchOpen && <input autoFocus value={search} onChange={(e) => { setSearch(e.target.value); handleNavigate("book"); }} placeholder="Search doctors or specialties..." aria-label="Search" />}<button onClick={() => setSearchOpen((value) => !value)} aria-label="Open search"><Icon name="search" /></button></div>{auth.status === "ready" && auth.identity.role === "doctor" ? <Link className="text-button" href="/doctor">Doctor dashboard</Link> : auth.status !== "ready" && <Link className="text-button" href="/patient/login">Sign in</Link>}<button className="header-icon-button" aria-label="My profile" onClick={() => handleNavigate("profile")}><Icon name="profile" /></button><div className="header-greeting"><span>Hello,</span><strong>{accountName} <span className="greeting-wave">✳</span></strong></div></div></header>
       {active === "overview" ? (
         <Overview onBook={() => handleNavigate("book")} onChat={() => setChatOpen(true)} />
       ) : active === "book" ? (
@@ -74,10 +98,10 @@ export default function HomePage() {
       ) : active === "appointments" ? (
         <AppointmentsEmptyView onBook={() => handleNavigate("book")} onChat={() => setChatOpen(true)} />
       ) : (
-        <ProfileView onBook={() => handleNavigate("book")} />
+        <PatientProfileView />
       )}
-      <footer className="dashboard-footer"><span><b>carely.</b> Thoughtful care, made simple.</span><span>Patient portal · Demo content</span></footer>
-    {chatOpen && <div className="chat-panel" role="dialog" aria-label="Chat with Carely"><div className="chat-header"><div><strong>Carely support</strong><span>Usually replies in a few minutes</span></div><button onClick={() => setChatOpen(false)} aria-label="Close chat"><Icon name="close" /></button></div><div className="chat-body"><div className="chat-bubble">Hi! I can help you find a specialty or book an appointment today.</div></div><form className="chat-form" onSubmit={(e) => e.preventDefault()}><input placeholder="Write a message..." aria-label="Message" /><button aria-label="Send"><Icon name="arrow" /></button></form></div>}
+      <footer className="dashboard-footer"><span><b>carely.</b> Thoughtful care, made simple.</span><Link href="/doctor/login">Doctor portal</Link></footer>
+    {chatOpen && <div className="chat-panel" role="dialog" aria-label="Chat with Carely"><div className="chat-header"><div><strong>Carely support</strong><span>Usually replies in a few minutes</span></div><button onClick={() => setChatOpen(false)} aria-label="Close chat"><Icon name="close" /></button></div><div className="chat-body"><div className="chat-bubble">Hi! I can help you find a specialty or book an appointment today.</div></div><form className="chat-form" onSubmit={(e) => e.preventDefault()}><input placeholder="Write a message..." aria-label="Message" /><button aria-label="Send">Send</button></form></div>}
     <button className="chat-fab" onClick={() => setChatOpen((value) => !value)} aria-label={chatOpen ? "Close chat" : "Open chat"}><Icon name={chatOpen ? "close" : "communication"} /></button>
   </PatientShell>;
 }
@@ -90,13 +114,13 @@ function AppointmentsEmptyView({ onBook, onChat }: { onBook: () => void; onChat:
           <Icon name="calendar" />
         </div>
         <span className={styles.emptyEyebrow}>SCHEDULED VISITS</span>
-        <h2 id="appointments-empty-title" className={styles.emptyTitle}>No upcoming appointments</h2>
+        <h2 id="appointments-empty-title" className={styles.emptyTitle}>Your appointment details</h2>
         <p className={styles.emptyDescription}>
-          You don&apos;t have any consultations scheduled at the moment. When you book a visit with one of our specialists, your confirmation and clinic details will appear right here.
+          Appointment history is not available here yet. Keep the reference shown after a successful booking and contact your doctor for visit details.
         </p>
         <div className={styles.emptyActions}>
           <button type="button" className={styles.emptyPrimaryBtn} onClick={onBook}>
-            Book an appointment <Icon name="arrow" />
+            Book an appointment
           </button>
           <button type="button" className={styles.emptySecondaryBtn} onClick={onChat}>
             Need help? Chat with Carely
@@ -105,59 +129,8 @@ function AppointmentsEmptyView({ onBook, onChat }: { onBook: () => void; onChat:
         <div className={styles.emptyTipBox}>
           <span className={styles.emptyTipSpark} aria-hidden="true">✦</span>
           <p>
-            <strong>Quick tip:</strong> You can browse verified doctor availability in real time and receive immediate confirmation for in-person appointments.
+            <strong>Quick tip:</strong> Choose a doctor to view their latest available times.
           </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ProfileView({ onBook }: { onBook: () => void }) {
-  return (
-    <section className={styles.emptyContainer} aria-labelledby="profile-title">
-      <div className={styles.emptyCard}>
-        <div className={styles.profileHeader}>
-          <div className={styles.profileAvatar} aria-hidden="true">
-            <Icon name="profile" />
-          </div>
-          <div className={styles.profileMeta}>
-            <span className={styles.emptyEyebrow}>PATIENT PROFILE</span>
-            <h2 id="profile-title" className={styles.emptyTitle}>Patient Profile</h2>
-            <p className={styles.profileId}>Session status · <span>Guest preview</span></p>
-          </div>
-        </div>
-
-        <div className={styles.profileGrid}>
-          <div className={styles.profileField}>
-            <span className={styles.fieldLabel}>Account mode</span>
-            <strong className={styles.fieldValue}>Guest preview</strong>
-          </div>
-          <div className={styles.profileField}>
-            <span className={styles.fieldLabel}>Account authentication</span>
-            <strong className={styles.fieldValue}>Not connected yet</strong>
-          </div>
-          <div className={styles.profileField}>
-            <span className={styles.fieldLabel}>Contact information</span>
-            <strong className={styles.fieldValue}>Provided per appointment</strong>
-          </div>
-          <div className={styles.profileField}>
-            <span className={styles.fieldLabel}>Booking history</span>
-            <strong className={styles.fieldValue}>Tracked by booking reference</strong>
-          </div>
-        </div>
-
-        <div className={styles.emptyTipBox}>
-          <span className={styles.emptyTipSpark} aria-hidden="true">ℹ</span>
-          <p>
-            Personal patient profiles and history will be populated once patient account registration is enabled. Contact and visit details are verified directly during the booking confirmation step.
-          </p>
-        </div>
-
-        <div className={styles.emptyActions}>
-          <button type="button" className={styles.emptyPrimaryBtn} onClick={onBook}>
-            Find a doctor &amp; schedule visit <Icon name="arrow" />
-          </button>
         </div>
       </div>
     </section>
@@ -165,5 +138,5 @@ function ProfileView({ onBook }: { onBook: () => void }) {
 }
 
 function Overview({ onBook, onChat }: { onBook: () => void; onChat: () => void }) {
-  return <div className="overview-page"><section className="overview-hero"><div className="hero-copy"><span className="hero-kicker">✦ YOUR HEALTH, SIMPLIFIED</span><h3>Expert care.<br /><em>Right when</em><br />you need it.</h3><p>From finding the right specialist to booking your visit, we make healthcare feel effortless.</p><div className="hero-actions"><button className="primary-button" onClick={onBook}>Book an appointment <Icon name="arrow" /></button><button className="text-button" onClick={onChat}>Chat with Carely <Icon name="arrow" /></button></div><div className="hero-assurance"><span><Icon name="check" /></span> Easy booking <i /> <span><Icon name="check" /></span> Trusted specialists</div></div><div className="hero-visual" aria-hidden="true"><div className="hero-disc" /><div className="hero-spark">✳</div><div className="hero-cross">+</div><svg className="hero-doctor-svg" viewBox="0 0 570 540"><circle cx="288" cy="264" r="236" fill="#b8d0ff" opacity=".48"/><circle cx="328" cy="278" r="190" fill="#90b4ff" opacity=".22"/><path d="M217 151C184 117 190 68 232 51c32-25 96-14 114 31 15 36-6 60-2 94l-33 27h-84Z" fill="#293c64"/><ellipse cx="280" cy="132" rx="74" ry="83" fill="#e8b493"/><path d="M204 115c-7-54 36-78 87-73 38 3 58 34 63 72-29-2-44-26-59-39-29 36-56 39-91 40Z" fill="#293c64"/><path d="M230 132q14-10 29 0m38 0q14-10 29 0M253 170q26 19 54 0" stroke="#30394f" strokeWidth="5" fill="none" strokeLinecap="round"/><path d="M252 202v41l31 32 31-32v-41" fill="#dda585"/><path d="M220 230c-60 20-78 58-104 149L78 540h406l-39-161c-20-95-52-133-112-147l-46 52-45-41Z" fill="url(#coat)"/><path d="M242 243l44 41 47-52 18 308H217Z" fill="#b6c8e8"/><path d="M204 292q-18 96 41 123q49 20 74-29" stroke="#5078bb" fill="none" strokeWidth="11" strokeLinecap="round"/><circle cx="320" cy="384" r="24" fill="#426db8"/><circle cx="320" cy="384" r="12" fill="#e7f0ff"/><rect x="202" y="375" width="158" height="101" rx="15" fill="#fff" stroke="#c6daf7" strokeWidth="4"/><rect x="226" y="392" width="66" height="10" rx="5" fill="#94b7eb"/><rect x="226" y="411" width="104" height="8" rx="4" fill="#dce8f8"/><rect x="226" y="429" width="88" height="8" rx="4" fill="#dce8f8"/><circle cx="331" cy="445" r="12" fill="#2cae93"/><path d="m325 445 4 4 8-9" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/></svg><div className="hero-float rating-float"><b>★</b><span><strong>4.9 / 5</strong><small>Doctor ratings · demo</small></span></div><div className="hero-float visit-float"><b><Icon name="check" /></b><span><strong>Appointment ready</strong><small>Find a time that suits you</small></span></div></div></section></div>;
+  return <div className="overview-page"><section className="overview-hero"><div className="hero-copy"><span className="hero-kicker">✦ YOUR HEALTH, SIMPLIFIED</span><h3>Expert care.<br /><em>Right when</em><br />you need it.</h3><p>From finding the right specialist to booking your visit, we make healthcare feel effortless.</p><div className="hero-actions"><button className="primary-button" onClick={onBook}>Book an appointment </button><button className="text-button" onClick={onChat}>Chat with Carely </button></div><div className="hero-assurance"><span><Icon name="check" /></span> Easy booking <i /> <span><Icon name="check" /></span> Trusted specialists</div></div><div className="hero-visual" aria-hidden="true"><div className="hero-disc" /><div className="hero-spark">✳</div><div className="hero-cross">+</div><svg className="hero-doctor-svg" viewBox="0 0 570 540"><circle cx="288" cy="264" r="236" fill="#b8d0ff" opacity=".48"/><circle cx="328" cy="278" r="190" fill="#90b4ff" opacity=".22"/><path d="M217 151C184 117 190 68 232 51c32-25 96-14 114 31 15 36-6 60-2 94l-33 27h-84Z" fill="#293c64"/><ellipse cx="280" cy="132" rx="74" ry="83" fill="#e8b493"/><path d="M204 115c-7-54 36-78 87-73 38 3 58 34 63 72-29-2-44-26-59-39-29 36-56 39-91 40Z" fill="#293c64"/><path d="M230 132q14-10 29 0m38 0q14-10 29 0M253 170q26 19 54 0" stroke="#30394f" strokeWidth="5" fill="none" strokeLinecap="round"/><path d="M252 202v41l31 32 31-32v-41" fill="#dda585"/><path d="M220 230c-60 20-78 58-104 149L78 540h406l-39-161c-20-95-52-133-112-147l-46 52-45-41Z" fill="url(#coat)"/><path d="M242 243l44 41 47-52 18 308H217Z" fill="#b6c8e8"/><path d="M204 292q-18 96 41 123q49 20 74-29" stroke="#5078bb" fill="none" strokeWidth="11" strokeLinecap="round"/><circle cx="320" cy="384" r="24" fill="#426db8"/><circle cx="320" cy="384" r="12" fill="#e7f0ff"/><rect x="202" y="375" width="158" height="101" rx="15" fill="#fff" stroke="#c6daf7" strokeWidth="4"/><rect x="226" y="392" width="66" height="10" rx="5" fill="#94b7eb"/><rect x="226" y="411" width="104" height="8" rx="4" fill="#dce8f8"/><rect x="226" y="429" width="88" height="8" rx="4" fill="#dce8f8"/><circle cx="331" cy="445" r="12" fill="#2cae93"/><path d="m325 445 4 4 8-9" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/></svg><div className="hero-float rating-float"><b>★</b><span><strong>Find your specialist</strong><small>Explore care with confidence</small></span></div><div className="hero-float visit-float"><b><Icon name="check" /></b><span><strong>Appointment ready</strong><small>Find a time that suits you</small></span></div></div></section></div>;
 }

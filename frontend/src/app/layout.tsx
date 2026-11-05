@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "./auth/auth-provider";
 
 export const metadata: Metadata = {
   title: "Carely | Doctor Appointment Booking",
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children, booking }: Readonly<{ children: React.ReactNode; booking: React.ReactNode }>) {
-  return <html lang="en"><body>{children}{booking}</body></html>;
+  return <html lang="en"><body><AuthProvider>{children}{booking}</AuthProvider></body></html>;
 }

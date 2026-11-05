@@ -2,6 +2,8 @@
 export type CatalogDoctor = {
   id: string; name: string; specialty: string; bio: string; district: string;
   address?: string; clinicName?: string; clinicAddress?: string;
+  rating?: number | null; ratingCount?: number;
+  certificates?: { name: string; issuer: string; issuedYear: number | null; credentialUrl: string | null }[];
 };
 
 // Translate catalog copy for the English patient UI without changing API IDs or stored data.
