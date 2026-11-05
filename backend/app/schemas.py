@@ -382,14 +382,28 @@ ALLOWED_TRANSITIONS = {
 
 class ConsultationInput(BaseModel):
     # All messages are user-authored; no persistent chat or medical history.
-    messages: list[str] = Field(min_length=1, max_length=4)
+    messages: list[Annotated[str, Field(min_length=2, max_length=800)]] = Field(min_length=1, max_length=4)
 
     @field_validator("messages")
     @classmethod
     def check_messages(cls, messages: list[str]) -> list[str]:
-        if any(len(m.strip()) < 2 or len(m) > 800 for m in messages):
+        trimmed = [message.strip() for message in messages]
+        if any(len(message) < 2 for message in trimmed):
             raise ValueError("Each message must be 2-800 characters")
-        return [m.strip() for m in messages]
+        return trimmed
+
+
+class ConsultationResponse(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
+    reply: str
+    followUpRequired: bool = False
+    specialty: str | None = None
+    doctors: list[Doctor] = Field(default_factory=list)
+    urgent: bool = False
+    usedAI: bool = False
+    mode: Literal["follow-up", "emergency", "rule-based", "ai-assisted"]
+    demoMode: bool = False
 
 
 class StaffSlotInput(BaseModel):

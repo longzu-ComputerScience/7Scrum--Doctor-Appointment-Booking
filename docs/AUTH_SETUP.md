@@ -1,6 +1,6 @@
 # Đăng ký và đăng nhập Patient / Doctor
 
-App dùng Supabase Auth cho mật khẩu, xác nhận email và làm mới phiên. FastAPI xác thực JWT với Supabase rồi lấy vai trò từ `patient_profiles` hoặc `doctor_accounts`. Token dùng tiếp cho đặt lịch, dashboard, lịch tuần và thông báo; frontend không tự cấp quyền từ metadata.
+App dùng Supabase Auth cho mật khẩu và làm mới phiên. Đăng ký xong có thể đăng nhập ngay, không cần xác nhận email. FastAPI xác thực JWT với Supabase rồi lấy vai trò từ `patient_profiles` hoặc `doctor_accounts`. Token dùng tiếp cho đặt lịch, dashboard, lịch tuần và thông báo; frontend không tự cấp quyền từ metadata.
 
 ## Chạy local
 
@@ -25,7 +25,7 @@ Mở `http://localhost:3000/patient/register` hoặc `/doctor/register`. Next.js
 
 ## Patient
 
-Điền tên, email, điện thoại và mật khẩu tại `/patient/register`. API tạo Auth user và hồ sơ liên kết. Giao diện yêu cầu email xác nhận, sau đó người dùng đăng nhập tại `/patient/login`. Sau đăng nhập, `/api/auth/me` trả hồ sơ thật; app dùng hồ sơ đó khi đặt lịch. Database lấy tên/điện thoại từ hồ sơ đã xác thực, không tin dữ liệu giả mạo trong booking body.
+Điền tên, email, điện thoại và mật khẩu tại `/patient/register`. API tạo Auth user có thể dùng ngay và hồ sơ liên kết. Giao diện tự đăng nhập và chuyển về app; nếu kết nối đăng nhập thất bại, người dùng có thể vào `/patient/login` bằng tài khoản vừa tạo. Sau đăng nhập, `/api/auth/me` trả hồ sơ thật; app dùng hồ sơ đó khi đặt lịch. Database lấy tên/điện thoại từ hồ sơ đã xác thực, không tin dữ liệu giả mạo trong booking body.
 
 ## Doctor và chứng chỉ hành nghề
 
@@ -50,8 +50,8 @@ Sau xác nhận email, đăng nhập tại `/doctor/login`, mở Working hours t
 - Backend: 38 kiểm thử qua; Ruff qua.
 - Frontend: 70 kiểm thử qua; ESLint, TypeScript và production build qua.
 - SQL `tests/006_doctor_invitation_issuance.sql`: qua trên Supabase, dữ liệu test rollback. Kiểm tra quyền backend-only, email chuẩn hóa, cấp lại mã, thời hạn và bác sĩ inactive.
-- Tích hợp thật qua Next.js `/api` proxy → FastAPI → Supabase: đăng ký Patient/Doctor; chặn đăng nhập trước xác nhận email; sai mật khẩu; tài khoản trùng; mã mời sai và rollback Auth user; mã dùng lại; phân quyền; lịch tuần; đặt lịch `confirmed`; đặt trùng 409; snapshot hồ sơ Patient; dashboard/thông báo; sửa lịch; refresh token và logout.
-- Tài khoản giả được xác nhận email bằng Admin API chỉ để kiểm thử; không gửi thư. Chưa kiểm tra việc nhận thư thực tế hoặc thao tác trên trình duyệt: công cụ Computer Use dừng vì không xác định chắc URL trình duyệt Windows.
+- Tích hợp thật qua Next.js `/api` proxy → FastAPI → Supabase: đăng ký Patient/Doctor và đăng nhập ngay không xác nhận email; sai mật khẩu; tài khoản trùng; mã mời sai và rollback Auth user; mã dùng lại; phân quyền; lịch tuần; đặt lịch `confirmed`; đặt trùng 409; snapshot hồ sơ Patient; dashboard/thông báo; sửa lịch; refresh token và logout.
+- Script tích hợp không gửi thư và không gọi Admin API cập nhật xác nhận email giữa đăng ký và đăng nhập. Chưa kiểm tra thao tác trên trình duyệt: công cụ Computer Use dừng vì không xác định chắc URL trình duyệt Windows.
 - Migration `006` đã được áp dụng trên project Supabase đang cấu hình. Sau kiểm thử đã dọn hồ sơ/tài khoản/lịch hẹn giả và file mật khẩu tạm; giữ nguyên 12 bác sĩ, 47 slot và 8 lịch hẹn ban đầu.
 
 ## Kiểm tra luồng mới

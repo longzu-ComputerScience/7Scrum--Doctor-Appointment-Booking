@@ -178,12 +178,12 @@ def test_profile_database_failure_never_falls_back_to_a_different_role(auth):
     assert client.get("/api/auth/me", headers=headers()).status_code == 503
 
 
-def test_patient_registration_creates_unconfirmed_user_and_linked_profile(auth):
+def test_patient_registration_creates_immediately_usable_user_and_linked_profile(auth):
     client, provider = auth
     response = client.post("/api/auth/patients/register", json=patient_body())
     assert response.status_code == 201
     assert response.json() == {"userId": PATIENT_ID}
-    assert provider.created == [{"email": "synthetic@example.invalid", "password": PASSWORD, "email_confirm": False}]
+    assert provider.created == [{"email": "synthetic@example.invalid", "password": PASSWORD, "email_confirm": True}]
     assert provider.rpc_calls == [("save_patient_profile", {
         "p_user_id": PATIENT_ID, "p_full_name": "Synthetic Patient", "p_phone": "0900000000",
     })]

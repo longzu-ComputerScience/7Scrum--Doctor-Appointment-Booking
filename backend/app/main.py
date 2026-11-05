@@ -14,7 +14,7 @@ from app.consult import consult
 from app.config import allowed_origins, is_database_configured
 from app.schemas import (
     APIErrorResponse, AssistantInput, AuthIdentityResponse, BookingInput, BookingResponse, CalendarDate, ConsultationInput,
-    DoctorAppointmentListResponse,
+    ConsultationResponse, DoctorAppointmentListResponse,
     DoctorAppointmentStatusInput, DoctorAppointmentStatusResponse, DoctorDetailResponse, DoctorListResponse,
     DoctorNotificationListResponse, DoctorProfileResponse, DoctorRegistrationInput, DoctorRegistrationResponse,
     DoctorSlotCreateResponse, DoctorSlotInput, DoctorSlotListResponse, NotificationReadInput, NotificationReadResponse,
@@ -283,8 +283,8 @@ async def validation_errors(_request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content=body.model_dump(mode="json"))
 
 
-@app.post("/api/consult")
-async def consultation(payload: ConsultationInput) -> dict:
+@app.post("/api/consult", responses={**UNAVAILABLE, **INVALID_INPUT})
+async def consultation(payload: ConsultationInput) -> ConsultationResponse:
     return await consult(payload.messages)
 
 
