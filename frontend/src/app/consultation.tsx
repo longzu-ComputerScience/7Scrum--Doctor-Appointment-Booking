@@ -2,10 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiMessage } from "@/lib/contract-api";
-import { postConsultation, responseSource, type ConsultationResult } from "@/lib/consultation-api";
+import { aiApiStatus, postConsultation, responseSource, type ConsultationResult, type AiApiStatus } from "@/lib/consultation-api";
 import styles from "./consultation.module.css";
 
 type Message = { role: "patient" | "assistant"; text: string; source?: string };
+
+const aiStatusDetails: Record<AiApiStatus, string> = {
+  unchecked: "Not checked yet. Send a message to verify whether an AI provider is responding.",
+  checking: "Checking the current request. The indicator will light only after a valid AI reply.",
+  connected: "Connected: the latest reply used a valid AI provider response. The API does not identify which provider was used.",
+  fallback: "The latest reply used local fallback, not an AI provider. Check your Gemini key and provider selection on Render.",
+  error: "The request failed. AI connectivity has not been confirmed for this reply.",
+};
 
 export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
   onExploreSpecialty?: (specialty: string) => void;
@@ -18,6 +26,7 @@ export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
   const [result, setResult] = useState<ConsultationResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showAiDetails, setShowAiDetails] = useState(false);
   const sending = useRef(false);
   const conversation = useRef<HTMLDivElement>(null);
 
@@ -70,12 +79,28 @@ export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
   }
 
   const canContinue = !result || (result.followUpRequired && !result.urgent && submittedMessages.length < 4);
+  const aiStatus = aiApiStatus(result, busy, Boolean(error));
+  const aiConfirmed = aiStatus === "connected";
 
   return <section className={styles.consultation} aria-label="Symptom consultation">
     <div className={styles.intro}>
       <span className={styles.kicker}>SYMPTOM CONSULTATION</span>
-      <h2>Tell us how you feel.</h2>
+      <div className={styles.headingRow}>
+        <h2>Tell us how you feel.</h2>
+        <button type="button"
+          className={`${styles.aiStatusButton} ${aiConfirmed ? styles.aiStatusConnected : ""}`}
+          aria-label={`AI API: ${aiConfirmed ? "connected on last reply" : aiStatus}. Show details`}
+          aria-expanded={showAiDetails}
+          aria-controls="consultation-ai-status-details"
+          onClick={() => setShowAiDetails(open => !open)}
+          title={aiStatusDetails[aiStatus]}>
+          <span className={styles.aiStatusDot} aria-hidden="true" />AI API
+        </button>
+      </div>
       <p>We can ask a follow-up question and suggest a specialty. This is guidance, not a medical diagnosis.</p>
+      {showAiDetails && <p id="consultation-ai-status-details" className={styles.aiDetails} role="status">
+        {aiStatusDetails[aiStatus]}
+      </p>}
     </div>
 
     <div ref={conversation} className={styles.conversation} aria-live="polite" aria-relevant="additions">
