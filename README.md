@@ -44,6 +44,8 @@ Visit `http://localhost:3000`. Next.js proxies `/api/*` to FastAPI using the ser
 
 Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` **only** in frontend for Patient/Doctor authentication. The service role key is always backend-only.
 
+Patient/Doctor registration and login setup, invitation issuance, and verification evidence: [Auth setup](docs/AUTH_SETUP.md). Doctor registration uses the existing invited profile and chosen weekly working hours. Apply additive migration `006` after `005` for the backend-only invitation tool.
+
 If Supabase is not configured, the doctor catalog and slot previews use fictional demo data and booking responds with HTTP 503 (never a fake success). An optional `OPENAI_API_KEY` in the backend enables AI-assisted doctor search; keyword fallback works without it.
 
 ## Tests
