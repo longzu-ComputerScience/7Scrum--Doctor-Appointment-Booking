@@ -2,6 +2,13 @@
 .intro{padding:23px 25px 17px;border-bottom:1px solid #e4eeed;background:linear-gradient(130deg,#f6fffd,#eef9f7)}
 .kicker{font-size:10px;letter-spacing:.17em;font-weight:800;color:#179e9d}
 .intro h2{font-size:25px;letter-spacing:-.05em;margin:7px 0 5px;line-height:1.15}
+.headingRow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.aiStatusButton{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;border:1px solid #d4dfdc;background:#f4f7f6;color:#617572;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:800;line-height:1.2;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,box-shadow .15s}
+.aiStatusButton:focus-visible{outline:2px solid #159b87;outline-offset:2px}
+.aiStatusDot{width:7px;height:7px;border-radius:50%;background:#9caaa7;flex-shrink:0}
+.aiStatusConnected{background:#e4fbea;border-color:#8cdfa6;color:#166534}
+.aiStatusConnected .aiStatusDot{background:#16a34a;box-shadow:0 0 0 3px #b7f4c9,0 0 10px #16a34a66}
+.intro .aiDetails{margin:10px 0 0;padding:8px 10px;border:1px solid #d9e7e2;border-radius:9px;background:#fff;font-size:11px;line-height:1.5;color:#48645c}
 .intro p{margin:0;color:#687d7b;font-size:12px;line-height:1.55}
 .conversation{flex:1;min-height:120px;overflow-y:auto;overscroll-behavior:contain;padding:22px 24px;display:flex;flex-direction:column;gap:14px;background:#fcfefd}
 .empty{margin:auto;text-align:center;max-width:260px;color:#718784;padding:28px 0}
