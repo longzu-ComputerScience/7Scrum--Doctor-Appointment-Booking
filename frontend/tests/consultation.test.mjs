@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText, filename);
-const { postConsultation, parseConsultation, responseSource } = require("../src/lib/consultation-api.ts");
+const { postConsultation, parseConsultation, responseSource, aiApiStatus } = require("../src/lib/consultation-api.ts");
 const { ContractApiError } = require("../src/lib/contract-api.ts");
 const followUp = { reply: "When did it start?", followUpRequired: true, specialty: null,
   doctors: [], urgent: false, usedAI: false, mode: "controlled-prototype", demoMode: false };
@@ -43,4 +43,15 @@ test("urgent results keep the service warning and source available to the UI", (
   assert.equal(result.reply, "Seek emergency help.");
   assert.equal(responseSource(result), "Fallback");
   assert.equal(responseSource({ ...result, mode: "ai" }), "AI");
+});
+
+test("AI API light only confirms the latest successful AI-assisted reply", () => {
+  const aiReply = parseConsultation({ ...followUp, usedAI: true, mode: "follow-up" });
+  const fallback = parseConsultation({ ...followUp, usedAI: false, mode: "rule-based" });
+  assert.equal(aiApiStatus(null, false, false), "unchecked");
+  assert.equal(aiApiStatus(aiReply, true, false), "checking");
+  assert.equal(aiApiStatus(aiReply, false, false), "connected");
+  assert.equal(aiApiStatus(aiReply, false, true), "error");
+  assert.equal(aiApiStatus(fallback, false, false), "fallback");
+  assert.equal(aiApiStatus({ ...aiReply, urgent: true }, false, false), "fallback");
 });

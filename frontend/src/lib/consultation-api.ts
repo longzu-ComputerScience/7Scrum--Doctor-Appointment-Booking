@@ -32,6 +32,17 @@ export function responseSource(result: ConsultationResult): string {
   return result.mode;
 }
 
+/** The light is green only after the latest successful consultation used a real AI result. */
+export type AiApiStatus = "unchecked" | "checking" | "connected" | "fallback" | "error";
+
+export function aiApiStatus(result: ConsultationResult | null, busy: boolean, hasError: boolean): AiApiStatus {
+  if (busy) return "checking";
+  if (hasError) return "error";
+  if (result === null) return "unchecked";
+  // Emergency guidance is always local: never treat it as proof of a provider connection.
+  return result.usedAI && !result.urgent ? "connected" : "fallback";
+}
+
 export async function postConsultation(messages: string[], signal?: AbortSignal): Promise<ConsultationResult> {
   if (!messages.length || messages.length > 4 || messages.some(message => message.trim().length < 2 || message.length > 800))
     throw new ContractApiError(422);
