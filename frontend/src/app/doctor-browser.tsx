@@ -41,9 +41,10 @@ function DoctorDiscovery({ query }: { query: string }) {
   const params = useSearchParams();
   const router = useRouter();
   const { specialty, doctorId } = readDiscoveryContext(params);
-  const [keyword, setKeyword] = useState(query);
+  // A prop-aware override avoids synchronously setting state in an effect.
+  const [keywordOverride, setKeywordOverride] = useState<{ query: string; value: string } | null>(null);
+  const keyword = keywordOverride?.query === query ? keywordOverride.value : query;
   const [district, setDistrict] = useState("");
-  useEffect(() => setKeyword(query), [query]);
   const filterKey = JSON.stringify([specialty, keyword, district]);
   const [loadedCatalog, setCatalog] = useState<Catalog>(initialCatalog);
   const catalog = loadedCatalog.key === filterKey ? loadedCatalog : initialCatalog;
@@ -138,7 +139,7 @@ function DoctorDiscovery({ query }: { query: string }) {
                   </select>
                 </label>
                 <label className={styles.filterField}>Search doctor
-                  <input value={keyword} onChange={event => setKeyword(event.target.value)}
+                  <input value={keyword} onChange={event => setKeywordOverride({ query, value: event.target.value })}
                     placeholder="Name or specialty" maxLength={100} type="search" />
                 </label>
                 <label className={styles.filterField}>District
@@ -146,7 +147,7 @@ function DoctorDiscovery({ query }: { query: string }) {
                     placeholder="Any district" maxLength={80} type="search" />
                 </label>
                 {(keyword || district || specialty) && <button type="button" className={styles.clearFilters}
-                  onClick={() => { setKeyword(""); setDistrict(""); chooseSpecialty(null); }}>Reset</button>}
+                  onClick={() => { setKeywordOverride({ query, value: "" }); setDistrict(""); chooseSpecialty(null); }}>Reset</button>}
               </div>
               <div className="doctor-list">
                 {doctors.map((doctor) => (

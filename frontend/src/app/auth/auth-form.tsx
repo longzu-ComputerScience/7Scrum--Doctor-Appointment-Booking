@@ -9,7 +9,6 @@ import { apiMessage, ContractApiError, isRecord } from "@/lib/contract-api";
 import { evidenceError, normalize, registerAccount, registrationErrors, registrationMessage, safeReturnTo, type Registration, type Role } from "@/lib/fe1-api";
 import styles from "./auth.module.css";
 import { AuthStory } from "./auth-story";
-import { AuthStory } from "./auth-story";
 import { loadSpecialtyOptions, type SpecialtyOption } from "@/lib/specialty-options";
 
 function loginMessage(error: unknown) {

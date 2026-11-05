@@ -7,12 +7,12 @@ import { fe1Request, parsePatientAppointments, type PatientAppointment } from "@
 import { formatScheduleDay, formatScheduleTime } from "@/lib/schedule-time";
 import styles from "./patient-appointments.module.css";
 
-type State = { kind: "loading" | "error" | "ready"; rows: PatientAppointment[] };
+type State = { kind: "loading" | "error" | "ready"; rows: PatientAppointment[]; checkedAt: number };
 type Filter = "upcoming" | "past" | "cancelled" | "all";
 
 export function PatientAppointmentsView() {
   const { state } = useAuth();
-  const [snapshot, setSnapshot] = useState<State>({ kind: "loading", rows: [] });
+  const [snapshot, setSnapshot] = useState<State>({ kind: "loading", rows: [], checkedAt: 0 });
   const [version, setVersion] = useState(0);
   const [filter, setFilter] = useState<Filter>("upcoming");
   const token = state.status === "ready" && state.identity.role === "patient"
@@ -24,9 +24,9 @@ export function PatientAppointmentsView() {
     void Promise.resolve().then(async () => {
       setSnapshot(current => ({ ...current, kind: "loading" }));
       const payload = await fe1Request("/api/patient/appointments", { token, signal: controller.signal });
-      if (!controller.signal.aborted) setSnapshot({ kind: "ready", rows: parsePatientAppointments(payload) });
+      if (!controller.signal.aborted) setSnapshot({ kind: "ready", rows: parsePatientAppointments(payload), checkedAt: Date.now() });
     }).catch(() => {
-      if (!controller.signal.aborted) setSnapshot({ kind: "error", rows: [] });
+      if (!controller.signal.aborted) setSnapshot({ kind: "error", rows: [], checkedAt: 0 });
     });
     return () => controller.abort();
   }, [token, version]);
@@ -34,7 +34,7 @@ export function PatientAppointmentsView() {
   if (!token) return <section className={styles.panel}><h2>My appointments</h2>
     <p>Sign in as a patient to view your booked visits.</p><Link className={styles.action} href="/patient/login">Sign in</Link></section>;
 
-  const now = Date.now();
+  const now = snapshot.checkedAt;
   const isUpcoming = (row: PatientAppointment) => row.status === "confirmed" && Date.parse(row.startAt) >= now;
   const rows = snapshot.rows.filter(row => filter === "all" || (
     filter === "upcoming" ? isUpcoming(row) :
