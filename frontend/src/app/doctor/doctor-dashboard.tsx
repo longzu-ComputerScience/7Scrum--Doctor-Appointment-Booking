@@ -157,8 +157,7 @@ function DoctorWorkspace({ session, restoring, configured, authBusy, authError, 
       setAppointments(data);
       setAppointmentsLoading(false);
     }).catch(error => {
-      if (controller.signal.aborted) return;
-      setAppointments([]);
+      if (!controller.signal.aborted) setAppointments([]);
       setAppointmentsLoading(false);
       setAppointmentsError(apiMessage(error));
       if (error instanceof ContractApiError && (error.status === 401 || error.status === 403)) {
@@ -384,17 +383,13 @@ function DoctorWorkspace({ session, restoring, configured, authBusy, authError, 
               <AppointmentsSection title="Upcoming appointments" appointments={upcoming} loading={appointmentsLoading} error={appointmentsError} />
             </>}
             {activeTab === "appointments" && <AppointmentsSection title="Patient appointments" appointments={appointments} loading={appointmentsLoading} error={appointmentsError} />}
-            {activeTab === "schedule" && <section aria-labelledby="schedule-section-title">
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionHeaderTitle}>
-                  <h2 id="schedule-section-title">Doctor Working Schedule</h2>
-                  <p>Set your recurring hours in Vietnam (UTC+7). Changes start on your selected future date and preserve existing appointments.</p>
+            {activeTab === "schedule" && (
+              <section aria-label="Working Schedule">
+                <div className={styles.scheduleDirectWrapper}>
+                  <DoctorScheduleEditor token={token} />
                 </div>
-              </div>
-              <div className={styles.scheduleDirectWrapper}>
-                <DoctorScheduleEditor token={token} />
-              </div>
-            </section>}
+              </section>
+            )}
           </>}
         </div>
         <footer className={styles.footer}>

@@ -14,6 +14,7 @@ require.extensions[".ts"] = (module, filename) =>
   );
 
 const doctorApi = require("../src/app/doctor/doctor-api.ts");
+const scheduleUtils = require("../src/app/doctor/weekly-schedule-utils.ts");
 const { ContractApiError, apiMessage } = require("../src/lib/contract-api.ts");
 
 const doctorId = "11111111-1111-4111-8111-111111111111";
@@ -202,4 +203,63 @@ test("upcoming appointments include only future confirmed visits, sorted without
   const original = structuredClone(source);
   assert.deepEqual(doctorApi.upcomingAppointments(source, now).map(item => item.id), ["earlier", "later"]);
   assert.deepEqual(source, original);
+});
+
+test("schedule-utils: copyDayIntervals duplicates intervals across target weekdays and preserves others", () => {
+  const initial = [
+    { dayOfWeek: 1, startTime: "08:00", endTime: "12:00" },
+    { dayOfWeek: 1, startTime: "13:30", endTime: "17:00" },
+    { dayOfWeek: 6, startTime: "09:00", endTime: "11:30" },
+  ];
+
+  // Copy Monday (1) to Tuesday (2) and Wednesday (3)
+  const result = scheduleUtils.copyDayIntervals(initial, 1, [2, 3]);
+
+  // Total intervals: Monday (2), Tuesday (2), Wednesday (2), Saturday (1) = 7
+  assert.equal(result.length, 7);
+
+  const tuesdays = result.filter(item => item.dayOfWeek === 2);
+  assert.equal(tuesdays.length, 2);
+  assert.equal(tuesdays[0].startTime, "08:00");
+  assert.equal(tuesdays[0].endTime, "12:00");
+  assert.equal(tuesdays[1].startTime, "13:30");
+  assert.equal(tuesdays[1].endTime, "17:00");
+
+  const wednesdays = result.filter(item => item.dayOfWeek === 3);
+  assert.equal(wednesdays.length, 2);
+  assert.equal(wednesdays[0].startTime, "08:00");
+
+  // Saturday remains unchanged
+  const saturdays = result.filter(item => item.dayOfWeek === 6);
+  assert.equal(saturdays.length, 1);
+  assert.equal(saturdays[0].startTime, "09:00");
+
+  // Empty targets or empty source returns unmodified list
+  assert.deepEqual(scheduleUtils.copyDayIntervals(initial, 1, []), initial);
+  assert.deepEqual(scheduleUtils.copyDayIntervals(initial, 5, [2, 3]), initial);
+});
+
+test("schedule-utils: calculateWeeklyStats accurately computes total hours and active days", () => {
+  const intervals = [
+    { dayOfWeek: 1, startTime: "08:00", endTime: "12:00" }, // 4h = 240m
+    { dayOfWeek: 1, startTime: "13:00", endTime: "17:00" }, // 4h = 240m
+    { dayOfWeek: 3, startTime: "09:00", endTime: "12:30" }, // 3.5h = 210m
+    { dayOfWeek: 5, startTime: "10:00", endTime: "10:00" }, // 0m (ignored)
+    { dayOfWeek: 5, startTime: "12:00", endTime: "11:00" }, // invalid negative (ignored)
+  ];
+
+  const stats = scheduleUtils.calculateWeeklyStats(intervals);
+  assert.equal(stats.totalMinutes, 690);
+  assert.equal(stats.totalHours, 11.5);
+  assert.equal(stats.activeDaysCount, 2); // Monday (1) and Wednesday (3)
+});
+
+test("schedule-utils: formatDuration outputs clean human-readable duration strings", () => {
+  assert.equal(scheduleUtils.formatDuration(0), "0m");
+  assert.equal(scheduleUtils.formatDuration(-30), "0m");
+  assert.equal(scheduleUtils.formatDuration(30), "30m");
+  assert.equal(scheduleUtils.formatDuration(60), "1h");
+  assert.equal(scheduleUtils.formatDuration(90), "1h 30m");
+  assert.equal(scheduleUtils.formatDuration(240), "4h");
+  assert.equal(scheduleUtils.formatDuration(270), "4h 30m");
 });
