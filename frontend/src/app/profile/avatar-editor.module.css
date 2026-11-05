@@ -1,0 +1,10 @@
+
+.editor{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0 24px;text-align:left}
+.avatar{width:84px;height:84px;border-radius:24px;display:grid;place-items:center;flex:none;color:#15877b;font-size:30px;font-weight:800;background:#e0f8f4 center/cover no-repeat;box-shadow:0 8px 24px #1d938b1a;border:3px solid #fff}
+.controls{display:flex;flex-direction:column;gap:7px;min-width:185px}
+.upload{position:relative;display:inline-flex;align-items:center;justify-content:center;border:1px solid #b9e4dc;background:#edf9f5;border-radius:10px;padding:10px 13px;color:#178272;font-size:12px;font-weight:800;cursor:pointer}
+.upload:hover{background:#daf3ea}
+.upload:focus-within{outline:3px solid #1e9c86;outline-offset:2px}
+.upload input{position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;inset:0}
+.controls small{font-size:10px;color:#779189}
+.error,.notice{font-size:11px}.error{color:#a74242}.notice{color:#277b54}

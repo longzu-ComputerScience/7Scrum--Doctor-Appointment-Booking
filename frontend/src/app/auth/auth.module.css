@@ -18,3 +18,22 @@
 @media(max-width:900px){.page{height:auto;min-height:100dvh;grid-template-columns:1fr;overflow:visible}.story{position:static;height:auto;padding:24px 28px}.storyBody,.story>small{display:none}.brand{font-size:28px}.brand>span{font-size:34px}.formSide{height:auto;overflow:visible;padding:25px 28px 50px}.formContent{margin-top:28px;max-width:540px}.formContent h1{font-size:30px}}
 @media(prefers-reduced-motion:reduce){.page *{scroll-behavior:auto}}
 .certificate{display:grid;gap:17px;border-top:1px solid #e5eeea;margin-top:28px;padding-top:24px}.certificate h2{font-size:17px;margin:0 0 2px}.field input[type=file]{font-size:12px;padding:11px;background:#f7faf8}.fileName{font-size:11px;color:#3d8069;overflow-wrap:anywhere}
+
+
+.storySpotlight{position:relative;z-index:2;animation:storyIn .55s cubic-bezier(.2,.8,.2,1) both}
+.storySpotlight p{font-size:14px;line-height:1.9;color:#58716b;max-width:340px;margin:0}
+.storyBody{position:relative}
+.storyIndicators{position:relative;z-index:2;display:flex;gap:9px;margin-top:24px}
+.storyIndicators button{width:26px;height:7px;border-radius:999px;border:0;background:#b2d9cd;transition:width .3s ease,background .3s}
+.storyIndicators .storyIndicatorActive{width:46px;background:#15988a}
+.orbitOne,.orbitTwo{position:absolute;pointer-events:none;border:1px solid #a3d9cd;border-radius:50%;width:390px;height:390px;right:-240px;top:-190px;opacity:.55;animation:orbitFloat 10s ease-in-out infinite}
+.orbitTwo{width:275px;height:275px;right:-145px;top:-80px;animation-delay:-5s;opacity:.35}
+@keyframes storyIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@keyframes orbitFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-18px,16px,0)}}
+.roleSwitch a{transition:background .2s,color .2s,box-shadow .2s}
+.roleSwitch a:focus-visible{outline:3px solid #168b7e;outline-offset:3px}
+.field select{width:100%;min-width:0;border:1px solid #dce6e1;border-radius:10px;padding:13px 14px;background:#fcfdfc;color:#203435;font-size:14px;outline-offset:3px}
+.field select:focus-visible{outline:2px solid #47a697}
+.primary{transition:transform .18s,background .18s,box-shadow .18s}
+.primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 24px #168e8128}
+@media(prefers-reduced-motion:reduce){.storySpotlight,.orbitOne,.orbitTwo{animation:none!important}.primary,.storyIndicators button{transition:none}}

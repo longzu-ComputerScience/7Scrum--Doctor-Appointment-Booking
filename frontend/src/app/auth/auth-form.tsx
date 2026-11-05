@@ -8,6 +8,9 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { apiMessage, ContractApiError, isRecord } from "@/lib/contract-api";
 import { evidenceError, normalize, registerAccount, registrationErrors, registrationMessage, safeReturnTo, type Registration, type Role } from "@/lib/fe1-api";
 import styles from "./auth.module.css";
+import { AuthStory } from "./auth-story";
+import { AuthStory } from "./auth-story";
+import { loadSpecialtyOptions, type SpecialtyOption } from "@/lib/specialty-options";
 
 function loginMessage(error: unknown) {
   const code = isRecord(error) ? error.code : null;
@@ -20,6 +23,8 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
   const router = useRouter();
   const [value, setValue] = useState<Registration>({ name: "", email: "", phone: "", password: "", confirmation: "", address: "", specialty: "", certificateName: "", certificateIssuer: "", certificateNumber: "" });
   const [evidence, setEvidence] = useState<File | null>(null);
+  const [specialties, setSpecialties] = useState<SpecialtyOption[]>([]);
+  const [specialtyError, setSpecialtyError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [notice, setNotice] = useState("");
@@ -30,6 +35,17 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
   const lock = useRef(false);
   const summary = useRef<HTMLDivElement>(null);
   const title = register ? (role === "doctor" ? "Join your care team." : "Your care starts here.") : "Welcome back.";
+  useEffect(() => {
+    if (!register || role !== "doctor") return;
+    const controller = new AbortController();
+    void loadSpecialtyOptions(controller.signal).then(options => {
+      setSpecialties(options);
+      setSpecialtyError(options.length ? "" : "No specialties available.");
+    }).catch(() => {
+      if (!controller.signal.aborted) setSpecialtyError("Cannot load specialties. Retry later.");
+    });
+    return () => controller.abort();
+  }, [register, role]);
 
   useEffect(() => {
     if (state.status === "ready" && state.identity.role === role) {
@@ -98,15 +114,7 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
     </label>;
   }
   return <main className={styles.page}>
-    <aside className={styles.story}>
-      <Link className={styles.brand} href="/" aria-label="Carely home"><span aria-hidden="true">✳</span> carely.</Link>
-      <div className={styles.storyBody}><span className={styles.eyebrow}>THOUGHTFUL CARE, MADE SIMPLE</span>
-        <h2>{role === "doctor" ? <>More time for<br /><em>the people</em><br />you care for.</> : <>Expert care.<br /><em>A little closer.</em></>}</h2>
-        <div className={styles.storyCard}><span className={styles.symbol} aria-hidden="true">{role === "doctor" ? "⌘" : "+"}</span>
-          <div><strong>{role === "doctor" ? "Care on your schedule" : "Care that fits your day"}</strong></div>
-        </div>
-      </div><small>Carely · Patient &amp; Doctor portal</small>
-    </aside>
+    <AuthStory />
     <section className={styles.formSide}>
       <Link className={styles.back} href="/">Back to Carely</Link>
       <div className={styles.formContent}>
@@ -135,7 +143,17 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
               {register && field("name", "Full name", "text", "name")}
               {field("email", "Email address", "email", "email")}
               {register && field("phone", "Phone number", "tel", "tel")}
-              {register && role === "doctor" && <>{field("address", "Address", "text", "street-address")}{field("specialty", "Specialty")}</>}
+              {register && role === "doctor" && <>{field("address", "Address", "text", "street-address")}
+                <label className={styles.field} htmlFor="auth-specialty">Specialty
+                  <select id="auth-specialty" name="specialty" value={value.specialty} required disabled={busy || created}
+                    onChange={event => change("specialty", event.target.value)} aria-invalid={Boolean(errors.specialty)}>
+                    <option value="">Choose from available specialties</option>
+                    {specialties.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                  {specialtyError && <span className={styles.fieldError} role="alert">{specialtyError}</span>}
+                  {errors.specialty && <span className={styles.fieldError}>{errors.specialty}</span>}
+                </label>
+              </>}
               {field("password", "Password", showPassword ? "text" : "password", register ? "new-password" : "current-password")}
               {register && field("confirmation", "Confirm password", showPassword ? "text" : "password", "new-password")}
             </div>

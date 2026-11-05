@@ -71,6 +71,7 @@ class DoctorProfile(BaseModel):
     name: str
     specialty: str
     active: bool
+    avatarUrl: str | None = None
 
 
 class DoctorProfileResponse(BaseModel):
@@ -78,6 +79,23 @@ class DoctorProfileResponse(BaseModel):
 
 
 AppointmentStatus = Literal["confirmed", "completed", "cancelled"]
+
+
+class PatientAppointment(BaseModel):
+    id: UUID
+    doctorId: UUID
+    doctorName: str
+    specialty: str
+    address: str
+    district: str
+    startAt: UtcDatetime
+    endAt: UtcDatetime
+    status: Literal["confirmed", "completed", "cancelled"]
+    bookingReference: str
+
+
+class PatientAppointmentListResponse(BaseModel):
+    appointments: list[PatientAppointment]
 
 
 class DoctorAppointment(AvailableSlot):
@@ -298,6 +316,7 @@ class PatientProfile(BaseModel):
     name: str
     phone: str
     email: str
+    avatarUrl: str | None = None
 
 
 class PatientProfileResponse(BaseModel):

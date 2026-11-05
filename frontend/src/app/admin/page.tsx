@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import { type Session } from "@supabase/supabase-js";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import styles from "./admin.module.css";
 
 type DoctorApplication = {
@@ -12,21 +13,18 @@ type DoctorApplication = {
   specialty: string;
   licenseNumber: string;
   hospital: string;
-  experienceYears: number;
+  experienceYears: number | null;
   submittedAt: string;
   status: "pending" | "approved" | "rejected";
   bio: string;
   documents: string[];
+  documentLinks?: { name: string; url: string }[];
 };
 
 type PageState = "checking" | "signed-out" | "verifying" | "authorized" | "denied" | "error";
 
 export default function AdminPage() {
-  const client = useMemo<SupabaseClient | null>(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    return url && key ? createClient(url, key) : null;
-  }, []);
+  const client = useMemo(() => getSupabaseBrowser(), []);
 
   const requestVersion = useRef(0);
   const [pageState, setPageState] = useState<PageState>(client ? "checking" : "signed-out");
@@ -238,7 +236,7 @@ export default function AdminPage() {
                             <tbody>{visible.map(row => <tr key={row.id}>
                               <td><div className={styles.person}><span className={styles.initials}>{row.fullName.split(" ").slice(-2).map(word => word[0]).join("")}</span><span><strong>{row.fullName}</strong><small>{row.email}</small></span></div></td>
                               <td>{row.specialty}<small>{row.hospital}</small></td>
-                              <td>{row.experienceYears} năm</td><td>{row.submittedAt}</td>
+                              <td>{row.experienceYears == null ? "Chưa khai báo" : String(row.experienceYears) + " năm"}</td><td>{row.submittedAt}</td>
                               <td><span className={styles.status}>Chờ duyệt</span></td>
                               <td><button type="button" className={styles.reviewButton} onClick={() => { setSelected(row); setReason(""); setActionError(""); }}>Xem hồ sơ</button></td>
                             </tr>)}</tbody>
@@ -261,9 +259,12 @@ export default function AdminPage() {
         </div>
         <h3>Thông tin chuyên môn</h3><p className={styles.bio}>{selected.bio || "Chưa cung cấp thông tin."}</p>
         <h3>Tài liệu khai báo</h3>
-        <div className={styles.documents}>{selected.documents.length
-          ? selected.documents.map(document => <span key={document}>▤ {document}</span>)
-          : <span>Chưa có tài liệu.</span>}</div>
+        <div className={styles.documents}>{selected.documentLinks?.length
+          ? selected.documentLinks.map(document => <a key={document.url} href={document.url}
+              rel="noopener noreferrer" target="_blank">↗ Xem {document.name}</a>)
+          : selected.documents.length
+            ? <span>Tài liệu đã lưu an toàn. Chưa có liên kết xem hợp lệ.</span>
+            : <span>Chưa có tài liệu.</span>}</div>
         <label className={styles.reason}>Ghi chú / lý do từ chối<textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="Nhập lý do nếu từ chối hồ sơ…" /></label>
         {actionError && <p className={styles.error} role="alert">{actionError}</p>}
         <div className={styles.dialogActions}>

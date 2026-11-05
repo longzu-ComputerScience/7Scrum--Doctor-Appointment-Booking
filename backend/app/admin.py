@@ -44,12 +44,24 @@ def list_applications(response: Response, ctx=Depends(admin_context)):
         ).eq("status", "pending").order("submitted_at", desc=True).limit(200).execute().data
     except Exception as exc:
         raise HTTPException(503, "Applications unavailable (apply migration 006)") from exc
+    for row in records:
+        row["document_links"] = []
+        for path in row.get("documents", []):
+            if not isinstance(path, str) or "/" not in path:
+                continue
+            try:
+                link = client.storage.from_("doctor-certificates").create_signed_url(path, 300)
+                url = link.get("signedURL") or link.get("signed_url")
+                if isinstance(url, str):
+                    row["document_links"].append({"name": path.rsplit("/", 1)[-1], "url": url})
+            except Exception:
+                pass  # A missing document does not authorize bypassing the review queue.
     return {"applications": [{
         "id": str(r["id"]), "fullName": r["full_name"], "email": r["email"],
         "specialty": r["specialty"], "licenseNumber": r["license_number"],
         "hospital": r["hospital"], "experienceYears": r["experience_years"],
         "submittedAt": str(r["submitted_at"])[:10], "status": r["status"],
-        "bio": r["bio"], "documents": r["documents"], "reviewNote": r["review_note"]
+        "bio": r["bio"], "documents": r["documents"], "documentLinks": r["document_links"], "reviewNote": r["review_note"]
     } for r in records]}
 
 

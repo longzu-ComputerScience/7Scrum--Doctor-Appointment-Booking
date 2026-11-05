@@ -1,4 +1,4 @@
--- Migration 006: isolated Admin approval queue. Apply AFTER 005, on a backed-up DB.
+-- Migration 008: isolated Admin approval queue. Apply AFTER 007_doctor_profile_registration.sql, on a backed-up DB.
 -- Existing doctor invitation registration is intentionally unchanged.
 begin;
 create table if not exists public.admin_accounts (

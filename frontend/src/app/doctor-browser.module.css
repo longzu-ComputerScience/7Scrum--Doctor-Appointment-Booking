@@ -55,3 +55,13 @@
 @media (prefers-reduced-motion: reduce) {
   .catalog :global(.primary-button) { transition: none; transform: none; }
 }
+
+
+.filterToolbar{display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:10px;padding:15px 16px;margin:2px 0 12px;background:#f5faf9;border:1px solid #e1eeea;border-radius:15px;align-items:end}
+.filterField{display:grid;gap:7px;font-size:10px;font-weight:800;letter-spacing:.02em;color:#457067;min-width:0}
+.filterField select,.filterField input{min-width:0;width:100%;height:39px;padding:8px 10px;border:1px solid #cfe3dc;border-radius:9px;background:#fff;color:#28463d;font:inherit;font-size:11px;font-weight:500;outline-offset:2px}
+.filterField select:focus-visible,.filterField input:focus-visible{outline:2px solid #2b9f92}
+.clearFilters{border:1px solid #d8ebe7;background:white;color:#187b73;border-radius:9px;padding:10px;font-size:11px;font-weight:800;align-self:end}
+.clearFilters:hover{background:#e7f7f2}
+@media(max-width:930px){.filterToolbar{grid-template-columns:1fr 1fr}.filterField:first-child{grid-column:1/-1}}
+@media(max-width:600px){.filterToolbar{grid-template-columns:1fr}.filterField:first-child{grid-column:auto}}
