@@ -2,11 +2,12 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Path, Query, Response
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Path, Query, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import ValidationError
 
 from app.assistant import search_from_message
 from app.consult import consult
@@ -22,7 +23,8 @@ from app.schemas import (
     ValidationIssue,
 )
 from app.service import (
-    create_booking, create_doctor_slot, create_staff_slot, get_auth_identity, get_doctor, get_doctor_profile,
+    DOCTOR_DOCUMENT_MAX_BYTES, create_booking, create_doctor_slot, create_staff_slot, get_auth_identity,
+    get_doctor, get_doctor_profile,
     get_doctor_schedule,
     get_patient_profile, get_slots, list_doctor_appointments, list_doctor_notifications, list_doctor_slots,
     list_staff_appointments, list_staff_doctors, list_staff_slots, mark_doctor_notification_read, register_doctor,
@@ -87,13 +89,17 @@ def patient_registration(payload: PatientRegistrationInput) -> dict:
 
 @app.post(
     "/api/auth/doctors/register", status_code=201, response_model=DoctorRegistrationResponse,
-    responses={
-        **UNAVAILABLE, **REGISTRATION_CONFLICT, **INVALID_INPUT,
-        403: {"model": APIErrorResponse, "description": "Invalid invitation"},
-    },
+    responses={**UNAVAILABLE, **REGISTRATION_CONFLICT, **INVALID_INPUT},
 )
-def doctor_registration(payload: DoctorRegistrationInput) -> dict:
-    return register_doctor(payload)
+def doctor_registration(details: Annotated[str, Form()], evidence: Annotated[UploadFile, File()]) -> dict:
+    try:
+        payload = DoctorRegistrationInput.model_validate_json(details)
+    except ValidationError as exc:
+        raise RequestValidationError([
+            {**error, "loc": ("body", *error["loc"])} for error in exc.errors()
+        ]) from exc
+    document = evidence.file.read(DOCTOR_DOCUMENT_MAX_BYTES + 1)
+    return register_doctor(payload, document, evidence.content_type or "")
 
 
 @app.get("/api/patient/me", response_model=PatientProfileResponse, responses=AUTH_ERRORS)

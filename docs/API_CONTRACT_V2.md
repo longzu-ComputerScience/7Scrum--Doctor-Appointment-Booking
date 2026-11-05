@@ -21,7 +21,7 @@
 | `GET /api/patient/me` | Patient Bearer JWT | 200 `{patient:{id,name,phone,email}}` |
 | `GET /api/auth/me` | Patient/Doctor Bearer JWT | 200 `{role:"patient",patient:PatientProfile}` hoặc `{role:"doctor",doctor:DoctorProfile}`; vai trò lấy từ DB sau khi xác thực JWT |
 | `POST /api/auth/patients/register` | `{name,email,phone,password}` | Tạo Auth account + `patient_profiles` liên kết; 201 `{userId}` |
-| `POST /api/auth/doctors/register` | `{email,password,invitationCode,weeklyIntervals:WorkingInterval[]}` | Validate one-time invitation gắn **doctor profile có sẵn**; tạo Auth mapping + lịch tuần; 201 `{doctorId}` |
+| `POST /api/auth/doctors/register` | Multipart: `details` JSON `{name,email,phone,password,address,specialty,certificateName,certificateIssuer,certificateNumber}` + file `evidence` | Tạo Auth user chưa xác nhận email, hồ sơ bác sĩ và chứng chỉ riêng tư; 201 `{doctorId}`. Thiết lập lịch tuần sau trong dashboard. |
 | `GET /api/doctor/me` | Doctor Bearer JWT | 200 `{doctor:DoctorProfile}` |
 | `GET /api/doctor/schedule` | Doctor Bearer JWT | 200 `{timezone:"Asia/Ho_Chi_Minh",weeklyIntervals:WorkingInterval[],effectiveDate}` |
 | `PUT /api/doctor/schedule` | Doctor Bearer JWT; `{effectiveDate:"YYYY-MM-DD",weeklyIntervals:WorkingInterval[]}` | 200 trả `{effectiveDate,weeklyIntervals}`; 409 `ScheduleConflict` nếu đụng lịch `confirmed` |
@@ -51,7 +51,7 @@ Frontend dùng `/api/auth/me` để khôi phục phiên và chuyển đúng port
 | `POST /api/appointments` | 401/403, 409 slot đã bị chiếm hoặc hết hiệu lực, 422 body sai, 503 lỗi Auth/RPC/DB |
 | `GET /api/patient/me` và `GET /api/doctor/me` | 401/403, 503 lỗi Auth/DB |
 | `POST /api/auth/patients/register` | 409 tài khoản đã tồn tại, 422 body sai, 503 lỗi Auth/RPC/DB |
-| `POST /api/auth/doctors/register` | 403 mã mời sai email, hết hạn hoặc đã dùng, 409 tài khoản/hồ sơ đã liên kết hoặc lịch xung đột, 422 body sai, 503 lỗi Auth/RPC/DB |
+| `POST /api/auth/doctors/register` | 409 email/tài khoản đã tồn tại, 422 thông tin/chứng chỉ/file sai hoặc thiếu, 503 lỗi Auth/Storage/RPC/DB |
 | `GET /api/doctor/schedule` | 401/403, 404 chưa có lịch, 503 lỗi Auth/DB |
 | `PUT /api/doctor/schedule` | 401/403, 409 trùng ngày hiệu lực hoặc xung đột với lịch hẹn, 422 body sai, 503 lỗi Auth/RPC/DB |
 | `GET /api/doctor/slots` và `GET /api/doctor/notifications` | 401/403, 503 lỗi Auth/DB |
@@ -95,7 +95,7 @@ type DoctorNotification = {
 
 **Patient booking input:** Điền sẵn `patientName` và `patientPhone` từ `/api/patient/me` và gửi theo contract US-02. RPC chụp tên và điện thoại từ `patient_profiles` của Auth UID đã xác thực. `slotId` lấy từ GET availability và `notes` là ghi chú tùy chọn.
 
-**Doctor registration example:** `{"email":"doctor@example.com","password":"<provided securely>","invitationCode":"<valid code>","weeklyIntervals":[{"dayOfWeek":1,"startTime":"09:00","endTime":"12:00"},{"dayOfWeek":1,"startTime":"13:00","endTime":"17:00"}]}`. Cơ chế cấp invite do Lead/BE1 quyết định; code không được chấp nhận invitation tùy ý hoặc tạo Doctor profile không có sẵn.
+**Doctor registration:** Gửi `multipart/form-data`; trường `details` là JSON chứa `name,email,phone,password,address,specialty,certificateName,certificateIssuer,certificateNumber`, trường `evidence` là file PDF/PNG/JPEG/WebP không rỗng, tối đa 10 MiB. Backend kiểm tra loại file và chữ ký đầu file, lưu vào bucket private `doctor-certificates`; không đưa đường dẫn/chứng chỉ số/điện thoại vào hồ sơ public. Tên dài 2–100 ký tự, chuyên khoa 1–80; địa chỉ và từng trường chứng chỉ 1–200 ký tự sau chuẩn hóa NFC/trim. Cần migration `007_doctor_profile_registration.sql`. Không nhận `invitationCode` hoặc `weeklyIntervals`; không sinh lịch/slot khi đăng ký. Chứng chỉ do người dùng cung cấp, việc lưu file không xác nhận chứng chỉ đã được thẩm định.
 
 **PUT schedule example:** `{"effectiveDate":"2026-11-06","weeklyIntervals":[{"dayOfWeek":1,"startTime":"09:00","endTime":"12:00"}]}`. Với conflict: HTTP 409 và JSON `{"error":"SCHEDULE_CONFLICT","conflicts":[{"appointmentId":"<uuid>","startAt":"<ISO>","endAt":"<ISO>"}]}`. Frontend phải hiển thị conflicts, không tự retry/overwrite.
 

@@ -270,11 +270,19 @@ class PatientRegistrationInput(RegistrationInput):
     validate_phone_digits = field_validator("phone")(_validate_phone_digits)
 
 
-class DoctorRegistrationInput(RegistrationInput, WeeklyIntervals):
-    invitationCode: str = Field(min_length=24, max_length=128, repr=False)
+class DoctorRegistrationInput(PatientRegistrationInput):
+    address: str = Field(min_length=1, max_length=200)
+    specialty: str = Field(min_length=1, max_length=80)
+    certificateName: str = Field(min_length=1, max_length=200)
+    certificateIssuer: str = Field(min_length=1, max_length=200)
+    certificateNumber: str = Field(min_length=1, max_length=200)
 
-    normalize_invitation = field_validator("invitationCode", mode="before")(_normalize_text)
-    validate_invitation = field_validator("invitationCode")(_reject_nul)
+    normalize_details = field_validator(
+        "address", "specialty", "certificateName", "certificateIssuer", "certificateNumber", mode="before",
+    )(_normalize_text)
+    validate_details = field_validator(
+        "address", "specialty", "certificateName", "certificateIssuer", "certificateNumber",
+    )(_reject_nul)
 
 
 class PatientRegistrationResponse(BaseModel):
