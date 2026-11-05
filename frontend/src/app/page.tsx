@@ -7,6 +7,7 @@ import { useAuth } from "./auth/auth-provider";
 import { PatientProfileView } from "./patient/profile/patient-profile";
 import { PatientShell } from "./patient-shell";
 import { DoctorBrowser } from "./doctor-browser";
+import { Consultation } from "./consultation";
 import styles from "./patient-shell.module.css";
 import homeStyles from "./home.module.css";
 
@@ -74,6 +75,18 @@ export default function HomePage() {
   };
 
   const activeLabel = navItems.find((item) => item.key === active)?.label || "Overview";
+  const isPatient = auth.status === "ready" && auth.identity.role === "patient";
+  const exploreSpecialty = (specialty: string) => {
+    if (isPatient) {
+      setSearch(specialty);
+      setChatOpen(false);
+      handleNavigate("book");
+    } else {
+      router.push("/patient/login?next=%2F%23book");
+    }
+  };
+  const consultationPanel = <ConsultationPanel open={chatOpen} onClose={() => setChatOpen(false)}
+    onExploreSpecialty={exploreSpecialty} canExploreDoctors={isPatient} />;
 
   if (auth.status === "loading" || (auth.status === "ready" && auth.identity.role === "doctor")) {
     return <main className={homeStyles.guest}><p className={homeStyles.loading} role="status">Opening your care portal…</p></main>;
@@ -84,8 +97,9 @@ export default function HomePage() {
         <div className={homeStyles.guestActions}><Link href="/doctor/login">Doctor portal</Link><Link href="/patient/login">Sign in</Link><Link className={homeStyles.getStarted} href="/patient/register">Get started</Link></div>
       </header>
       <div className={homeStyles.overviewLabel}><span className="header-eyebrow">WELCOME TO CARELY</span><h1>Overview</h1></div>
-      <Overview onBook={() => router.push("/patient/login?next=%2F%23book")} onChat={() => router.push("/patient/login")} />
+      <Overview onBook={() => router.push("/patient/login?next=%2F%23book")} onChat={() => setChatOpen(true)} />
       <footer className="dashboard-footer"><span><b>carely.</b> Thoughtful care, made simple.</span><span>Your health, at your pace.</span></footer>
+      {consultationPanel}
     </main>;
   }
 
@@ -101,9 +115,19 @@ export default function HomePage() {
         <PatientProfileView />
       )}
       <footer className="dashboard-footer"><span><b>carely.</b> Thoughtful care, made simple.</span><Link href="/doctor/login">Doctor portal</Link></footer>
-    {chatOpen && <div className="chat-panel" role="dialog" aria-label="Chat with Carely"><div className="chat-header"><div><strong>Carely support</strong><span>Usually replies in a few minutes</span></div><button onClick={() => setChatOpen(false)} aria-label="Close chat"><Icon name="close" /></button></div><div className="chat-body"><div className="chat-bubble">Hi! I can help you find a specialty or book an appointment today.</div></div><form className="chat-form" onSubmit={(e) => e.preventDefault()}><input placeholder="Write a message..." aria-label="Message" /><button aria-label="Send">Send</button></form></div>}
+    {consultationPanel}
     <button className="chat-fab" onClick={() => setChatOpen((value) => !value)} aria-label={chatOpen ? "Close chat" : "Open chat"}><Icon name={chatOpen ? "close" : "communication"} /></button>
   </PatientShell>;
+}
+
+function ConsultationPanel({ open, onClose, onExploreSpecialty, canExploreDoctors }: {
+  open: boolean; onClose: () => void; onExploreSpecialty: (specialty: string) => void; canExploreDoctors: boolean;
+}) {
+  return <><button type="button" className={homeStyles.consultBackdrop} onClick={onClose} aria-label="Close consultation" hidden={!open} />
+    <div className={homeStyles.consultPanel} role="dialog" aria-modal="true" aria-label="Chat with Carely" hidden={!open}>
+    <div className={homeStyles.consultTop}><strong>Carely consultation</strong><button type="button" onClick={onClose} aria-label="Close chat"><Icon name="close" /></button></div>
+    <Consultation onExploreSpecialty={onExploreSpecialty} canExploreDoctors={canExploreDoctors} />
+  </div></>;
 }
 
 function AppointmentsEmptyView({ onBook, onChat }: { onBook: () => void; onChat: () => void }) {

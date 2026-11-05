@@ -1,0 +1,41 @@
+.consultation{display:flex;flex-direction:column;min-height:0;height:100%;color:#213836;font-family:Manrope,system-ui,sans-serif}
+.intro{padding:23px 25px 17px;border-bottom:1px solid #e4eeed;background:linear-gradient(130deg,#f6fffd,#eef9f7)}
+.kicker{font-size:10px;letter-spacing:.17em;font-weight:800;color:#179e9d}
+.intro h2{font-size:25px;letter-spacing:-.05em;margin:7px 0 5px;line-height:1.15}
+.intro p{margin:0;color:#687d7b;font-size:12px;line-height:1.55}
+.conversation{flex:1;min-height:120px;overflow-y:auto;overscroll-behavior:contain;padding:22px 24px;display:flex;flex-direction:column;gap:14px;background:#fcfefd}
+.empty{margin:auto;text-align:center;max-width:260px;color:#718784;padding:28px 0}
+.emptyIcon{display:grid;place-items:center;margin:0 auto 13px;width:43px;height:43px;border-radius:14px;background:#e2f4f1;color:#1caeaa;font-size:22px}
+.empty strong{display:block;font-size:15px;color:#27413e}
+.empty p{font-size:12px;line-height:1.6;margin:6px 0 0}
+.message{max-width:88%;padding:11px 14px;border-radius:16px;background:#eef7f4;align-self:flex-start;overflow-wrap:anywhere}
+.patient{align-self:flex-end;background:#1caeaa;color:#fff;border-bottom-right-radius:5px}
+.assistant{border-bottom-left-radius:5px}
+.author{display:block;font-size:10px;font-weight:800;letter-spacing:.03em;opacity:.8;margin-bottom:4px}
+.message p{font-size:13px;line-height:1.55;margin:0;white-space:pre-wrap}
+.message small{display:block;font-size:10px;opacity:.72;margin-top:7px}
+.loading{align-self:flex-start;margin:0;color:#65817b;font-size:12px}
+.urgent,.recommendation,.error,.limit{margin:0 24px 14px;padding:14px 16px;border-radius:14px;font-size:12px;line-height:1.55}
+.urgent{border:1px solid #f5c9bd;background:#fff2ef;color:#893b32}
+.urgent strong{display:block;font-size:14px}
+.urgent p,.recommendation p{margin:5px 0 0}
+.recommendation{border:1px solid #c5e9de;background:#f1fbf6;color:#335b4d}
+.recommendation span{display:block;color:#5b8070;font-size:10px;text-transform:uppercase;letter-spacing:.12em;font-weight:800}
+.recommendation strong{display:block;font-size:18px;margin-top:3px}
+.recommendation button{border:0;background:#248d77;color:#fff;border-radius:9px;padding:10px 13px;font-weight:750;font-size:12px;margin-top:12px;cursor:pointer}
+.recommendation button:hover{background:#1b705f}
+.error{background:#fff5f1;border:1px solid #f4d5c9;color:#8c493c;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.error button{border:1px solid #bd7d69;color:#8c493c;background:#fff;border-radius:8px;padding:7px 10px;white-space:nowrap;cursor:pointer}
+.error button:disabled{opacity:.6;cursor:default}
+.limit{color:#6b7975;background:#f4f7f5}
+.composer{padding:14px 23px 13px;border-top:1px solid #e4eeed;background:#fff}
+.composer label{display:block;font-size:12px;font-weight:800;color:#34514a;margin-bottom:8px}
+.composer>div{display:flex;gap:9px;align-items:stretch}
+.composer textarea{min-width:0;flex:1;resize:vertical;max-height:150px;min-height:54px;border:1px solid #d5e3dd;border-radius:10px;padding:11px 12px;font:inherit;font-size:12px;line-height:1.5;outline:none}
+.composer textarea:focus{border-color:#42b8a8;box-shadow:0 0 0 3px #42b8a823}
+.composer button{border:0;border-radius:10px;padding:0 18px;background:#22aca4;color:#fff;font-weight:800;cursor:pointer}
+.composer button:disabled{opacity:.55;cursor:default}
+.composer small{display:block;margin-top:7px;color:#83918e;font-size:10px}
+.reset{margin:0 23px 15px;align-self:flex-start;background:none;border:0;padding:0;color:#218e83;font-size:11px;font-weight:800;cursor:pointer}
+.reset:disabled{opacity:.5;cursor:default}
+@media(max-width:620px){.intro{padding:19px 18px 15px}.intro h2{font-size:22px}.conversation{padding:16px;gap:11px}.message{max-width:93%}.urgent,.recommendation,.error,.limit{margin:0 16px 12px}.composer{padding:13px 16px}.reset{margin:0 16px 14px}}
