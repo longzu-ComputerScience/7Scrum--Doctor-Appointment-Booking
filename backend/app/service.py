@@ -29,6 +29,8 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 SCHEDULE_ZONE = ZoneInfo("Asia/Ho_Chi_Minh")
 PAGE_SIZE = 500
+DOCTOR_DOCUMENT_BUCKET = "doctor-certificates"
+DOCTOR_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024
 RPC_ERRORS = {
     "PT403": (403, "Access denied"),
     "PT404": (404, "Resource not found"),
@@ -390,21 +392,34 @@ def _register_auth_user(
         raise HTTPException(503, "Registration unavailable") from exc
 
 
-def _complete_registration(client: Any, user_id: str, rpc: str, params: dict):
+def _rollback_registration(client: Any, user_id: str, evidence_path: str | None = None) -> None:
+    failed = False
+    if evidence_path is not None:
+        try:
+            client.storage.from_(DOCTOR_DOCUMENT_BUCKET).remove([evidence_path])
+        except Exception:
+            failed = True
+    # Storage failure must not prevent removal of an unlinked Auth account.
+    try:
+        client.auth.admin.delete_user(user_id)
+    except Exception:
+        failed = True
+    if failed:
+        logger.error("Registration rollback requires reconciliation for Auth user %s", user_id)
+        raise HTTPException(503, "Registration unavailable") from None
+
+
+def _complete_registration(client: Any, user_id: str, rpc: str, params: dict, *, evidence_path: str | None = None):
     try:
         return client.rpc(rpc, {"p_user_id": user_id, **params}).execute().data
     except Exception as exc:
         code = getattr(exc, "code", None)
         # A transport failure can arrive after commit. Deleting in that case could
-        # remove a valid account and leave a consumed invitation.
+        # remove a valid account and its supporting document.
         # SQLSTATE classes 22 and 23 are data and integrity errors that abort the RPC.
         rejected_data = isinstance(code, str) and len(code) == 5 and code.startswith(("22", "23"))
         if rejected_data or code in RPC_ERRORS or code in ("PGRST202", "PT503"):
-            try:
-                client.auth.admin.delete_user(user_id)
-            except Exception:
-                logger.error("Registration rollback requires reconciliation for Auth user %s", user_id)
-                raise HTTPException(503, "Registration unavailable") from None
+            _rollback_registration(client, user_id, evidence_path)
         else:
             logger.error("Registration outcome requires reconciliation for Auth user %s", user_id)
         raise _rpc_error(exc, "Registration unavailable", conflict="Registration conflicts with existing data") from exc
@@ -432,16 +447,37 @@ def register_patient(payload: PatientRegistrationInput) -> dict:
     return {"userId": user_id}
 
 
-def register_doctor(payload: DoctorRegistrationInput) -> dict:
-    client, user_id = _register_auth_user(payload, "doctor_schedule_versions", "id")
-    result = _complete_registration(client, user_id, "complete_doctor_registration", {
-        "p_invite_code": payload.invitationCode, "p_intervals": _rpc_intervals(payload.weeklyIntervals),
-    })
+def register_doctor(payload: DoctorRegistrationInput, document: bytes, content_type: str) -> dict:
+    formats = {
+        "application/pdf": ("pdf", document.startswith(b"%PDF-")),
+        "image/png": ("png", document.startswith(b"\x89PNG\r\n\x1a\n")),
+        "image/jpeg": ("jpg", document.startswith(b"\xff\xd8\xff")),
+        "image/webp": ("webp", document.startswith(b"RIFF") and document[8:12] == b"WEBP"),
+    }
+    extension, valid = formats.get(content_type, ("", False))
+    if not document or len(document) > DOCTOR_DOCUMENT_MAX_BYTES or not valid:
+        raise RequestValidationError([{
+            "loc": ("body", "evidence"), "msg": "Use a PDF, PNG, JPEG or WebP document up to 10 MB",
+            "type": "value_error",
+        }])
+    client, user_id = _register_auth_user(payload, "doctor_registration_details", "doctor_id")
+    path = f"{user_id}/certificate.{extension}"
     try:
-        (row,) = result
-        doctor_id = UUID(str(row["doctor_id"]))
-        UUID(str(row["schedule_version_id"]))
-    except (KeyError, TypeError, ValueError) as exc:
+        client.storage.from_(DOCTOR_DOCUMENT_BUCKET).upload(path, document, {"content-type": content_type})
+    except Exception as exc:
+        # The upload may have reached Storage even if the response was lost.
+        # No profile RPC has run, so both resources can safely be removed.
+        _rollback_registration(client, user_id, path)
+        raise HTTPException(503, "Certificate upload unavailable") from exc
+    result = _complete_registration(client, user_id, "register_doctor_profile", {
+        "p_name": payload.name, "p_phone": payload.phone, "p_address": payload.address,
+        "p_specialty": payload.specialty, "p_certificate_name": payload.certificateName,
+        "p_certificate_issuer": payload.certificateIssuer, "p_certificate_number": payload.certificateNumber,
+        "p_document_path": path,
+    }, evidence_path=path)
+    try:
+        doctor_id = UUID(str(result))
+    except (TypeError, ValueError) as exc:
         logger.error("Unexpected doctor registration result for Auth user %s", user_id)
         raise HTTPException(503, "Registration unavailable") from exc
     return {"doctorId": doctor_id}
