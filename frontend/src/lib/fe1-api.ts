@@ -1,5 +1,4 @@
 import { ContractApiError, isInstant, isRecord, isUuid } from "./contract-api";
-import { validateWeeklySchedule, hasWeeklyErrors, type WorkingInterval } from "../app/doctor/weekly-schedule-utils";
 
 export type Role = "patient" | "doctor";
 export type PatientProfile = { id: string; name: string; phone: string; email: string };
@@ -20,13 +19,14 @@ export async function fe1Request(path: string, options: {
   token?: string; method?: "GET" | "POST" | "PATCH"; body?: unknown; expected?: number; signal?: AbortSignal;
 } = {}): Promise<unknown> {
   let response: Response;
+  const multipart = options.body instanceof FormData;
   try {
     response = await fetch(path, {
       method: options.method ?? "GET", cache: "no-store",
       signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
       headers: { ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
-        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}) },
-      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+        ...(options.body !== undefined && !multipart ? { "Content-Type": "application/json" } : {}) },
+      ...(options.body !== undefined ? { body: multipart ? options.body as FormData : JSON.stringify(options.body) } : {}),
     });
   } catch { throw new ContractApiError("network"); }
   if (response.status === 401 && options.token && typeof window !== "undefined") {
@@ -100,35 +100,44 @@ export async function updateAppointment(id: string, next: "completed" | "cancell
 
 export const normalize = (value: string) => value.normalize("NFC").trim();
 export type Registration = { name: string; email: string; phone: string; password: string; confirmation: string;
-  invitationCode: string };
+  address: string; specialty: string; certificateName: string; certificateIssuer: string; certificateNumber: string };
 export function registrationErrors(value: Registration, role: Role): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalize(value.email))) errors.email = "Enter a valid email address.";
   if (value.password.length < 8) errors.password = "Use at least 8 characters.";
   if (value.password.length > 72) errors.password = "Use no more than 72 characters.";
   if (value.password !== value.confirmation) errors.confirmation = "Passwords do not match.";
-  if (role === "patient") {
-    const length = Array.from(normalize(value.name)).length;
-    if (length < 2 || length > 100) errors.name = "Enter a name between 2 and 100 characters.";
-    const phone = normalize(value.phone);
-    if (!/^\+?[0-9 ()-]{9,20}$/.test(phone) || (phone.match(/[0-9]/g)?.length ?? 0) < 9) errors.phone = "Enter a phone number with at least 9 digits.";
-  } else {
-    const count = Array.from(normalize(value.invitationCode)).length;
-    if (count < 24 || count > 128) errors.invitationCode = "Enter the invitation code provided by your clinic.";
+  const length = Array.from(normalize(value.name)).length;
+  if (length < 2 || length > 100) errors.name = "Enter a name between 2 and 100 characters.";
+  const phone = normalize(value.phone);
+  if (!/^\+?[0-9 ()-]{9,20}$/.test(phone) || (phone.match(/[0-9]/g)?.length ?? 0) < 9) errors.phone = "Enter a phone number with at least 9 digits.";
+  if (role === "doctor") for (const key of ["address", "specialty", "certificateName", "certificateIssuer", "certificateNumber"] as const) {
+    const count = Array.from(normalize(value[key])).length;
+    const maximum = key === "specialty" ? 80 : 200;
+    if (!count || count > maximum) errors[key] = `Enter this detail (up to ${maximum} characters).`;
   }
   return errors;
 }
-export async function registerAccount(role: Role, value: Registration, weeklyIntervals: WorkingInterval[] = []) {
-  if (role === "doctor" && hasWeeklyErrors(validateWeeklySchedule(weeklyIntervals))) throw new ContractApiError(422);
-  const body = role === "patient"
-    ? { name: normalize(value.name), email: normalize(value.email), phone: normalize(value.phone), password: value.password }
-    : { email: normalize(value.email), password: value.password, invitationCode: normalize(value.invitationCode), weeklyIntervals };
+export function evidenceError(evidence: File | null): string {
+  if (!evidence) return "Choose a certificate document.";
+  if (!evidence.size || evidence.size > 10 * 1024 * 1024 || !["application/pdf", "image/png", "image/jpeg", "image/webp"].includes(evidence.type)) return "Use a PDF or image up to 10 MB.";
+  return "";
+}
+export async function registerAccount(role: Role, value: Registration, evidence: File | null = null) {
+  const details = { name: normalize(value.name), email: normalize(value.email), phone: normalize(value.phone), password: value.password };
+  let body: typeof details | FormData = details;
+  if (role === "doctor") {
+    if (Object.keys(registrationErrors(value, role)).length || evidenceError(evidence)) throw new ContractApiError(422);
+    body = new FormData();
+    body.append("details", JSON.stringify({ ...details, address: normalize(value.address), specialty: normalize(value.specialty),
+      certificateName: normalize(value.certificateName), certificateIssuer: normalize(value.certificateIssuer), certificateNumber: normalize(value.certificateNumber) }));
+    body.append("evidence", evidence!);
+  }
   const data = await fe1Request(`/api/auth/${role}s/register`, { method: "POST", body, expected: 201 });
   if (!isRecord(data) || !isUuid(data[role === "patient" ? "userId" : "doctorId"])) throw new ContractApiError("invalid");
 }
 export function registrationMessage(error: unknown) {
   if (error instanceof ContractApiError) {
-    if (error.status === 403) return "The invitation is invalid, expired, already used, or belongs to a different email. Contact your clinic for a new code.";
     if (error.status === 409) return "This account is already registered. Try signing in or contact support.";
     if (error.uncertain) return "Registration could not be verified. It may have been saved. Try signing in or contact support before registering again.";
   }

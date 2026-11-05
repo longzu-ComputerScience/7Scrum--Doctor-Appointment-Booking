@@ -25,7 +25,7 @@
 4. **Booking:** JWT Patient → `patient_profiles`; DB recheck đúng Doctor, effective schedule, 30 phút, future, active, unoccupied. Unique partial index `appointments(slot_id) WHERE status <> 'cancelled'` + transaction lock. **Một booking thành công = appointment `confirmed` và notification persist**, tất cả cùng commit hoặc rollback. Booking thất bại không ghi appointment/notification.
 5. **Notifications:** unique `appointment_id` hoặc idempotent equivalent để không tạo trùng; Doctor đọc lịch của mình qua `doctor_accounts`, Patient không đọc thông tin của người khác. Realtime chỉ là cơ chế cập nhật UI; DB vẫn là nguồn sự thật.
 6. **Appointment status:** `confirmed → completed|cancelled`; `completed` và `cancelled` terminal. Cancelled không chiếm slot; slot chỉ mở lại nếu Doctor active, slot tương lai và thuộc weekly schedule đang hiệu lực.
-7. **Auth:** patient self-registration tạo profile liên kết user; Doctor invitation used-once tạo Auth link tới doctor profile có sẵn và lưu initial weekly intervals **như một workflow nhất quán**. Cần rollback/compensation nếu Auth provider và DB không chung transaction.
+7. **Auth:** patient self-registration tạo profile liên kết user; Doctor tự đăng ký thông tin cá nhân/chứng chỉ qua migration `007`. `doctors` lưu tên, chuyên khoa, địa chỉ và tên/đơn vị cấp chứng chỉ; `doctor_registration_details` lưu riêng điện thoại, số chứng chỉ và đường dẫn file trong bucket private `doctor-certificates`. `doctor_accounts` liên kết Auth UID; lịch tuần được thiết lập sau trong dashboard. Cần rollback/compensation nếu Auth provider, Storage và DB không chung transaction; lỗi không rõ kết quả phải giữ tài nguyên để đối soát.
 
 ## Trạng thái hiện tại trên main — không nhầm với target
 

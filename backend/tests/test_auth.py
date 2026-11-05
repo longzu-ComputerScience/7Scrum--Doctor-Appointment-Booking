@@ -1,4 +1,5 @@
 """Auth boundaries, database identities and registration rollback (isolated provider)."""
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -8,10 +9,9 @@ from app import main, service
 
 PATIENT_ID = "40000000-0000-4000-8000-000000000001"
 DOCTOR_ID = "10000000-0000-4000-8000-000000000001"
-VERSION_ID = "50000000-0000-4000-8000-000000000001"
 DOCTOR = {"id": DOCTOR_ID, "name": "Synthetic Doctor", "specialty": "Test", "active": True}
 PASSWORD = "test-password-secret"
-INVITE = "synthetic-invitation-code-32-chars"
+DOCUMENT = b"%PDF-1.7\nSynthetic certificate\n%%EOF"
 
 
 class ProviderError(Exception):
@@ -23,11 +23,29 @@ class Provider:
     def __init__(self):
         self.deleted = []
         self.rows = {"patient_profiles": [{"full_name": "Synthetic Patient", "phone": "0900000000"}],
-                     "doctor_accounts": [], "doctor_schedule_versions": []}
+                     "doctor_accounts": [], "doctor_registration_details": []}
         self.auth = SimpleNamespace(get_user=self.get_user,
                                     admin=SimpleNamespace(create_user=self.create_user, delete_user=self.deleted.append))
         self.calls, self.created, self.rpc_calls = [], [], []
         self.auth_error = self.rpc_error = self.table_error = None
+        self.uploads, self.removed = [], []
+        self.upload_error = self.remove_error = None
+        self.storage = SimpleNamespace(from_=self.bucket)
+
+    def bucket(self, name):
+        assert name == "doctor-certificates"
+
+        def upload(path, document, options):
+            self.uploads.append((path, document, options))
+            if self.upload_error:
+                raise self.upload_error
+
+        def remove(paths):
+            self.removed.extend(paths)
+            if self.remove_error:
+                raise self.remove_error
+
+        return SimpleNamespace(upload=upload, remove=remove)
 
     def get_user(self, token):
         self.calls.append(("get_user", token))
@@ -68,9 +86,7 @@ class Provider:
         def execute():
             if self.rpc_error:
                 raise self.rpc_error
-            result = PATIENT_ID if name == "save_patient_profile" else [
-                {"doctor_id": DOCTOR_ID, "schedule_version_id": VERSION_ID},
-            ]
+            result = PATIENT_ID if name == "save_patient_profile" else DOCTOR_ID
             return SimpleNamespace(data=result)
 
         return SimpleNamespace(execute=execute)
@@ -93,8 +109,14 @@ def patient_body():
 
 
 def doctor_body():
-    return {"email": "synthetic@example.invalid", "password": PASSWORD, "invitationCode": f" {INVITE} ",
-            "weeklyIntervals": [{"dayOfWeek": 1, "startTime": "09:00", "endTime": "12:00"}]}
+    return {**patient_body(), "address": " Synthetic address ", "specialty": " Test ",
+            "certificateName": " Practice certificate ", "certificateIssuer": " Test issuer ",
+            "certificateNumber": " TEST-001 "}
+
+
+def post_doctor(client, body=None, document=DOCUMENT, content_type="application/pdf"):
+    return client.post("/api/auth/doctors/register", data={"details": json.dumps(body or doctor_body())},
+                       files={"evidence": ("certificate.pdf", document, content_type)})
 
 
 def test_identity_requires_bearer_token(auth):
@@ -168,17 +190,20 @@ def test_patient_registration_creates_immediately_usable_user_and_linked_profile
     assert PASSWORD not in response.text
 
 
-def test_doctor_registration_atomically_links_invitation_and_weekly_hours(auth):
+def test_doctor_registration_uploads_private_certificate_and_saves_profile_without_schedule(auth):
     client, provider = auth
-    response = client.post("/api/auth/doctors/register", json=doctor_body())
+    response = post_doctor(client)
     assert response.status_code == 201
     assert response.json() == {"doctorId": DOCTOR_ID}
-    assert provider.rpc_calls == [("complete_doctor_registration", {
-        "p_user_id": PATIENT_ID, "p_invite_code": INVITE,
-        "p_intervals": [{"weekday": 1, "startMinute": 540, "endMinute": 720}],
+    path = f"{PATIENT_ID}/certificate.pdf"
+    assert provider.uploads == [(path, DOCUMENT, {"content-type": "application/pdf"})]
+    assert provider.rpc_calls == [("register_doctor_profile", {
+        "p_user_id": PATIENT_ID, "p_name": "Synthetic Patient", "p_phone": "0900000000",
+        "p_address": "Synthetic address", "p_specialty": "Test", "p_certificate_name": "Practice certificate",
+        "p_certificate_issuer": "Test issuer", "p_certificate_number": "TEST-001", "p_document_path": path,
     })]
     assert provider.created[0]["email_confirm"] is True
-    assert INVITE not in response.text and PASSWORD not in response.text
+    assert PASSWORD not in response.text
 
 
 @pytest.mark.parametrize(("code", "status", "deleted"), [
@@ -188,21 +213,64 @@ def test_doctor_registration_atomically_links_invitation_and_weekly_hours(auth):
 def test_registration_rolls_back_rejected_transactions_but_preserves_unknown_outcomes(auth, code, status, deleted):
     client, provider = auth
     provider.rpc_error = ProviderError(code)
-    response = client.post("/api/auth/doctors/register", json=doctor_body())
+    response = post_doctor(client)
     assert response.status_code == status
     assert provider.deleted == ([PATIENT_ID] if deleted else [])
+    assert provider.removed == ([f"{PATIENT_ID}/certificate.pdf"] if deleted else [])
 
 
-def test_registration_rejects_bad_invitation_overlaps_and_role_injection_before_auth_creation(auth):
+def test_registration_rejects_invalid_details_and_role_injection_before_auth_creation(auth):
     client, provider = auth
     for body in [
-        {**doctor_body(), "invitationCode": "too-short"},
+        {**doctor_body(), "name": " "},
+        {**doctor_body(), "phone": "---------"},
+        {**doctor_body(), "address": " "},
+        {**doctor_body(), "specialty": "x" * 81},
+        {**doctor_body(), "certificateNumber": " "},
+        {**doctor_body(), "invitationCode": "legacy-code"},
         {**doctor_body(), "weeklyIntervals": []},
-        {**doctor_body(), "weeklyIntervals": doctor_body()["weeklyIntervals"] * 2},
         {**doctor_body(), "role": "doctor", "doctorId": DOCTOR_ID},
     ]:
-        response = client.post("/api/auth/doctors/register", json=body)
+        response = post_doctor(client, body)
         assert response.status_code == 422
-        assert PASSWORD not in response.text and INVITE not in response.text
+        assert PASSWORD not in response.text
     assert client.post("/api/auth/patients/register", json={**patient_body(), "role": "doctor"}).status_code == 422
     assert provider.created == []
+
+
+@pytest.mark.parametrize(("document", "content_type"), [
+    (b"", "application/pdf"), (b"not a PDF", "application/pdf"), (DOCUMENT, "text/plain"),
+    (b"%PDF-" + b"x" * service.DOCTOR_DOCUMENT_MAX_BYTES, "application/pdf"),
+])
+def test_invalid_certificate_is_rejected_before_auth_creation(auth, document, content_type):
+    client, provider = auth
+    response = post_doctor(client, document=document, content_type=content_type)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "evidence"]
+    assert provider.created == []
+
+
+def test_missing_certificate_and_malformed_details_do_not_create_an_account(auth):
+    client, provider = auth
+    assert client.post("/api/auth/doctors/register", data={"details": json.dumps(doctor_body())}).status_code == 422
+    response = client.post("/api/auth/doctors/register", data={"details": "invalid JSON"},
+                           files={"evidence": ("certificate.pdf", DOCUMENT, "application/pdf")})
+    assert response.status_code == 422
+    assert provider.created == []
+
+
+def test_certificate_upload_failure_cleans_auth_and_never_creates_profile(auth):
+    client, provider = auth
+    provider.upload_error = RuntimeError("Storage unavailable")
+    assert post_doctor(client).status_code == 503
+    assert provider.deleted == [PATIENT_ID]
+    assert provider.removed == [f"{PATIENT_ID}/certificate.pdf"]
+    assert provider.rpc_calls == []
+
+
+def test_storage_cleanup_failure_does_not_leave_an_unlinked_auth_user(auth):
+    client, provider = auth
+    provider.upload_error = provider.remove_error = RuntimeError("Bucket unavailable")
+    assert post_doctor(client).status_code == 503
+    assert provider.deleted == [PATIENT_ID]
+    assert provider.rpc_calls == []

@@ -85,57 +85,72 @@ test("Status updates send no doctor identity and cannot succeed on mismatch or c
   }
 });
 test("Patient registration normalizes names/contact, preserves password and uses only contract keys", async () => {
-  const value = { name: "  Nguye\u0302\u0303n Test  ", email: " test@example.invalid ", phone: " 0900000000 ", password: " private password ", confirmation: " private password ", invitationCode: "unused" };
+  const value = { name: "  Nguye\u0302\u0303n Test  ", email: " test@example.invalid ", phone: " 0900000000 ", password: " private password ", confirmation: " private password ", address: "unused" };
   await withFetch(async (path, options) => {
     assert.equal(path, "/api/auth/patients/register"); assert.equal(options.method, "POST");
     assert.deepEqual(JSON.parse(options.body), { name: value.name.normalize("NFC").trim(), email: "test@example.invalid", phone: "0900000000", password: value.password });
     return json({ userId: id }, 201);
-  }, async () => api.registerAccount("patient", value, []));
+  }, async () => api.registerAccount("patient", value));
 });
-test("Doctor registration sends the invitation and chosen working hours to the real contract", async () => {
-  const weeklyIntervals = [{ dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }];
-  const value = { email: " doctor@example.invalid ", password: "exact password ", invitationCode: "  " + "i".repeat(43) + "  ", name: "ignored", phone: "ignored" };
+const doctorRegistration = { name: " Synthetic Doctor ", email: " doctor@example.invalid ", phone: " 0900000000 ",
+  password: "exact password ", confirmation: "exact password ", address: " Test address ", specialty: " Test ",
+  certificateName: " Practice certificate ", certificateIssuer: " Test issuer ", certificateNumber: " TEST-001 " };
+const certificate = new File(["%PDF-1.7\nSynthetic certificate"], "certificate.pdf", { type: "application/pdf" });
+
+test("Doctor registration submits personal details and certificate as multipart without invitation or schedule", async () => {
+  const value = doctorRegistration;
   await withFetch(async (path, options) => {
     assert.equal(path, "/api/auth/doctors/register");
-    assert.deepEqual(JSON.parse(options.body), { email: "doctor@example.invalid", password: value.password, invitationCode: "i".repeat(43), weeklyIntervals });
+    assert.equal(options.method, "POST");
+    assert.equal(options.headers["Content-Type"], undefined);
+    assert.ok(options.body instanceof FormData);
+    assert.deepEqual(JSON.parse(options.body.get("details")), { name: "Synthetic Doctor", email: "doctor@example.invalid",
+      phone: "0900000000", password: value.password, address: "Test address", specialty: "Test",
+      certificateName: "Practice certificate", certificateIssuer: "Test issuer", certificateNumber: "TEST-001" });
+    assert.equal(options.body.get("evidence").name, "certificate.pdf");
+    assert.equal(await options.body.get("evidence").text(), await certificate.text());
     return json({ doctorId: id }, 201);
-  }, async () => api.registerAccount("doctor", value, weeklyIntervals));
+  }, async () => api.registerAccount("doctor", value, certificate));
 });
 
-test("Doctor registration refuses empty/overlapping hours before sending a mutation", async () => {
+test("Doctor registration rejects missing details and missing/invalid certificates before a mutation", async () => {
   let calls = 0;
   await withFetch(async () => { calls++; return json({ doctorId: id }, 201); }, async () => {
-    for (const intervals of [[], [{ dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }, { dayOfWeek: 1, startTime: "11:00", endTime: "13:00" }]]) {
-      await assert.rejects(api.registerAccount("doctor", {}, intervals), error => error.status === 422);
+    for (const file of [null, new File([], "empty.pdf", { type: "application/pdf" }), new File(["test"], "test.txt", { type: "text/plain" }),
+      new File([new Uint8Array(10 * 1024 * 1024 + 1)], "large.pdf", { type: "application/pdf" })]) {
+      await assert.rejects(api.registerAccount("doctor", doctorRegistration, file), error => error.status === 422);
     }
+    await assert.rejects(api.registerAccount("doctor", { ...doctorRegistration, certificateNumber: " " }, certificate), error => error.status === 422);
     assert.equal(calls, 0);
   });
 });
 
-test("Invitation refusal stays a failure and has an actionable message", async () => {
-  await withFetch(async () => json({ error: "Access denied" }, 403), async () => {
-    await assert.rejects(api.registerAccount("doctor", { email: "doctor@example.invalid", password: "test-password", invitationCode: "i".repeat(43) },
-      [{ dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }]), error => {
-      assert.match(api.registrationMessage(error), /invitation.*expired/i); return true;
+test("Doctor registration requires the matching confirmed success response and never retries", async () => {
+  for (const response of [json({ doctorId: id }), json({ doctorId: "bad-id" }, 201), json({ userId: id }, 201), json({}, 503)]) {
+    let calls = 0;
+    await withFetch(async () => { calls++; return response; }, async () => {
+      await assert.rejects(api.registerAccount("doctor", doctorRegistration, certificate), ContractApiError);
+      assert.equal(calls, 1);
     });
-  });
+  }
 });
 test("Registration rejects ambiguous/wrong 2xx success and does not retry mutations", async () => {
   for (const response of [json({ userId: id }), json({ userId: "not-an-id" }, 201), json({}, 503)]) {
     let calls = 0;
     await withFetch(async () => { calls++; return response; }, async () => {
-      await assert.rejects(api.registerAccount("patient", { name: "Test", email: "test@example.invalid", phone: "0900000000", password: "test-password" }, []), ContractApiError);
+      await assert.rejects(api.registerAccount("patient", { name: "Test", email: "test@example.invalid", phone: "0900000000", password: "test-password" }), ContractApiError);
       assert.equal(calls, 1);
     });
   }
 });
-test("Form validation checks patient details and requires an invitation rather than doctor self-asserted credentials", () => {
-  const base = { name: "😀".repeat(100), email: "test@example.invalid", phone: "+84 (90) 123-4567", password: "test-password", confirmation: "test-password", invitationCode: "i".repeat(43) };
+test("Form validation checks personal details for both roles and certificate fields only for doctors", () => {
+  const base = { ...doctorRegistration, name: "😀".repeat(100), email: "test@example.invalid", phone: "+84 (90) 123-4567", password: "test-password", confirmation: "test-password" };
   assert.deepEqual(api.registrationErrors(base, "patient"), {});
   const errors = api.registrationErrors({ ...base, name: "😀".repeat(101), phone: "---------", confirmation: "wrong" }, "patient");
   assert.ok(errors.name && errors.phone && errors.confirmation);
-  assert.ok(api.registrationErrors({ ...base, invitationCode: " " }, "doctor").invitationCode);
-  assert.deepEqual(api.registrationErrors({ ...base, name: "", phone: "" }, "doctor"), {});
+  assert.deepEqual(api.registrationErrors(base, "doctor"), {});
+  const doctorErrors = api.registrationErrors({ ...base, name: "", phone: "", specialty: "x".repeat(81), certificateNumber: " " }, "doctor");
+  assert.ok(doctorErrors.name && doctorErrors.phone && doctorErrors.specialty && doctorErrors.certificateNumber);
 });
 test("Return URLs cannot leave the origin or cross role boundaries", () => {
   for (const path of ["https://evil.invalid", "//evil.invalid", "/\\evil.invalid", "/doctor", "/patient/login", "/%2fevil.invalid"]) assert.equal(api.safeReturnTo(path, "patient"), "/");

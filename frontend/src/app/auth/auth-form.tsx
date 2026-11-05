@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { apiMessage, ContractApiError, isRecord } from "@/lib/contract-api";
-import { normalize, registerAccount, registrationErrors, registrationMessage, safeReturnTo, type Registration, type Role } from "@/lib/fe1-api";
-import { WeeklyScheduleEditor, validateWeeklySchedule, hasWeeklyErrors, type WorkingInterval, type WeeklyScheduleErrors } from "../doctor/weekly-schedule-editor";
+import { evidenceError, normalize, registerAccount, registrationErrors, registrationMessage, safeReturnTo, type Registration, type Role } from "@/lib/fe1-api";
 import styles from "./auth.module.css";
 
 function loginMessage(error: unknown) {
@@ -19,9 +18,8 @@ function loginMessage(error: unknown) {
 export function AuthForm({ role, register = false }: { role: Role; register?: boolean }) {
   const { state, configured, signOut, reload } = useAuth();
   const router = useRouter();
-  const [value, setValue] = useState<Registration>({ name: "", email: "", phone: "", password: "", confirmation: "", invitationCode: "" });
-  const [weeklyIntervals, setWeeklyIntervals] = useState<WorkingInterval[]>([]);
-  const [weeklyErrors, setWeeklyErrors] = useState<WeeklyScheduleErrors>({ intervals: {} });
+  const [value, setValue] = useState<Registration>({ name: "", email: "", phone: "", password: "", confirmation: "", address: "", specialty: "", certificateName: "", certificateIssuer: "", certificateNumber: "" });
+  const [evidence, setEvidence] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [notice, setNotice] = useState("");
@@ -49,10 +47,9 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
       ...(!normalize(value.email) ? { email: "Enter your email address." } : {}),
       ...(!value.password ? { password: "Enter your password." } : {}),
     };
-    const scheduleValidation = register && role === "doctor" ? validateWeeklySchedule(weeklyIntervals) : { intervals: {} };
-    setWeeklyErrors(scheduleValidation);
+    if (register && role === "doctor" && evidenceError(evidence)) validation.evidence = evidenceError(evidence);
     setErrors(validation); setMessage(""); setNotice("");
-    if (Object.keys(validation).length || hasWeeklyErrors(scheduleValidation)) {
+    if (Object.keys(validation).length) {
       setMessage("Please check the highlighted fields."); requestAnimationFrame(() => summary.current?.focus()); return;
     }
     const client = getSupabaseBrowser();
@@ -60,9 +57,9 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
     lock.current = true; setBusy(true);
     try {
       if (register) {
-        await registerAccount(role, value, weeklyIntervals);
-        setCreated(true); setValue(current => ({ ...current, password: "", confirmation: "", invitationCode: "" }));
-        setNotice("Your account was created. Signing you in…");
+        await registerAccount(role, value, evidence);
+        setCreated(true); setEvidence(null); setValue(current => ({ ...current, password: "", confirmation: "" }));
+        setNotice("Your account was created. Confirm your email before signing in.");
         try {
           const { error } = await client.auth.signInWithPassword({ email: normalize(value.email), password: value.password });
           if (error) throw error;
@@ -85,7 +82,7 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
         for (const item of error.body.detail) if (isRecord(item) && Array.isArray(item.loc)) {
           const field = item.loc[1];
           if (typeof field === "string" && field in value) fieldErrors[field] = "Check this value and try again.";
-          if (field === "weeklyIntervals") setWeeklyErrors(current => ({ ...current, summary: "Review your weekly hours. Intervals must not overlap and must last a multiple of 30 minutes." }));
+          if (field === "evidence") fieldErrors.evidence = "Check your supporting document. Use a PDF or image up to 10 MB.";
         }
         setErrors(fieldErrors);
       }
@@ -118,7 +115,6 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
           <Link href={`/doctor/${register ? "register" : "login"}`} aria-current={role === "doctor" ? "page" : undefined}>Doctor</Link>
         </div>
         {!register && <span className={styles.eyebrow}>{role.toUpperCase()} PORTAL</span>}<h1>{title}</h1>
-        {register && role === "doctor" && <p className={styles.subtitle}>Use the email and invitation code provided by your clinic. Your invitation links your existing doctor profile and credentials. Choose your weekly hours to start accepting appointments.</p>}
         {!configured && <p className={styles.alert} role="alert">Account services are not configured. Please contact the clinic or try again later.</p>}
         {state.status === "error" && <div className={styles.alert} role="alert">
           <p>{state.error instanceof ContractApiError && state.error.status === 403
@@ -136,17 +132,23 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
           {notice && <p className={styles.notice} role="status">{notice}</p>}
           {!created && <form onSubmit={submit} noValidate aria-busy={busy}>
             <div className={styles.fields}>
-              {register && role === "patient" && field("name", "Full name", "text", "name")}
+              {register && field("name", "Full name", "text", "name")}
               {field("email", "Email address", "email", "email")}
-              {register && role === "patient" && field("phone", "Phone number", "tel", "tel")}
-              {register && role === "doctor" && field("invitationCode", "Invitation code")}
+              {register && field("phone", "Phone number", "tel", "tel")}
+              {register && role === "doctor" && <>{field("address", "Address", "text", "street-address")}{field("specialty", "Specialty")}</>}
               {field("password", "Password", showPassword ? "text" : "password", register ? "new-password" : "current-password")}
               {register && field("confirmation", "Confirm password", showPassword ? "text" : "password", "new-password")}
             </div>
             <label className={styles.showPassword}><input type="checkbox" checked={showPassword} onChange={e => setShowPassword(e.target.checked)} /> Show password</label>
-            {register && role === "doctor" && <div className={styles.weekly}>
-              <WeeklyScheduleEditor compact value={weeklyIntervals} disabled={busy} errors={weeklyErrors}
-                onChange={intervals => { setWeeklyIntervals(intervals); setWeeklyErrors({ intervals: {} }); setMessage(""); }} />
+            {register && role === "doctor" && <div className={styles.certificate}><h2>Practice certificate</h2>
+              {field("certificateName", "Certificate name")}{field("certificateIssuer", "Issuing organization")}{field("certificateNumber", "Certificate number")}
+              <label className={styles.field} htmlFor="doctor-evidence">Supporting document
+                <input id="doctor-evidence" name="evidence" type="file" accept=".pdf,image/png,image/jpeg,image/webp" disabled={busy}
+                  onChange={event => { setEvidence(event.target.files?.[0] ?? null); setErrors(current => ({ ...current, evidence: "" })); setNotice(""); }}
+                  aria-invalid={Boolean(errors.evidence)} aria-describedby={errors.evidence ? "error-evidence" : undefined} />
+                {evidence && <span className={styles.fileName}>{evidence.name}</span>}
+                {errors.evidence && <span className={styles.fieldError} id="error-evidence">{errors.evidence}</span>}
+              </label>
             </div>}
             <button className={styles.primary} type="submit" disabled={busy || !configured || uncertain || state.status === "loading"}>
               {busy ? "Please wait…" : register ? "Create account" : "Sign in"}
