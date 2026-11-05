@@ -15,8 +15,8 @@ Never put provider API keys in `NEXT_PUBLIC_*` variables or frontend code. Deplo
 
 1. Before any AI request or catalog lookup, the backend checks all patient-authored messages for the existing emergency phrases; it never routes a matched emergency to normal booking.
 2. With a provider configured, the LLM returns a structured decision: `ask_follow_up` (one short contextual question) or `recommend_specialty` (one label on the backend allowlist). Invalid JSON, disallowed labels, errors and timeouts fail closed to deterministic fallback. An AI decision is guidance, not a clinical assessment.
-3. No provider: first turn asks a contextual follow-up, a recognized specialty can be returned from subsequent turns, and unrecognized symptoms can receive additional questions until the four-message limit.
-4. On the fourth patient message, the assistant must stop asking; when insufficient evidence remains, it returns no specialty. No doctors are invented; catalog query and active-doctor filtering remain backend-controlled.
+3. No provider or a failed provider: first turn asks a contextual follow-up; an unresolved concern gets one further distinct follow-up. The rule-based path stops after at most three patient messages (two follow-up questions), while AI requests remain bounded by the existing four-message input contract.
+4. Without a safe specialty after those questions, it returns no specialty and offers catalog browsing. With a specialty, the backend returns up to five active catalog doctors. In an environment without a database, only explicitly labeled synthetic demo doctor records are returned, and sample booking confirmation stays disabled. No doctors are invented from AI output.
 
 ## Local checks
 

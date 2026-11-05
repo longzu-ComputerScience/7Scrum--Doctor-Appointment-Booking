@@ -20,12 +20,15 @@ DURATION = re.compile(
 )
 
 
-def fallback_question(message: str, specialty: str | None) -> str:
+def fallback_question(message: str, specialty: str | None, turn: int = 1) -> str:
+    """At most two distinct follow-ups when no AI provider is available."""
     if specialty and not DURATION.search(message):
         return "Triệu chứng này bắt đầu từ khi nào?"
     if specialty:
-        return "Triệu chứng có diễn biến hoặc mức độ như thế nào?"
-    return "Bạn có thể mô tả rõ hơn triệu chứng chính và vị trí xuất hiện không?"
+        return "Triệu chứng diễn biến thế nào và xảy ra ở vị trí nào?"
+    if turn <= 1:
+        return "Bạn đang gặp triệu chứng chính gì và ở bộ phận nào (da, đầu, hay nơi khác)?"
+    return "Triệu chứng bắt đầu khi nào? Bạn muốn khám chuyên khoa nào hay khám tổng quát?"
 
 
 async def consult(messages: list[str]) -> ConsultationResponse:
@@ -58,23 +61,23 @@ async def consult(messages: list[str]) -> ConsultationResponse:
             # At the conversation limit do not treat a model question as a recommendation.
             specialty = None
     elif len(messages) == 1:
-        # No provider: keep legacy two-turn behavior, but ask a contextual question.
+        # No provider: run a transparent 1–2 question scripted fallback.
         return ConsultationResponse(
-            reply=fallback_question(message, specialty),
+            reply=fallback_question(message, specialty, 1),
             followUpRequired=True,
             mode="follow-up",
         )
-    elif specialty is None and len(messages) < MAX_MESSAGES:
+    elif specialty is None and len(messages) < 3:
         return ConsultationResponse(
-            reply=fallback_question(message, specialty),
+            reply=fallback_question(message, specialty, 2),
             followUpRequired=True,
             mode="follow-up",
         )
 
     if specialty is None:
         return ConsultationResponse(
-            reply="Chưa đủ thông tin để gợi ý chuyên khoa một cách đáng tin cậy. "
-                  "Vui lòng liên hệ cơ sở y tế để được hướng dẫn hoặc bắt đầu cuộc trò chuyện mới.",
+            reply="Sau tối đa hai câu hỏi bổ sung, vẫn chưa đủ thông tin để gợi ý chuyên khoa an toàn. "
+                  "Bạn có thể duyệt danh mục bác sĩ hoặc liên hệ cơ sở y tế để được hướng dẫn.",
             usedAI=used_ai,
             mode="ai-assisted" if used_ai else "rule-based",
         )
@@ -83,12 +86,15 @@ async def consult(messages: list[str]) -> ConsultationResponse:
     search = await run_in_threadpool(search_doctors, specialty=specialty, district=filters["district"])
     demo_mode = search["demoMode"]
     normalized_specialty = _normalize(specialty)
-    doctors = [] if demo_mode else [
+    # The same public catalog is used with and without an LLM. In an unconfigured
+    # environment search_doctors supplies clearly labeled synthetic demo profiles;
+    # the booking endpoint already prevents demo appointments from being created.
+    doctors = [
         doctor for doctor in search["doctors"] if _normalize(doctor["specialty"]) == normalized_specialty
-    ]
+    ][:5]
     reply = f"Bạn có thể tham khảo chuyên khoa {specialty}. Đây không phải chẩn đoán y khoa."
     if demo_mode:
-        reply += " Danh mục bác sĩ thật chưa được cấu hình trong môi trường này."
+        reply += " Các bác sĩ bên dưới là hồ sơ MẪU, không phải bác sĩ thật. Chỉ có thể xem lịch mẫu, không thể xác nhận lịch hẹn."
     elif not doctors:
         reply += " Chưa có bác sĩ phù hợp trong danh mục."
     return ConsultationResponse(

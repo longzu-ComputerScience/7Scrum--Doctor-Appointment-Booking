@@ -21,9 +21,12 @@ AI_TIMEOUT_SECONDS = 10
 def conservative_filters(message: str) -> dict[str, str | None]:
     text = message.lower()
     specialty = (
-        "Da liễu" if re.search(r"da liễu|mụn|nổi mẩn|dermatology", text)
-        else "Tim mạch" if re.search(r"tim mạch|cardiology", text)
-        else "Nội tổng quát" if re.search(r"(?:nội|khám) tổng quát|general medicine", text)
+        "Da liễu" if re.search(r"da liễu|mụn|nổi mẩn|ngứa da|phát ban|dermatology|skin rash", text)
+        else "Tim mạch" if re.search(r"tim mạch|cardiology|đánh trống ngực|palpitations", text)
+        else "Nội tổng quát" if re.search(
+            r"(?:nội|khám) tổng quát|general medicine|đau đầu|nhức đầu|headache|"
+            r"mệt mỏi|fatigue|cảm cúm|cảm lạnh|sốt|fever|đau bụng", text
+        )
         else None
     )
     district = (

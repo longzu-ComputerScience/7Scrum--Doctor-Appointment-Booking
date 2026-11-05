@@ -24,15 +24,21 @@ def test_existing_rash_flow_still_works():
     second = client.post("/api/consult", json={"messages": ["Tôi bị nổi mẩn đỏ", "Khoảng hai ngày nay"]}).json()
     assert second["followUpRequired"] is False
     assert second["specialty"] == "Da liễu"
+    assert second["usedAI"] is False
+    assert second["demoMode"] is True
+    assert len(second["doctors"]) == 1
+    assert second["doctors"][0]["id"] == "10000000-0000-4000-8000-000000000001"
+    assert "(Demo)" in second["doctors"][0]["name"]
 
 
-def test_unknown_symptom_continues_until_limit():
+def test_unknown_symptom_asks_exactly_two_followups_then_stops():
     messages = ["Tôi không khỏe", "Tôi thấy khó chịu", "Cũng chưa rõ"]
-    for n in (1, 2, 3):
-        result = client.post("/api/consult", json={"messages": messages[:n]}).json()
-        assert result["followUpRequired"] is True
-        assert result["specialty"] is None
-    result = client.post("/api/consult", json={"messages": messages + ["Tôi không biết"]}).json()
+    first = client.post("/api/consult", json={"messages": messages[:1]}).json()
+    second = client.post("/api/consult", json={"messages": messages[:2]}).json()
+    assert first["followUpRequired"] is True
+    assert second["followUpRequired"] is True
+    assert first["reply"] != second["reply"]
+    result = client.post("/api/consult", json={"messages": messages}).json()
     assert result["followUpRequired"] is False
     assert result["specialty"] is None
     assert result["doctors"] == []
@@ -103,3 +109,61 @@ def test_provider_http_failure_falls_back(monkeypatch):
         raise ValueError("invalid model output")
     monkeypatch.setattr(consultation_ai, "_openai", broken)
     assert asyncio.run(consultation_ai.decide(["Tôi bị đau"], {"Da liễu"})) is None
+
+
+
+def test_gemini_key_failure_uses_scripted_fallback_and_demo_catalog(monkeypatch):
+    monkeypatch.setenv("CONSULTATION_AI_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "invalid-test-key")
+
+    async def unavailable(_messages, _allowed):
+        raise ValueError("Gemini unavailable")
+
+    monkeypatch.setattr(consultation_ai, "_gemini", unavailable)
+    first = client.post("/api/consult", json={"messages": ["Tôi bị đau đầu"]})
+    assert first.status_code == 200
+    assert first.json()["followUpRequired"] is True
+    second = client.post("/api/consult", json={
+        "messages": ["Tôi bị đau đầu", "Khoảng hai ngày nay"],
+    })
+    assert second.status_code == 200
+    data = second.json()
+    assert data["usedAI"] is False
+    assert data["mode"] == "rule-based"
+    assert data["specialty"] == "Nội tổng quát"
+    assert data["demoMode"] is True
+    assert len(data["doctors"]) == 1
+    assert "(Demo)" in data["doctors"][0]["name"]
+
+
+def test_fallback_matches_real_catalog_when_database_available(monkeypatch):
+    doctor = {
+        "id": "10000000-0000-4000-8000-000000000099",
+        "name": "Dr. Real Example",
+        "specialty": "Da liễu", "bio": "Skin care",
+        "address": "Clinic A", "district": "Thủ Đức",
+        "certificates": [], "rating": None, "ratingCount": 0,
+    }
+    calls = []
+    def catalog(*, specialty, district):
+        calls.append((specialty, district))
+        return {"demoMode": False, "doctors": [doctor]}
+
+    monkeypatch.setattr(consultation, "search_doctors", catalog)
+    data = client.post("/api/consult", json={
+        "messages": ["Tôi bị nổi mẩn tại Thủ Đức", "Khoảng hai ngày nay"],
+    }).json()
+    assert data["specialty"] == "Da liễu"
+    assert data["demoMode"] is False
+    assert data["doctors"] == [doctor]
+    assert calls == [("Da liễu", "Thủ Đức")]
+
+
+def test_fallback_urgent_never_recommends_sample_doctors(monkeypatch):
+    monkeypatch.setenv("CONSULTATION_AI_PROVIDER", "none")
+    data = client.post("/api/consult", json={
+        "messages": ["Tôi nổi mẩn", "Tôi bị khó thở nghiêm trọng"],
+    }).json()
+    assert data["urgent"] is True
+    assert data["specialty"] is None
+    assert data["doctors"] == []

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiMessage } from "@/lib/contract-api";
-import { aiApiStatus, postConsultation, responseSource, type ConsultationResult, type AiApiStatus } from "@/lib/consultation-api";
+import { aiApiStatus, postConsultation, responseSource, scriptedReplyOptions, type ConsultationResult, type AiApiStatus } from "@/lib/consultation-api";
+import { doctorForDisplay } from "@/lib/doctor-display";
 import styles from "./consultation.module.css";
 
 type Message = { role: "patient" | "assistant"; text: string; source?: string };
@@ -11,12 +12,13 @@ const aiStatusDetails: Record<AiApiStatus, string> = {
   unchecked: "Not checked yet. Send a message to verify whether an AI provider is responding.",
   checking: "Checking the current request. The indicator will light only after a valid AI reply.",
   connected: "Connected: the latest reply used a valid AI provider response. The API does not identify which provider was used.",
-  fallback: "The latest reply used local fallback, not an AI provider. Check your Gemini key and provider selection on Render.",
+  fallback: "The latest reply used a scripted fallback rather than Gemini/OpenAI. You can still browse catalog doctors; the AI API is not confirmed connected.",
   error: "The request failed. AI connectivity has not been confirmed for this reply.",
 };
 
-export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
+export function Consultation({ onExploreSpecialty, onChooseDoctor, canExploreDoctors = true }: {
   onExploreSpecialty?: (specialty: string) => void;
+  onChooseDoctor?: (doctorId: string, specialty: string, demoMode: boolean) => void;
   canExploreDoctors?: boolean;
 }) {
   const [draft, setDraft] = useState("");
@@ -32,7 +34,7 @@ export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
 
   useEffect(() => {
     if (conversation.current) conversation.current.scrollTop = conversation.current.scrollHeight;
-  }, [history.length, busy]);
+  }, [history.length, busy, result]);
 
   async function submit(message: string, retry = false) {
     const clean = message.trim();
@@ -81,6 +83,9 @@ export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
   const canContinue = !result || (result.followUpRequired && !result.urgent && submittedMessages.length < 4);
   const aiStatus = aiApiStatus(result, busy, Boolean(error));
   const aiConfirmed = aiStatus === "connected";
+  const quickReplies = result?.followUpRequired && !result.usedAI && !result.urgent
+    ? scriptedReplyOptions(result.reply) : [];
+  const suggestedDoctors = result?.doctors.slice(0, 5).map(doctorForDisplay) ?? [];
 
   return <section className={styles.consultation} aria-label="Symptom consultation">
     <div className={styles.intro}>
@@ -115,6 +120,49 @@ export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
         {message.source && <small>Source: {message.source}</small>}
       </div>)}
       {busy && <p className={styles.loading} role="status">Reviewing your message…</p>}
+
+      {result?.specialty && !result.urgent && <div className={styles.recommendation}>
+        <span>Suggested specialty</span>
+        <strong>{doctorForDisplay({ id: "", name: "", specialty: result.specialty, bio: "", district: "", address: "" }).specialty}</strong>
+        <p>This suggestion helps you find a relevant specialist. It is not a medical diagnosis.</p>
+        {!result.usedAI && <small className={styles.scriptedBadge}>Scripted fallback · AI not connected</small>}
+        {onExploreSpecialty && <button type="button" onClick={() => onExploreSpecialty(result.specialty!)}>
+          {canExploreDoctors ? "Browse all in this specialty" : "Sign in to browse doctors"}
+        </button>}
+      </div>}
+
+      {!result?.urgent && !result?.followUpRequired && suggestedDoctors.length > 0 && <section className={styles.doctorSuggestions} aria-label="Suggested doctors">
+        <div className={styles.suggestionsTitle}><strong>{result?.demoMode ? "Sample doctor profiles" : "Doctors matching your specialty"}</strong>
+          <small>{suggestedDoctors.length} {suggestedDoctors.length === 1 ? "match" : "matches"}</small></div>
+        {result?.demoMode && <p className={styles.demoDisclaimer} role="note">
+          Demo data only — these are not real doctors. You can preview sample times, but you cannot confirm an appointment.
+        </p>}
+        <div className={styles.doctorCards}>
+          {suggestedDoctors.map(doctor => <article className={styles.doctorCard} key={doctor.id}>
+            <span className={styles.doctorAvatar} aria-hidden="true">{doctor.name.trim().split(" ").slice(-1)[0].slice(0, 1).toUpperCase()}</span>
+            <div className={styles.doctorInfo}>
+              <strong>{doctor.name}</strong>
+              <span>{doctor.specialty}</span>
+              <small>{doctor.district} · {doctor.address}</small>
+              {doctor.bio && <p>{doctor.bio}</p>}
+              {onChooseDoctor && <button type="button"
+                onClick={() => onChooseDoctor(doctor.id, result!.specialty!, result!.demoMode)}>
+                {result?.demoMode ? "Preview sample schedule" : canExploreDoctors ? "Choose a time" : "Sign in to book"} <span aria-hidden="true">→</span>
+              </button>}
+            </div>
+          </article>)}
+        </div>
+        <p className={styles.bookingSteps}>Choose a doctor → Pick an available time → Confirm on the booking page.</p>
+      </section>}
+
+      {result && !result.urgent && !result.followUpRequired && !result.specialty && onExploreSpecialty &&
+        <div className={styles.noSpecialty}>
+          <strong>Not enough information to suggest a specialty.</strong>
+          <p>You can still browse the catalog, or speak to a qualified healthcare professional.</p>
+          <button type="button" onClick={() => onExploreSpecialty("")}>
+            {canExploreDoctors ? "Browse all doctors" : "Sign in to browse doctors"}
+          </button>
+        </div>}
     </div>
 
     {result?.urgent && <div className={styles.urgent} role="alert">
@@ -122,18 +170,16 @@ export function Consultation({ onExploreSpecialty, canExploreDoctors = true }: {
       <p>{result.reply}</p>
     </div>}
 
-    {result?.specialty && !result.urgent && <div className={styles.recommendation}>
-      <span>Suggested specialty</span>
-      <strong>{result.specialty}</strong>
-      <p>This suggestion is for finding a relevant doctor. It is not a diagnosis.</p>
-      {result.demoMode && <p>Doctor catalog data may be a demo until the service is configured.</p>}
-      {onExploreSpecialty && <button type="button" onClick={() => onExploreSpecialty(result.specialty!)}>
-        {canExploreDoctors ? "Find doctors in this specialty" : "Sign in to find doctors"}
-      </button>}
-    </div>}
+
 
     {error && <div className={styles.error} role="alert"><span>{error}</span>{pending && <button type="button" onClick={() => void submit(pending, true)} disabled={busy}>Retry sending</button>}</div>}
 
+    {quickReplies.length > 0 && canContinue && pending === null && !busy && <div className={styles.quickReplies}
+      role="group" aria-label="Suggested follow-up answers">
+      {quickReplies.map(option => <button type="button" key={option} onClick={() => void submit(option)}>
+        {option}
+      </button>)}
+    </div>}
     {canContinue && pending === null && <form className={styles.composer} onSubmit={event => { event.preventDefault(); void submit(draft); }}>
       <label htmlFor="consultation-message">{result?.followUpRequired ? "Your follow-up answer" : "Describe your symptoms"}</label>
       <div><textarea id="consultation-message" value={draft} onChange={event => setDraft(event.target.value)}

@@ -1,4 +1,14 @@
-import { ContractApiError, isRecord, requestJson } from "./contract-api";
+import { ContractApiError, isRecord, isUuid, requestJson } from "./contract-api";
+
+/** Only backend catalog records with a verifiable UUID can lead to the booking flow. */
+export type ConsultationDoctor = {
+  id: string;
+  name: string;
+  specialty: string;
+  bio: string;
+  district: string;
+  address: string;
+};
 
 export type ConsultationResult = {
   reply: string;
@@ -8,6 +18,7 @@ export type ConsultationResult = {
   mode: string;
   usedAI: boolean;
   demoMode: boolean;
+  doctors: ConsultationDoctor[];
 };
 
 export function parseConsultation(value: unknown): ConsultationResult {
@@ -16,11 +27,31 @@ export function parseConsultation(value: unknown): ConsultationResult {
     !(value.specialty === null || (typeof value.specialty === "string" && value.specialty.trim().length > 0 && value.specialty.length <= 80)) ||
     typeof value.urgent !== "boolean" || typeof value.mode !== "string" || !value.mode.trim() ||
     typeof value.usedAI !== "boolean" || typeof value.demoMode !== "boolean" ||
-    !Array.isArray(value.doctors)) throw new ContractApiError("invalid");
+    !Array.isArray(value.doctors) || value.doctors.length > 100) throw new ContractApiError("invalid");
+  const doctors = value.doctors.map((entry): ConsultationDoctor => {
+    if (!isRecord(entry) || !isUuid(entry.id) ||
+      ["name", "specialty", "bio", "district", "address"].some(
+        key => typeof entry[key] !== "string") ||
+      !(entry.name as string).trim() || !(entry.specialty as string).trim()) {
+      throw new ContractApiError("invalid");
+    }
+    return {
+      id: entry.id as string,
+      name: entry.name as string,
+      specialty: entry.specialty as string,
+      bio: entry.bio as string,
+      district: entry.district as string,
+      address: entry.address as string,
+    };
+  });
+  // Incomplete/urgent responses must not expose clickable doctor recommendations.
+  if ((value.urgent || value.followUpRequired || value.specialty === null) && doctors.length) {
+    throw new ContractApiError("invalid");
+  }
   return {
     reply: value.reply.trim(), followUpRequired: value.followUpRequired,
     specialty: value.specialty, urgent: value.urgent, mode: value.mode,
-    usedAI: value.usedAI, demoMode: value.demoMode,
+    usedAI: value.usedAI, demoMode: value.demoMode, doctors,
   };
 }
 
@@ -29,6 +60,7 @@ export function responseSource(result: ConsultationResult): string {
   if (mode === "controlled-prototype") return result.usedAI ? "Controlled prototype · AI assisted" : "Controlled prototype";
   if (mode === "fallback") return "Fallback";
   if (mode === "ai") return "AI";
+  if (!result.usedAI && (mode === "rule-based" || mode === "follow-up")) return "Scripted fallback · no AI";
   return result.mode;
 }
 
@@ -47,4 +79,20 @@ export async function postConsultation(messages: string[], signal?: AbortSignal)
   if (!messages.length || messages.length > 4 || messages.some(message => message.trim().length < 2 || message.length > 800))
     throw new ContractApiError(422);
   return parseConsultation(await requestJson("/api/consult", { method: "POST", body: { messages }, signal }));
+}
+
+
+/** Short, deterministic example answers for the scripted (non-AI) follow-ups. */
+export function scriptedReplyOptions(question: string): string[] {
+  const normalized = question.toLocaleLowerCase("vi");
+  if (normalized.includes("bắt đầu từ khi nào") || normalized.includes("bao lâu")) {
+    return ["Hôm nay", "Khoảng 2 ngày", "Hơn một tuần"];
+  }
+  if (normalized.includes("chuyên khoa nào") || normalized.includes("khám tổng quát")) {
+    return ["Khám tổng quát", "Da liễu", "Tim mạch"];
+  }
+  if (normalized.includes("bộ phận nào") || normalized.includes("vị trí nào")) {
+    return ["Nổi mẩn ở da", "Nhức đầu", "Mệt mỏi toàn thân"];
+  }
+  return ["Hôm nay", "Khoảng 2 ngày", "Khám tổng quát"];
 }

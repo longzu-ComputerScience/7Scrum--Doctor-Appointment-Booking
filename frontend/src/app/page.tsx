@@ -10,6 +10,7 @@ import { DoctorBrowser } from "./doctor-browser";
 import { Consultation } from "./consultation";
 import { PatientAppointmentsView } from "./patient/patient-appointments";
 import { useAvatarPreview } from "./profile/avatar-preview";
+import { doctorBookingHref } from "@/lib/specialty-handoff";
 import styles from "./patient-shell.module.css";
 import homeStyles from "./home.module.css";
 
@@ -88,8 +89,19 @@ export default function HomePage() {
       router.push("/patient/login?next=%2F%23book");
     }
   };
+  const chooseConsultationDoctor = (doctorId: string, specialty: string, demoMode: boolean) => {
+    const href = doctorBookingHref(doctorId, specialty);
+    setChatOpen(false);
+    if (isPatient || demoMode) {
+      // Sample slots are viewable without login; BookingClient disables demo confirmation.
+      router.push(href, { scroll: false });
+    } else {
+      router.push("/patient/login?next=" + encodeURIComponent(href));
+    }
+  };
   const consultationPanel = <ConsultationPanel open={chatOpen} onClose={() => setChatOpen(false)}
-    onExploreSpecialty={exploreSpecialty} canExploreDoctors={isPatient} />;
+    onExploreSpecialty={exploreSpecialty} onChooseDoctor={chooseConsultationDoctor}
+    canExploreDoctors={isPatient} />;
 
   if (auth.status === "loading" || (auth.status === "ready" && auth.identity.role === "doctor")) {
     return <main className={homeStyles.guest}><p className={homeStyles.loading} role="status">Opening your care portal…</p></main>;
@@ -128,13 +140,16 @@ export default function HomePage() {
   </PatientShell>;
 }
 
-function ConsultationPanel({ open, onClose, onExploreSpecialty, canExploreDoctors }: {
-  open: boolean; onClose: () => void; onExploreSpecialty: (specialty: string) => void; canExploreDoctors: boolean;
+function ConsultationPanel({ open, onClose, onExploreSpecialty, onChooseDoctor, canExploreDoctors }: {
+  open: boolean; onClose: () => void; onExploreSpecialty: (specialty: string) => void;
+  onChooseDoctor: (doctorId: string, specialty: string, demoMode: boolean) => void;
+  canExploreDoctors: boolean;
 }) {
   return <><button type="button" className={homeStyles.consultBackdrop} onClick={onClose} aria-label="Close consultation" hidden={!open} />
     <div className={homeStyles.consultPanel} role="dialog" aria-modal="true" aria-label="Chat with Carely" hidden={!open}>
     <div className={homeStyles.consultTop}><strong>Carely consultation</strong><button type="button" onClick={onClose} aria-label="Close chat"><Icon name="close" /></button></div>
-    <Consultation onExploreSpecialty={onExploreSpecialty} canExploreDoctors={canExploreDoctors} />
+    <Consultation onExploreSpecialty={onExploreSpecialty}
+      onChooseDoctor={onChooseDoctor} canExploreDoctors={canExploreDoctors} />
   </div></>;
 }
 
