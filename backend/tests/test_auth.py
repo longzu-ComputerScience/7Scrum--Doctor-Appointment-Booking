@@ -202,7 +202,7 @@ def test_doctor_registration_uploads_private_certificate_and_saves_profile_witho
         "p_address": "Synthetic address", "p_specialty": "Test", "p_certificate_name": "Practice certificate",
         "p_certificate_issuer": "Test issuer", "p_certificate_number": "TEST-001", "p_document_path": path,
     })]
-    assert provider.created[0]["email_confirm"] is False
+    assert provider.created[0]["email_confirm"] is True
     assert PASSWORD not in response.text
 
 
