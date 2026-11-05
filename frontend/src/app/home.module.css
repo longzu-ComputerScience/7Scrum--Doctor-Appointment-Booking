@@ -1,2 +1,11 @@
 .guest{min-height:100vh;max-width:1500px;margin:0 auto;padding:0 28px 28px;font-family:Manrope,Arial,sans-serif}.guestHeader{min-height:94px;display:flex;justify-content:space-between;align-items:center;gap:22px;padding:0 32px}.guestActions{display:flex;align-items:center;gap:28px;font-size:12px;font-weight:700;color:#53716b}.getStarted{padding:13px 19px;background:#1bb1ad;color:#fff;border-radius:12px}.overviewLabel{padding:12px 32px 25px}.overviewLabel h1{font-size:22px;letter-spacing:-.8px;margin:7px 0;color:#263a35}.guest :global(.overview-page){width:calc(100% - 64px)}.loading{padding:70px 30px;color:#638378}
+.consultBackdrop{position:fixed;inset:0;z-index:89;border:0;background:#10282480;cursor:default}
+.consultBackdrop[hidden]{display:none}
+.consultPanel{position:fixed;right:25px;bottom:86px;z-index:90;width:min(475px,calc(100vw - 32px));height:min(690px,calc(100dvh - 105px));display:flex;flex-direction:column;overflow:hidden;border:1px solid #dcebe7;border-radius:20px;background:#fff;box-shadow:0 24px 80px #183a3340}
+.consultPanel[hidden]{display:none}
+.consultTop{min-height:47px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#146d6b;color:#fff}
+.consultTop strong{font-size:12px;letter-spacing:.02em}
+.consultTop button{border:0;background:none;color:inherit;width:30px;height:30px;display:grid;place-items:center;cursor:pointer}
+.consultTop button :global(.dash-icon){width:17px;height:17px}
 @media(max-width:620px){.guest{padding:0 6px 24px}.guestHeader{padding:0 14px;min-height:86px;gap:12px}.guestActions{gap:13px;font-size:10px;flex-wrap:wrap;justify-content:flex-end}.getStarted{padding:11px 12px}.guestHeader :global(a[aria-label="Carely home"]){gap:5px}.guestHeader :global(a[aria-label="Carely home"])>span:last-child{font-size:18px}.overviewLabel{padding:8px 14px 22px}.overviewLabel h1{font-size:21px}.guest :global(.overview-page){width:calc(100% - 20px)}}
+@media(max-width:620px){.consultPanel{right:8px;bottom:73px;width:calc(100vw - 16px);height:min(690px,calc(100dvh - 85px));border-radius:18px}}

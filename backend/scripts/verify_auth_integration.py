@@ -1,7 +1,7 @@
 """Exercise real auth and booking through the frontend proxy using a dedicated synthetic doctor.
 
-Requires migrations 005/006 and both local servers. No email is sent. Only newly
-created synthetic users are email-confirmed by this check. The database owner
+Requires migrations 005/006 and both local servers. Registration must allow
+immediate password login without a confirmation email or an Admin API update. The database owner
 must remove the synthetic doctor's booking/schedule rows before deleting it.
 """
 import argparse
@@ -71,8 +71,6 @@ def main():
         })
         state["userIds"].append(patient["userId"])
         save()
-        assert login(patient_email).json().get("error_code") == "email_not_confirmed"
-        admin.auth.admin.update_user_by_id(patient["userId"], {"email_confirm": True})
         patient_login = login(patient_email)
         assert patient_login.status_code == 200
         patient_token = patient_login.json()["access_token"]
@@ -83,7 +81,7 @@ def main():
         request("POST", "/api/auth/patients/register", 409, body={
             "email": patient_email, "password": password, "name": "Auth Integration Patient", "phone": "0900000000",
         })
-        print("PASS: real patient registration, email verification gate, password login and database identity")
+        print("PASS: real patient registration, immediate password login without email confirmation and database identity")
 
         weekly = [{"dayOfWeek": day, "startTime": "09:00", "endTime": "10:00"} for day in range(1, 8)]
         doctor_payload = {"email": doctor_email, "password": password, "invitationCode": invite,
@@ -100,8 +98,6 @@ def main():
         doctor_user = admin.table("doctor_accounts").select("auth_user_id").eq("doctor_id", doctor_id).execute().data[0]
         state["userIds"].append(doctor_user["auth_user_id"])
         save()
-        assert login(doctor_email).json().get("error_code") == "email_not_confirmed"
-        admin.auth.admin.update_user_by_id(doctor_user["auth_user_id"], {"email_confirm": True})
         doctor_login = login(doctor_email)
         assert doctor_login.status_code == 200
         doctor_token = doctor_login.json()["access_token"]

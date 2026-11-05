@@ -378,7 +378,7 @@ def _register_auth_user(
 
     try:
         result = client.auth.admin.create_user({
-            "email": payload.email, "password": payload.password, "email_confirm": False,
+            "email": payload.email, "password": payload.password, "email_confirm": True,
         })
         return client, str(UUID(str(result.user.id)))
     except Exception as exc:

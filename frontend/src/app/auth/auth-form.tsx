@@ -12,7 +12,6 @@ import styles from "./auth.module.css";
 
 function loginMessage(error: unknown) {
   const code = isRecord(error) ? error.code : null;
-  if (code === "email_not_confirmed") return "Confirm your email before signing in. Check your inbox or resend the confirmation below.";
   if (code === "invalid_credentials") return "The email or password is incorrect.";
   if (code === "over_request_rate_limit" || code === "over_email_send_rate_limit") return "Too many attempts. Please wait a moment and try again.";
   return "Could not sign in. Check your connection and try again.";
@@ -30,36 +29,19 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
   const [uncertain, setUncertain] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [resendAfter, setResendAfter] = useState(0);
   const lock = useRef(false);
   const summary = useRef<HTMLDivElement>(null);
   const title = register ? (role === "doctor" ? "Join your care team." : "Your care starts here.") : "Welcome back.";
 
   useEffect(() => {
-    if (!register && state.status === "ready" && state.identity.role === role) {
+    if (state.status === "ready" && state.identity.role === role) {
       router.replace(safeReturnTo(new URLSearchParams(window.location.search).get("next"), role));
     }
-  }, [register, role, router, state]);
+  }, [role, router, state]);
   const change = (field: keyof Registration, next: string) => {
     setValue(current => ({ ...current, [field]: next }));
     setErrors(current => ({ ...current, [field]: "" })); setMessage("");
   };
-  async function resend() {
-    if (lock.current) return;
-    if (Date.now() < resendAfter) { setMessage("Please wait one minute before requesting another email."); return; }
-    const email = normalize(value.email);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErrors({ email: "Enter your email address first." }); return; }
-    const client = getSupabaseBrowser();
-    if (!client) return;
-    lock.current = true; setBusy(true); setMessage("");
-    try {
-      const { error } = await client.auth.resend({ type: "signup", email,
-        options: { emailRedirectTo: `${window.location.origin}/${role}/login` } });
-      if (error) throw error;
-      setNotice("Confirmation requested. Check your inbox and spam folder, then return to sign in."); setResendAfter(Date.now() + 60_000);
-    } catch { setMessage("Could not send the confirmation email. Please wait and try again."); }
-    finally { lock.current = false; setBusy(false); }
-  }
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (lock.current || !configured || created || uncertain) return;
@@ -80,13 +62,15 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
       if (register) {
         await registerAccount(role, value, weeklyIntervals);
         setCreated(true); setValue(current => ({ ...current, password: "", confirmation: "", invitationCode: "" }));
-        setNotice("Your account was created. Confirm your email before signing in.");
+        setNotice("Your account was created. Signing you in…");
         try {
-          const { error } = await client.auth.resend({ type: "signup", email: normalize(value.email),
-            options: { emailRedirectTo: `${window.location.origin}/${role}/login` } });
+          const { error } = await client.auth.signInWithPassword({ email: normalize(value.email), password: value.password });
           if (error) throw error;
-          setResendAfter(Date.now() + 60_000);
-        } catch { setMessage("Your account was created, but the confirmation email could not be sent. Use Resend confirmation below."); }
+          reload();
+        } catch {
+          setNotice("Your account was created. Use Sign in below to open your account.");
+          setMessage("Automatic sign-in could not be completed. Sign in with your email and password.");
+        }
       } else {
         const { error } = await client.auth.signInWithPassword({ email: normalize(value.email), password: value.password });
         if (error) throw error;
@@ -168,7 +152,6 @@ export function AuthForm({ role, register = false }: { role: Role; register?: bo
               {busy ? "Please wait…" : register ? "Create account" : "Sign in"}
             </button>
           </form>}
-          {(!register || created || uncertain) && <button className={styles.textButton} type="button" disabled={busy || !configured} onClick={() => void resend()}>Resend confirmation email</button>}
           <p className={styles.bottom}>{register ? "Already have an account?" : "New to Carely?"} <Link href={`/${role}/${register ? "login" : "register"}`}>{register ? "Sign in" : "Create an account"}</Link></p>
         </>}
       </div>
