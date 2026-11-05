@@ -93,7 +93,7 @@ def test_ai_output_is_strictly_validated():
         {"action": "ask_follow_up", "question": "", "specialty": None},
         {"action": "ask_follow_up", "question": "Hỏi thêm?", "specialty": "Da liễu"},
     ):
-        with pytest.raises((ValueError, Exception)):
+        with pytest.raises(ValueError):
             consultation_ai._validate(payload, allowed)
 
 
