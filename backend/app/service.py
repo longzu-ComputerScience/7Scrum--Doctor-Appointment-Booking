@@ -308,8 +308,7 @@ def _authenticated_user(token: str) -> tuple[Any, str, str | None]:
     return client, str(identity.user.id), identity.user.email
 
 
-def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
-    client, user_id, _ = _authenticated_user(token)
+def _doctor_identity(client: Any, user_id: str) -> DoctorProfile | None:
     try:
         rows = (
             client.table("doctor_accounts")
@@ -320,13 +319,21 @@ def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
             .data
         )
         if not rows:
-            raise HTTPException(403, "Doctor access denied")
+            return None
         (row,) = rows
         doctor = DoctorProfile.model_validate(_one(row["doctors"]))
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(503, "Doctor profile unavailable") from exc
+    return doctor
+
+
+def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
+    client, user_id, _ = _authenticated_user(token)
+    doctor = _doctor_identity(client, user_id)
+    if doctor is None:
+        raise HTTPException(403, "Doctor access denied")
     return client, user_id, doctor
 
 
@@ -335,8 +342,7 @@ def get_doctor_profile(token: str) -> dict:
     return {"doctor": doctor.model_dump(mode="json")}
 
 
-def get_patient_profile(token: str) -> dict:
-    client, user_id, email = _authenticated_user(token)
+def _patient_identity(client: Any, user_id: str, email: str | None) -> PatientProfile:
     with _database_operation("Patient profile unavailable"):
         rows = (
             client.table("patient_profiles").select("full_name,phone")
@@ -345,7 +351,21 @@ def get_patient_profile(token: str) -> dict:
         if not rows or not email:
             raise HTTPException(403, "Patient access denied")
         patient = PatientProfile(id=user_id, name=rows[0]["full_name"], phone=rows[0]["phone"], email=email)
-    return {"patient": patient}
+    return patient
+
+
+def get_patient_profile(token: str) -> dict:
+    client, user_id, email = _authenticated_user(token)
+    return {"patient": _patient_identity(client, user_id, email)}
+
+
+def get_auth_identity(token: str) -> dict:
+    """Verify the JWT once, then derive the role solely from application tables."""
+    client, user_id, email = _authenticated_user(token)
+    doctor = _doctor_identity(client, user_id)
+    if doctor is not None:
+        return {"role": "doctor", "doctor": doctor}
+    return {"role": "patient", "patient": _patient_identity(client, user_id, email)}
 
 
 def _register_auth_user(

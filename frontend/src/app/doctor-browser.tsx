@@ -1,0 +1,163 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { doctorForDisplay, type CatalogDoctor } from "@/lib/doctor-display";
+import { DoctorAvailability } from "./doctor-availability";
+import styles from "./doctor-browser.module.css";
+import { catalogPath, parseCatalog } from "@/lib/doctor-catalog";
+import { apiMessage } from "@/lib/contract-api";
+import { fe1Request } from "@/lib/fe1-api";
+
+type Catalog = {
+  status: "loading" | "ready" | "error";
+  doctors: CatalogDoctor[];
+  demoMode: boolean;
+  error?: unknown;
+};
+
+const initialCatalog: Catalog = { status: "loading", doctors: [], demoMode: false };
+
+function initials(name: string) {
+  return name.replace(/^(Dr\.|BS\.)\s*/i, "").replace(/\s*\(Demo\)$/i, "")
+    .trim().split(/\s+/).slice(-2).map((part) => part[0]).join("");
+}
+
+function RatingPlaceholder({ doctor }: { doctor?: CatalogDoctor }) {
+  return <span className={styles.ratingPlaceholder}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9Z" /></svg>
+    {typeof doctor?.rating === "number" && (doctor.ratingCount ?? 0) > 0 ? `${doctor.rating.toFixed(1)} · ${doctor.ratingCount} ratings` : "No ratings yet"}
+  </span>;
+}
+
+export function DoctorBrowser({ query }: { query: string }) {
+  const [catalog, setCatalog] = useState<Catalog>(initialCatalog);
+  const [attempt, setAttempt] = useState(0);
+  const [doctorId, setDoctorId] = useState("");
+  const [specialty, setSpecialty] = useState<string | null>(null);
+  const [specialties, setSpecialties] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const data = parseCatalog(await fe1Request(catalogPath(specialty, query), { signal: controller.signal }));
+        if (!controller.signal.aborted) {
+          setCatalog({ status: "ready", doctors: data.doctors.map(doctorForDisplay), demoMode: data.demoMode });
+          setSpecialties(current => [...new Map([...current, ...data.doctors.map(d => ({ value: d.specialty, label: doctorForDisplay(d).specialty }))].map(item => [item.value, item])).values()]);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setCatalog({ status: "error", doctors: [], demoMode: false, error });
+        }
+      }
+    }
+    // Search and specialty are filtered by the API before its 100-row cap.
+    const timer = window.setTimeout(() => { setCatalog(initialCatalog); void load(); }, query ? 250 : 0);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [attempt, specialty, query]);
+
+  const doctors = catalog.doctors;
+  // Resolve the selection from the visible list so filters never show an unrelated profile.
+  const selectedDoctor = doctors.find((doctor) => doctor.id === doctorId) ?? doctors[0];
+
+  return (
+    <section className={`booking-page ${styles.catalog}`} aria-labelledby="doctor-browser-title">
+      <div className="booking-heading">
+        <div>
+          <span className="booking-overline">BOOK APPOINTMENT</span>
+          <h2 id="doctor-browser-title">Find the right doctor for you.</h2>
+          <p>Browse our specialists and choose a doctor to see their availability.</p>
+        </div>
+        <span className="booking-step">CHOOSE A DOCTOR</span>
+      </div>
+
+      {catalog.status === "loading" ? (
+        <div className={styles.feedback} role="status">Loading doctors…</div>
+      ) : catalog.status === "error" ? (
+        <div className={styles.feedback}>
+          <p role="alert">{apiMessage(catalog.error)}</p>
+          <button className="primary-button" onClick={() => {
+            setCatalog(initialCatalog);
+            setAttempt((value) => value + 1);
+          }}>Try again</button>
+        </div>
+      ) : (
+        <>
+          {catalog.demoMode && (
+            <p className={styles.notice} role="status">Demo mode: doctor and clinic details are fictional. You can preview available times; real booking requires the service to be configured.</p>
+          )}
+          <div className="doctor-browser">
+            <section className="doctor-list-panel" aria-label="Doctor catalog">
+              <div className="doctor-list-heading">
+                <strong>Specialists</strong>
+                <span role="status">{doctors.length} {doctors.length === 1 ? "doctor" : "doctors"}{doctors.length >= 100 ? " · refine your search" : ""}</span>
+              </div>
+              <div className="specialty-filters" role="group" aria-label="Filter by specialty">
+                <button className={specialty === null ? "selected" : ""} aria-pressed={specialty === null} onClick={() => setSpecialty(null)}>All specialties</button>
+                {specialties.map((item) => (
+                  <button key={item.value} className={specialty === item.value ? "selected" : ""} aria-pressed={specialty === item.value} onClick={() => setSpecialty(item.value)}>{item.label}</button>
+                ))}
+              </div>
+              <div className="doctor-list">
+                {doctors.map((doctor) => (
+                  <Link key={doctor.id} className={`doctor-list-row ${selectedDoctor?.id === doctor.id ? "selected" : ""}`}
+                    href={`/doctors/${encodeURIComponent(doctor.id)}/book`} scroll={false} onClick={() => setDoctorId(doctor.id)}>
+                    <span className="list-avatar" aria-hidden="true">{initials(doctor.name)}</span>
+                    <span><strong>{doctor.name}</strong><small>{doctor.specialty}</small><span className={styles.listMetadata}><RatingPlaceholder doctor={doctor} /></span></span>
+
+                  </Link>
+                ))}
+                {!doctors.length && <p className={styles.empty}>{catalog.doctors.length ? "No doctors match your search and specialty. Try another search or select All specialties." : "No doctors are available in the catalog yet. Please check again later."}</p>}
+              </div>
+            </section>
+
+            {selectedDoctor && (
+              <section className="doctor-detail-panel" aria-label="Selected doctor">
+                <div className="detail-profile">
+                  <div className="detail-avatar" aria-hidden="true">{initials(selectedDoctor.name)}</div>
+                  <div>
+                    <span className="booking-overline">SPECIALIST PROFILE</span>
+                    <h3>{selectedDoctor.name}</h3>
+                    <p className={styles.profileMetadata}>{selectedDoctor.specialty}<RatingPlaceholder doctor={selectedDoctor} /></p>
+                  </div>
+                </div>
+                {selectedDoctor.bio && <p className="detail-bio">{selectedDoctor.bio}</p>}
+                <div className="detail-info-grid">
+                  <div><small>{selectedDoctor.clinicName ? "Practice" : "Visit type"}</small><strong>{selectedDoctor.clinicName || "In-person visit"}</strong></div>
+                  <div><small>Location</small><strong>{selectedDoctor.district}</strong><span>{selectedDoctor.address ?? selectedDoctor.clinicAddress}</span></div>
+                </div>
+                <section className={styles.education} aria-labelledby="doctor-education-title">
+                  <h4 id="doctor-education-title">Education &amp; certificates</h4>
+                  <div className={styles.educationRow}>
+                    <span className={styles.educationIcon} aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="m2 9 10-5 10 5-10 5Zm4 2v6c3 3 9 3 12 0v-6M22 9v7" /></svg>
+                    </span>
+                    <div>{selectedDoctor.certificates?.length ? selectedDoctor.certificates.map((certificate, index) => <div key={index}><p>{certificate.name}</p><small>{certificate.issuer}{certificate.issuedYear ? ` · ${certificate.issuedYear}` : ""}</small></div>) : <><p>Not provided yet</p><small>Education and professional certificates have not been provided.</small></>}</div>
+                  </div>
+                </section>
+                <div className="detail-extra-grid">
+                  <DoctorAvailability key={selectedDoctor.id} doctorId={selectedDoctor.id} />
+                  <div><h4>Specialty</h4><p>{selectedDoctor.specialty}</p></div>
+                  <div><h4>Procedures</h4><p>Not provided yet</p><p>The clinic has not listed procedures for this doctor.</p></div>
+                  <div className="reviews-block">
+                    <div className={styles.reviewsHeading}><h4>Doctor’s Reviews</h4><RatingPlaceholder doctor={selectedDoctor} /></div>
+                    <article className={`review-card ${styles.reviewEmpty}`}>
+                      <span className={styles.reviewIcon} aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11a8 8 0 0 1-8 8H6l-4 3V11a9 9 0 0 1 19 0ZM7 10h10M7 14h6" /></svg>
+                      </span>
+                      <div><strong>Written reviews unavailable</strong><p>Individual patient reviews have not been provided.</p></div>
+                    </article>
+                  </div>
+                </div>
+                <Link className="primary-button detail-book" href={`/doctors/${encodeURIComponent(selectedDoctor.id)}/book`} scroll={false}>
+                  Book with {selectedDoctor.name}
+                </Link>
+              </section>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}

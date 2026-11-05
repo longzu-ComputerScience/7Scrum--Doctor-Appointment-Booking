@@ -20,6 +20,7 @@
 | `GET /api/doctors/{doctorId}/slots?from=YYYY-MM-DD&to=YYYY-MM-DD` | Public; khoảng ngày hữu hạn; BE tự sinh/đọc các slot 30 phút hiệu lực | 200 `{slots:AvailableSlot[],demoMode:boolean}` |
 | `POST /api/appointments` | **Patient Bearer JWT**, `BookingInput` | **201** `{appointmentId,bookingReference,status:"confirmed"}` |
 | `GET /api/patient/me` | Patient Bearer JWT | 200 `{patient:{id,name,phone,email}}` |
+| `GET /api/auth/me` | Patient/Doctor Bearer JWT | 200 `{role:"patient",patient:PatientProfile}` hoặc `{role:"doctor",doctor:DoctorProfile}`; vai trò lấy từ DB sau khi xác thực JWT |
 | `POST /api/auth/patients/register` | `{name,email,phone,password}` | Tạo Auth account + `patient_profiles` liên kết; 201 `{userId}` |
 | `POST /api/auth/doctors/register` | `{email,password,invitationCode,weeklyIntervals:WorkingInterval[]}` | Validate one-time invitation gắn **doctor profile có sẵn**; tạo Auth mapping + lịch tuần; 201 `{doctorId}` |
 | `GET /api/doctor/me` | Doctor Bearer JWT | 200 `{doctor:DoctorProfile}` |
@@ -32,6 +33,8 @@
 | `PATCH /api/doctor/notifications/{id}` | Doctor Bearer JWT; `{read:true}` | 200 `{notification:{id,readAt}}` |
 
 **Authentication:** Hai role dùng màn hình riêng và dùng Supabase Auth SDK để đăng nhập, đăng xuất và làm mới phiên. API đăng ký tạo Auth user chưa xác nhận email. Sau HTTP 201, FE gọi `supabase.auth.resend({type:"signup",email})` và hướng dẫn xác nhận email trước khi đăng nhập. Doctor dùng mã mời gắn đúng email và hồ sơ có sẵn. Migration `005` của BE1 lưu liên kết Doctor, lịch ban đầu và trạng thái đã dùng của invite trong cùng giao dịch. Khi RPC xác nhận giao dịch bị từ chối, API xóa Auth user vừa tạo. Nếu mất kết nối và chưa xác định được giao dịch đã commit hay chưa, API trả 503 để vận hành đối soát theo Auth UID trước khi thử lại.
+
+Frontend dùng `/api/auth/me` để khôi phục phiên và chuyển đúng portal. Không dùng `user_metadata` hoặc vai trò người dùng tự gửi để cấp quyền. Tài khoản Auth chưa có hồ sơ app trả 403; lỗi Auth/DB trả 503, không tự gán vai trò. Frontend chuyển email xác nhận về `/{role}/login` trên origin hiện tại; cấu hình URL này trong Supabase Redirect URLs. Migration `006` bổ sung RPC cấp mã mời chỉ cho `service_role`; xem [AUTH_SETUP.md](AUTH_SETUP.md).
 
 **Khoảng ngày:** `from` và `to` tính cả hai đầu theo ngày Việt Nam. Mặc định từ hôm nay đến hôm nay + 30 ngày. Tối đa 31 ngày lịch mỗi request. RPC chỉ sinh slot trong cửa sổ đặt lịch 31 ngày sắp tới. `GET /api/doctor/slots` dùng cùng cửa sổ và có cả slot đã bị chiếm.
 

@@ -271,8 +271,9 @@ class PatientRegistrationInput(RegistrationInput):
 
 
 class DoctorRegistrationInput(RegistrationInput, WeeklyIntervals):
-    invitationCode: str = Field(min_length=1, max_length=128, repr=False)
+    invitationCode: str = Field(min_length=24, max_length=128, repr=False)
 
+    normalize_invitation = field_validator("invitationCode", mode="before")(_normalize_text)
     validate_invitation = field_validator("invitationCode")(_reject_nul)
 
 
@@ -293,6 +294,19 @@ class PatientProfile(BaseModel):
 
 class PatientProfileResponse(BaseModel):
     patient: PatientProfile
+
+
+class PatientIdentityResponse(PatientProfileResponse):
+    role: Literal["patient"]
+
+
+class DoctorIdentityResponse(DoctorProfileResponse):
+    role: Literal["doctor"]
+
+
+AuthIdentityResponse = Annotated[
+    PatientIdentityResponse | DoctorIdentityResponse, Field(discriminator="role"),
+]
 
 
 class DoctorNotification(BaseModel):
