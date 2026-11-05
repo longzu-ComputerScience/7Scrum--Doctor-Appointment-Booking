@@ -31,9 +31,9 @@
 | `GET /api/doctor/notifications` | Doctor Bearer JWT | 200 `{notifications:DoctorNotification[]}` |
 | `PATCH /api/doctor/notifications/{id}` | Doctor Bearer JWT; `{read:true}` | 200 `{notification:{id,readAt}}` |
 
-**Authentication:** Hai role dùng màn hình riêng và dùng Supabase Auth SDK để đăng nhập, đăng xuất và làm mới phiên. API đăng ký tạo Auth user chưa xác nhận email. Sau HTTP 201, FE gọi `supabase.auth.resend({type:"signup",email})` và hướng dẫn xác nhận email trước khi đăng nhập. Doctor dùng mã mời gắn đúng email và hồ sơ có sẵn. Migration `005` của BE1 lưu liên kết Doctor, lịch ban đầu và trạng thái đã dùng của invite trong cùng giao dịch. Khi RPC xác nhận giao dịch bị từ chối, API xóa Auth user vừa tạo. Nếu mất kết nối và chưa xác định được giao dịch đã commit hay chưa, API trả 503 để vận hành đối soát theo Auth UID trước khi thử lại.
+**Authentication:** Hai role dùng màn hình riêng và dùng Supabase Auth SDK để đăng nhập, đăng xuất và làm mới phiên. Theo yêu cầu cập nhật, API đăng ký tạo Auth user với `email_confirm: true`; người dùng không cần nhận hoặc bấm email xác nhận. Sau HTTP 201, FE đăng nhập bằng email/mật khẩu và chuyển về portal đúng vai trò. Nếu tự đăng nhập thất bại, giao diện vẫn xác nhận tài khoản đã tạo và cho phép đăng nhập lại. Doctor dùng mã mời gắn đúng email và hồ sơ có sẵn. Migration `005` của BE1 lưu liên kết Doctor, lịch ban đầu và trạng thái đã dùng của invite trong cùng giao dịch. Khi RPC xác nhận giao dịch bị từ chối, API xóa Auth user vừa tạo. Nếu mất kết nối và chưa xác định được giao dịch đã commit hay chưa, API trả 503 để vận hành đối soát theo Auth UID trước khi thử lại.
 
-Frontend dùng `/api/auth/me` để khôi phục phiên và chuyển đúng portal. Không dùng `user_metadata` hoặc vai trò người dùng tự gửi để cấp quyền. Tài khoản Auth chưa có hồ sơ app trả 403; lỗi Auth/DB trả 503, không tự gán vai trò. Frontend chuyển email xác nhận về `/{role}/login` trên origin hiện tại; cấu hình URL này trong Supabase Redirect URLs. Migration `006` bổ sung RPC cấp mã mời chỉ cho `service_role`; xem [AUTH_SETUP.md](AUTH_SETUP.md).
+Frontend dùng `/api/auth/me` để khôi phục phiên và chuyển đúng portal. Không dùng `user_metadata` hoặc vai trò người dùng tự gửi để cấp quyền. Tài khoản Auth chưa có hồ sơ app trả 403; lỗi Auth/DB trả 503, không tự gán vai trò. Luồng đăng ký không gửi email xác nhận hoặc yêu cầu URL callback email. Migration `006` bổ sung RPC cấp mã mời chỉ cho `service_role`; xem [AUTH_SETUP.md](AUTH_SETUP.md).
 
 **Khoảng ngày:** `from` và `to` tính cả hai đầu theo ngày Việt Nam. Mặc định từ hôm nay đến hôm nay + 30 ngày. Tối đa 31 ngày lịch mỗi request. RPC chỉ sinh slot trong cửa sổ đặt lịch 31 ngày sắp tới. `GET /api/doctor/slots` dùng cùng cửa sổ và có cả slot đã bị chiếm.
 
@@ -153,7 +153,7 @@ HTTP/1.1 200 OK
 
 Sau khi BE1 áp dụng migration `005`, dùng mã mời và hồ sơ Doctor thử nghiệm, hai Patient và một Doctor khác để kiểm tra quyền. Cấu hình URL và service-role key chỉ trong môi trường backend.
 
-1. Đăng ký Doctor, xác nhận email, đăng nhập, kiểm tra `GET /api/doctor/schedule` và lấy slot 30 phút từ availability. Đăng ký Patient và đối chiếu `GET /api/patient/me`.
+1. Đăng ký Doctor và đăng nhập ngay, kiểm tra `GET /api/doctor/schedule` và lấy slot 30 phút từ availability. Đăng ký Patient, đăng nhập ngay và đối chiếu `GET /api/patient/me`. Không xác nhận email hoặc cập nhật tài khoản bằng Admin API giữa đăng ký và đăng nhập.
 2. Dùng hai Patient JWT gửi đồng thời cùng một `slotId`. Xác minh đúng một HTTP 201, một HTTP 409, một booking `confirmed` và một notification trong DB. Kiểm tra JWT thiếu/sai và JWT Doctor gọi booking.
 3. Kiểm tra notification và upcoming của đúng Doctor. Dùng Doctor khác gọi PATCH để kiểm tra quyền. Gửi lại PATCH đọc cùng notification và đối chiếu `readAt`.
 4. Đổi lịch khiến slot đã đặt nằm ngoài giờ làm. Xác minh 409 và GET vẫn trả phiên bản trước. Hủy lịch hẹn, kiểm tra slot xuất hiện lại nếu còn đủ điều kiện và kiểm tra cập nhật calendar/dashboard khi reconnect.

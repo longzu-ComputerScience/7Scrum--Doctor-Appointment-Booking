@@ -156,12 +156,12 @@ def test_profile_database_failure_never_falls_back_to_a_different_role(auth):
     assert client.get("/api/auth/me", headers=headers()).status_code == 503
 
 
-def test_patient_registration_creates_unconfirmed_user_and_linked_profile(auth):
+def test_patient_registration_creates_immediately_usable_user_and_linked_profile(auth):
     client, provider = auth
     response = client.post("/api/auth/patients/register", json=patient_body())
     assert response.status_code == 201
     assert response.json() == {"userId": PATIENT_ID}
-    assert provider.created == [{"email": "synthetic@example.invalid", "password": PASSWORD, "email_confirm": False}]
+    assert provider.created == [{"email": "synthetic@example.invalid", "password": PASSWORD, "email_confirm": True}]
     assert provider.rpc_calls == [("save_patient_profile", {
         "p_user_id": PATIENT_ID, "p_full_name": "Synthetic Patient", "p_phone": "0900000000",
     })]
@@ -177,7 +177,7 @@ def test_doctor_registration_atomically_links_invitation_and_weekly_hours(auth):
         "p_user_id": PATIENT_ID, "p_invite_code": INVITE,
         "p_intervals": [{"weekday": 1, "startMinute": 540, "endMinute": 720}],
     })]
-    assert provider.created[0]["email_confirm"] is False
+    assert provider.created[0]["email_confirm"] is True
     assert INVITE not in response.text and PASSWORD not in response.text
 
 
