@@ -48,12 +48,26 @@ def test_emergency_guardrail(client):
     assert data["urgent"] is True
     assert data["doctors"] == []
 
-def test_booking_refuses_to_fake_success(client):
+def test_booking_requires_auth(client):
     response = client.post("/api/appointments", json={
         "slotId": "30000000-0000-4000-8000-000000000109",
         "patientName": "Demo Patient", "patientPhone": "0900000000",
     })
+    assert response.status_code == 401
+    assert response.json()["error"] == "Login required"
+
+
+def test_booking_refuses_to_fake_success(client):
+    # A Bearer header passes request authentication syntax, but without a
+    # configured database no booking can be written or reported as confirmed.
+    response = client.post("/api/appointments", headers={
+        "Authorization": "Bearer patient-jwt",
+    }, json={
+        "slotId": "30000000-0000-4000-8000-000000000109",
+        "patientName": "Demo Patient", "patientPhone": "0900000000",
+    })
     assert response.status_code == 503
+    assert "status" not in response.json()
 
 @pytest.mark.parametrize("payload", [
     {"slotId": "bad", "patientName": "Demo", "patientPhone": "0900000000"},
@@ -61,7 +75,13 @@ def test_booking_refuses_to_fake_success(client):
     {"slotId": "30000000-0000-4000-8000-000000000109", "patientName": "Demo", "patientPhone": "bad"},
 ])
 def test_booking_validation(client, payload):
-    assert client.post("/api/appointments", json=payload).status_code == 422
+    # Supply a syntactically valid Bearer header so request-body validation
+    # is tested independently of the unauthenticated (401) behavior.
+    response = client.post("/api/appointments", headers={
+        "Authorization": "Bearer patient-jwt",
+    }, json=payload)
+    assert response.status_code == 422
+    assert response.json()["error"] == "Invalid input"
 
 def test_staff_requires_auth(client):
     assert client.get("/api/staff/appointments").status_code == 401
@@ -72,12 +92,43 @@ def test_transitions():
     assert not ALLOWED_TRANSITIONS["completed"]
 
 def test_conflict_returns_409(client, monkeypatch):
-    def fail(_payload):
+    def fail(_payload, token):
+        assert token == "patient-jwt"
         raise HTTPException(409, "Slot is no longer available")
+
     monkeypatch.setattr(main, "create_booking", fail)
-    response = client.post("/api/appointments", json={
+    response = client.post("/api/appointments", headers={
+        "Authorization": "Bearer patient-jwt",
+    }, json={
         "slotId": "30000000-0000-4000-8000-000000000109",
         "patientName": "Demo Patient", "patientPhone": "0900000000",
     })
     assert response.status_code == 409
-    assert "Slot" in response.json()["error"]
+    assert response.json() == {"error": "Slot is no longer available"}
+
+
+def test_booking_confirmed_response_contract(client, monkeypatch):
+    appointment_id = "50000000-0000-4000-8000-000000000001"
+
+    def confirmed(payload, token):
+        assert token == "patient-jwt"
+        assert str(payload.slotId) == "30000000-0000-4000-8000-000000000109"
+        return {
+            "appointmentId": appointment_id,
+            "bookingReference": "A1B2C3D4E5F6",
+            "status": "confirmed",
+        }
+
+    monkeypatch.setattr(main, "create_booking", confirmed)
+    response = client.post("/api/appointments", headers={
+        "Authorization": "Bearer patient-jwt",
+    }, json={
+        "slotId": "30000000-0000-4000-8000-000000000109",
+        "patientName": "Demo Patient", "patientPhone": "0900000000",
+    })
+    assert response.status_code == 201
+    assert response.json() == {
+        "appointmentId": appointment_id,
+        "bookingReference": "A1B2C3D4E5F6",
+        "status": "confirmed",
+    }
