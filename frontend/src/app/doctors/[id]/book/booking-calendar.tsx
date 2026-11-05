@@ -1,23 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import type { AppointmentSlot } from "@/lib/types";
-import { dateKey, formatDay, formatMonth } from "./booking-utils";
+import { dateKey, formatDay, formatMonth, type BookingRange, type BookingSlot } from "./booking-utils";
 import { BookingIcon } from "./booking-dialog";
 import styles from "./booking.module.css";
 
-type Props = { slots: AppointmentSlot[]; selectedDate: string; onSelect: (date: string) => void; disabled: boolean };
+type Props = { slots: BookingSlot[]; range: BookingRange; selectedDate: string; onSelect: (date: string) => void; disabled: boolean };
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function BookingCalendar({ slots, selectedDate, onSelect, disabled }: Props) {
+export function BookingCalendar({ slots, range, selectedDate, onSelect, disabled }: Props) {
   const today = dateKey(new Date().toISOString());
   const [month, setMonth] = useState(() => (selectedDate || today).slice(0, 7));
   const [year, monthNumber] = month.split("-").map(Number);
   const monthLabel = formatMonth(month + "-01T00:00:00+07:00");
   const offset = (new Date(Date.UTC(year, monthNumber - 1, 1)).getUTCDay() + 6) % 7;
   const days = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
-  const dates = new Set(slots.map((slot) => dateKey(slot.startAt)));
-  const lastMonth = slots.length ? dateKey(slots[slots.length - 1].startAt).slice(0, 7) : today.slice(0, 7);
+  const dates = new Set(slots.filter(slot => slot.available).map((slot) => dateKey(slot.startAt)));
+  const lastMonth = range.to.slice(0, 7);
 
   function moveMonth(amount: number) {
     const next = new Date(Date.UTC(year, monthNumber - 1 + amount, 1));
@@ -36,7 +35,7 @@ export function BookingCalendar({ slots, selectedDate, onSelect, disabled }: Pro
       {Array.from({ length: days }, (_, index) => {
         const day = index + 1;
         const key = `${month}-${String(day).padStart(2, "0")}`;
-        const available = dates.has(key) && key >= today;
+        const available = dates.has(key) && key >= today && key >= range.from && key <= range.to;
         return <button type="button" key={key} className={`${styles.day} ${key === selectedDate ? styles.selectedDay : ""}`} disabled={disabled || !available}
           aria-pressed={key === selectedDate} aria-current={key === today ? "date" : undefined}
           aria-label={`${formatDay(key + "T00:00:00+07:00")}${available ? ", available" : ", unavailable"}`}
