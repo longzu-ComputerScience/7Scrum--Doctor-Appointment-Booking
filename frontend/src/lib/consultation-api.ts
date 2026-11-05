@@ -1,4 +1,5 @@
 import { ContractApiError, isRecord, isUuid, requestJson } from "./contract-api";
+import { specialtyMatches } from "./specialty-handoff";
 
 /** Only backend catalog records with a verifiable UUID can lead to the booking flow. */
 export type ConsultationDoctor = {
@@ -53,6 +54,28 @@ export function parseConsultation(value: unknown): ConsultationResult {
     specialty: value.specialty, urgent: value.urgent, mode: value.mode,
     usedAI: value.usedAI, demoMode: value.demoMode, doctors,
   };
+}
+
+/** Older Render builds return a specialty but omit the doctor cards in demo mode.
+ * Resolve missing cards only from the public, backend-validated catalog. No
+ * synthetic identities are generated in the browser and no booking is created.
+ */
+export async function withCatalogSuggestions(result: ConsultationResult, signal?: AbortSignal): Promise<ConsultationResult> {
+  if (result.urgent || result.followUpRequired || !result.specialty || result.doctors.length > 0) return result;
+  try {
+    const query = new URLSearchParams({ specialty: result.specialty });
+    const body = await requestJson("/api/doctors?" + query, { signal });
+    if (!isRecord(body) || typeof body.demoMode !== "boolean" || !Array.isArray(body.doctors)) return result;
+    const candidates = body.doctors.filter(row =>
+      isRecord(row) && typeof row.specialty === "string" &&
+      specialtyMatches(row.specialty, result.specialty)
+    ).slice(0, 5);
+    if (!candidates.length) return result;
+    return parseConsultation({ ...result, doctors: candidates, demoMode: body.demoMode });
+  } catch {
+    // Catalog may be offline; preserve the verified consultation result.
+    return result;
+  }
 }
 
 export function responseSource(result: ConsultationResult): string {

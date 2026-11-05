@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiMessage } from "@/lib/contract-api";
-import { aiApiStatus, postConsultation, responseSource, scriptedReplyOptions, type ConsultationResult, type AiApiStatus } from "@/lib/consultation-api";
+import { aiApiStatus, postConsultation, responseSource, scriptedReplyOptions, withCatalogSuggestions, type ConsultationResult, type AiApiStatus } from "@/lib/consultation-api";
 import { doctorForDisplay } from "@/lib/doctor-display";
 import styles from "./consultation.module.css";
 
@@ -57,7 +57,9 @@ export function Consultation({ onExploreSpecialty, onChooseDoctor, canExploreDoc
     }
     try {
       const nextMessages = [...submittedMessages, clean];
-      const answer = await postConsultation(nextMessages);
+      const consulted = await postConsultation(nextMessages);
+      // Preserve doctor suggestions even when a deployed older backend omits cards.
+      const answer = await withCatalogSuggestions(consulted, AbortSignal.timeout(3500));
       setSubmittedMessages(nextMessages);
       setHistory(previous => [...previous, { role: "assistant", text: answer.reply, source: responseSource(answer) }]);
       setResult(answer);

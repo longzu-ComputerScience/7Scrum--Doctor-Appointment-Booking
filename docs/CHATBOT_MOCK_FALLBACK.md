@@ -8,7 +8,7 @@ When the configured OpenAI/Gemini provider is unavailable (no key, invalid respo
 
 1. Open Carely chatbot and type **Tôi bị nổi mẩn đỏ**.
 2. The assistant asks a relevant follow-up question. Select **Khoảng 2 ngày** or type your answer.
-3. The assistant suggests Dermatology (Da liễu) and displays up to five doctor cards from the existing backend catalog.
+3. The assistant suggests Dermatology (Da liễu) and displays up to five doctor cards from the existing backend catalog. If an older Render version returns only the specialty without cards, the frontend performs a read-only specialty-filtered GET /api/doctors and validates the returned public catalog records. It never creates doctor IDs locally.
 4. Click **Choose a time** on a real doctor. The app opens the existing doctor booking page, which fetches available 30-minute slots from the server. A signed-in Patient selects a slot and confirms in the existing booking form. No chat message creates an appointment.
 5. If Supabase is not configured, the doctor card is explicitly marked **Demo** and the CTA is **Preview sample schedule**. The booking page shows sample time slots but disables confirmation.
 
