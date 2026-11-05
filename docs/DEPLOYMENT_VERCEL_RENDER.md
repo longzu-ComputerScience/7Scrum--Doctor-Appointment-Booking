@@ -1,64 +1,81 @@
-# Production deployment: Vercel frontend + Render backend
+# Production configuration: Vercel Next.js + Render FastAPI + Supabase
 
-This is a **staged cutover checklist**. Do not merge the accompanying
-frontend-only configuration PR until the Render URL and Vercel project settings
-have been verified. No application source tree or API contracts are changed.
+This document records the **two separate Vercel projects** attached to the
+same 7Scrum Git repository (checked on 2026-11-05). The user reports the
+Vercel–Render–Supabase path is working. Do not disrupt it to remove legacy
+configuration.
 
-## Architecture
+## Current deployments
 
-- **Vercel:** Next.js from `frontend/`; public Patient/Doctor UI and Supabase
-  browser Auth (anon key only).
-- **Render:** FastAPI from `backend/`; server-side Supabase access, booking and
-  consultation endpoints.
-- **Supabase:** shared Auth/PostgreSQL. Never expose the service-role key to
-  the browser or Next.js client bundle.
-- **API:** frontend uses same-origin `/api/*`. The Next.js rewrite in
-  `frontend/next.config.ts` forwards it to `BACKEND_URL/api/*`.
+| Vercel project | Framework | Production domain / role |
+| --- | --- | --- |
+| `7-scrum` | Next.js | `https://7-scrum.vercel.app` — frontend-only target |
+| `7scrum--doctor-appointment-booking` | Services | `https://7scrum-doctor-appointment-booking-sage.vercel.app` — legacy multi-service deployment |
 
-## Prerequisites (before merging)
+The new `7-scrum` project's Vercel environment **lists**
+`BACKEND_URL`, `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` for both Production and Preview. Their
+values and actual API responses were **not independently verified**.
+`BACKEND_URL` must be the Render service's HTTPS **origin**, without `/api`.
 
-1. Verify the **real** HTTPS Render service origin. Do not use an example URL
-   or append `/api`. On Render, set `SUPABASE_URL` and
-   `SUPABASE_SERVICE_ROLE_KEY` as secrets. Typical Render settings:
-   root `backend`, build `pip install -r requirements.txt`, start
-   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-2. On the Render origin, check `GET /api/health` returns 200 with
-   `databaseConfigured: true`, then `GET /api/doctors` returns 200 with
-   `demoMode: false` and the expected catalog. Health checks for configured
-   environment variables, **not** a successful database query.
-3. In the **existing Vercel project**, configure Production env vars:
-   - `BACKEND_URL` = actual Render **HTTPS origin** (no `/api` suffix);
-   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-   Set a separate safe Preview backend if previews must exercise live APIs.
-   Do not connect unreviewed Preview code to production patient data.
-4. Coordinate the cutover to **Framework Preset: Next.js** and **Root Directory:
-   `frontend`** (Production Branch: `main`). The previous root
-   `vercel.json` defined Vercel Services, so a dashboard-only or code-only
-   change is insufficient. Make the settings change and merge together, then
-   deploy from `main`. Keep the previous production deployment available for
-   rollback.
-5. Only **after** confirming that Vercel is frontend-only, remove
-   `SUPABASE_SERVICE_ROLE_KEY` and server-side `SUPABASE_URL` from Vercel if
-   they are no longer required. Both belong on Render in the target design.
+The repository's root `vercel.json` still configures the **legacy Services**
+project; it is intentionally **preserved**. The Next.js project should
+use `frontend/` as its Vercel Root Directory so that file is outside its
+configuration scope. Confirm the Root Directory in the Vercel dashboard:
+the project inspection API did not expose that setting.
 
-## Smoke tests after the cutover
+## Frontend-only data flow
 
-1. Existing public domain loads the Next.js homepage.
-2. Public domain `/api/health` returns 200 and
-   `databaseConfigured: true` via Render (not localhost/Vercel FastAPI).
-3. Public domain `/api/doctors` returns `demoMode: false` and correct doctors.
-4. Patient/Doctor authentication, authorized requests, 30-minute calendar,
-   booking confirmation/409 conflict and notifications work with the same DB.
-5. Verify Render runtime logs and Vercel deployment logs for errors; do not
-   mark E2E passing solely on `READY` status.
+```text
+Browser -> Vercel Next.js (frontend/)
+           | /api/* via next.config.ts using BACKEND_URL
+           v
+           Render FastAPI (backend/)
+           |
+           v
+           Supabase (Auth / PostgreSQL / RPC)
+```
+
+- Keep frontend calls relative (`/api/...`); do not hard-code the Render
+  hostname inside application components.
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are safe
+  browser credentials (subject to Supabase RLS policies).
+- Only Render should need `SUPABASE_SERVICE_ROLE_KEY`. Never put this secret
+  in frontend code or a `NEXT_PUBLIC_*` variable.
+- `frontend/next.config.ts` accepts localhost for local development/CI, but
+  **fails Vercel Production builds** when `BACKEND_URL` is missing, is not an
+  origin, or is not HTTPS. A failed build should not replace an existing
+  ready production deployment.
+
+## Verification before approving configuration changes
+
+1. Check `7-scrum` Vercel project **Root Directory = frontend** and
+   **Framework = Next.js**. Keep `main` as Production Branch.
+2. Confirm that `BACKEND_URL` points to the real Render HTTPS origin (no
+   `/api` suffix), not a placeholder or a localhost address.
+3. At the Render URL, `GET /api/health` must return HTTP 200 with
+   `databaseConfigured: true`. This checks only env presence, not DB access.
+4. At `https://7-scrum.vercel.app/api/doctors`, check HTTP 200 with
+   `demoMode: false` and expected catalog records. This establishes a
+   successful backend catalog query when routed through Render.
+5. Exercise Patient/Doctor login, calendar, booking confirmation/409 conflict,
+   notifications and role isolation before calling the end-to-end flow done.
+6. Review GitHub Actions CI and the new `7-scrum` Vercel Preview deployment.
+   An unrelated **legacy Services** preview failure must be investigated
+   separately, not confused with the new Next.js project status.
+
+## Legacy project and old domain
+
+Do **not** remove the root `vercel.json`, switch framework settings on the
+legacy project, delete its secrets or move the old
+`7scrum-doctor-appointment-booking-sage.vercel.app` domain as part of this
+configuration-only change. Domain migration or legacy project retirement
+requires an explicit separate cutover after verification.
 
 ## Rollback
 
-If the frontend-only deployment fails, restore the previous Vercel Production
-deployment and its matching **Services** framework/root settings and the old
-`vercel.json` from git. Do not delete Render or rotate Supabase keys as a
-first response. Keep the known-working production deployment available until
-the smoke tests pass.
-
-**Important:** the deployment URL and actual environment variable values are
-managed in Vercel/Render dashboards, not committed to GitHub.
+For the new Next.js project, retain its previous READY Production deployment
+and promote/restore it if a new deploy fails. Revert the change in
+`frontend/next.config.ts` if needed. Do not alter the Render database,
+Supabase keys or the separate legacy Services project to roll back a
+frontend config change.
