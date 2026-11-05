@@ -1,17 +1,21 @@
 """Bounded AI tool call: extract filters; database owns doctor records."""
+import asyncio
 import json
 import os
 import re
 
 import httpx
+from starlette.concurrency import run_in_threadpool
 
 from app.service import search_doctors
 
 URGENT = re.compile(
-    r"đau ngực dữ dội|khó thở (?:nghiêm trọng|dữ dội|cấp tính)|bất tỉnh|"
-    r"co giật liên tục|chảy máu không cầm|severe chest pain|difficulty breathing|unconscious",
+    r"đau ngực (?:rất )?dữ dội|khó thở (?:(?:rất )?nghiêm trọng|dữ dội|cấp tính)|bất tỉnh|"
+    r"co giật liên tục|chảy máu không (?:thể )?cầm|severe chest pain|difficulty breathing|unconscious",
     re.IGNORECASE,
 )
+FILTER_LIMITS = {"specialty": 80, "district": 80, "keyword": 100}
+AI_TIMEOUT_SECONDS = 10
 
 
 def conservative_filters(message: str) -> dict[str, str | None]:
@@ -19,7 +23,7 @@ def conservative_filters(message: str) -> dict[str, str | None]:
     specialty = (
         "Da liễu" if re.search(r"da liễu|mụn|nổi mẩn|dermatology", text)
         else "Tim mạch" if re.search(r"tim mạch|cardiology", text)
-        else "Nội tổng quát" if re.search(r"nội tổng quát|general medicine", text)
+        else "Nội tổng quát" if re.search(r"(?:nội|khám) tổng quát|general medicine", text)
         else None
     )
     district = (
@@ -67,7 +71,7 @@ async def extract_filters_with_ai(message: str) -> dict[str, str | None]:
         "tool_choice": "required",
         "max_output_tokens": 200,
     }
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client:
         response = await client.post(
             "https://api.openai.com/v1/responses",
             headers={
@@ -78,22 +82,40 @@ async def extract_filters_with_ai(message: str) -> dict[str, str | None]:
         )
         response.raise_for_status()
         body = response.json()
-    tool_call = next(
-        (
-            item for item in body.get("output", [])
-            if item.get("type") == "function_call" and item.get("name") == "search_doctors"
-        ),
-        None,
-    )
-    if not tool_call:
-        raise ValueError("No search_doctors function call returned")
-    args = json.loads(tool_call["arguments"])
-    if not isinstance(args, dict):
+    if not isinstance(body, dict) or body.get("status", "completed") != "completed":
+        raise ValueError("Invalid AI response")
+    output = body.get("output")
+    if not isinstance(output, list) or not all(isinstance(item, dict) for item in output):
+        raise ValueError("Invalid AI output")
+    calls = [item for item in output if item.get("type") == "function_call"]
+    if len(calls) != 1 or calls[0].get("name") != "search_doctors":
+        raise ValueError("Expected one search_doctors function call")
+    if calls[0].get("status") not in (None, "completed"):
+        raise ValueError("AI tool call did not complete")
+    arguments = calls[0].get("arguments")
+    if not isinstance(arguments, str):
         raise ValueError("Invalid AI tool arguments")
-    return {
-        field: value.strip()[:limit] if isinstance(value := args.get(field), str) else None
-        for field, limit in (("specialty", 80), ("district", 80), ("keyword", 100))
-    }
+    args = json.loads(arguments)
+    if not isinstance(args, dict) or args.keys() != FILTER_LIMITS.keys():
+        raise ValueError("Invalid AI tool arguments")
+    filters = {}
+    for field, limit in FILTER_LIMITS.items():
+        value = args[field]
+        if value is not None and (not isinstance(value, str) or not value.strip() or len(value.strip()) > limit):
+            raise ValueError("Invalid AI filter value")
+        filters[field] = value.strip() if value is not None else None
+    return filters
+
+
+async def try_ai_filters(message: str) -> dict[str, str | None] | None:
+    if not os.getenv("OPENAI_API_KEY"):
+        return None
+    try:
+        # HTTPX timeouts apply to individual network operations.
+        async with asyncio.timeout(AI_TIMEOUT_SECONDS):
+            return await extract_filters_with_ai(message)
+    except (TimeoutError, httpx.HTTPError, ValueError, KeyError):
+        return None
 
 
 async def search_from_message(message: str) -> dict:
@@ -108,23 +130,14 @@ async def search_from_message(message: str) -> dict:
                 "Hệ thống này không chẩn đoán bệnh."
             ),
         }
-    filters = conservative_filters(message)
-    used_ai = False
-    if os.getenv("OPENAI_API_KEY"):
-        try:
-            filters = await extract_filters_with_ai(message)
-            used_ai = True
-        except (httpx.HTTPError, ValueError, KeyError, json.JSONDecodeError):
-            # The app remains useful if provider times out or returns invalid JSON.
-            pass
+    ai_filters = await try_ai_filters(message)
+    filters = ai_filters if ai_filters is not None else conservative_filters(message)
     # Result lookup is independent of AI: AI never gets to invent a doctor.
-    from starlette.concurrency import run_in_threadpool
-
     result = await run_in_threadpool(search_doctors, **filters)
     return {
         **result,
         "filters": filters,
-        "usedAI": used_ai,
+        "usedAI": ai_filters is not None,
         "urgent": False,
         "message": (
             "Đây là các bác sĩ có trong danh mục phù hợp với yêu cầu. "

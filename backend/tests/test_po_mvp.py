@@ -25,8 +25,10 @@ def test_chatbot_followup_and_dermatology(monkeypatch):
     data = second.json()
     assert data["followUpRequired"] is False
     assert data["specialty"] == "Da liễu"
-    assert len(data["doctors"]) == 1
-    assert data["mode"] == "controlled-prototype"
+    # No configured catalog: never present demo doctors as real recommendations.
+    assert data["doctors"] == []
+    assert data["demoMode"] is True
+    assert data["mode"] == "rule-based"
 
 
 def test_consultation_emergency_and_validation(monkeypatch):
