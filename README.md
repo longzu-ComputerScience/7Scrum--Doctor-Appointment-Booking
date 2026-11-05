@@ -2,11 +2,13 @@
 
 48-hour scheduling MVP with **Next.js frontend**, **FastAPI backend** and **Supabase PostgreSQL/Auth**. The PO approved **3 must-have User Stories (US-01/02/03)**; production deployment is optional.
 
+> **PRD mới:** [Doctor recurring schedule — Update requirements](https://docs.google.com/document/d/1Ay61Cs7Y5W_piJL4S_7fYOfK59wD9u85irrZQ38hv4s/edit?tab=t.e6mixvt2az0i). Mục tiêu: Patient/Doctor Auth, Doctor lịch tuần định kỳ và tự sinh slot 30 phút, Patient đặt lịch **201 confirmed** (không cần Doctor xác nhận), Doctor notifications/upcoming/effective-date schedule changes. Contract: [API_CONTRACT_V2.md](docs/API_CONTRACT_V2.md); database target: [DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md); tình trạng code thật: [DOCS_GUIDE.md](docs/DOCS_GUIDE.md). **Main có PR #27–#30 và #38–#40 đã merge nhưng chưa đủ PRD mới.**
+
 ## Repository structure
 
-- `frontend/` — Next.js 16 + TypeScript. UI, Supabase Auth login for clinic staff, and an API reverse proxy. **No business/API Route Handlers**.
-- `backend/` — FastAPI + Python 3.12. Controlled chatbot follow-up, doctor search, clinic-created availability, atomic confirmed booking via PostgreSQL RPC, clinic-staff authorization.
-- `supabase/` — PostgreSQL schema and fictional seed catalog.
+- `frontend/` — Next.js 16 + TypeScript. Patient booking UI PR #27, Doctor List PR #30, legacy Staff page còn tồn tại; phải bổ sung Patient/Doctor Auth, weekly editor, Doctor Dashboard/notifications. Next.js proxy `/api/*` tới FastAPI.
+- `backend/` — FastAPI + Python 3.12. Doctor auth mapping và endpoints đã merge #39/#40; cần recurring schedule API, Patient JWT booking auto-confirm, generated availability và notifications theo Contract mới.
+- `supabase/` — PostgreSQL schema/migrations. `schema_v2.sql`/001 là **legacy bootstrap**, 003 staff và 004 doctor_accounts/manual-slot RPC; weekly schedules/notifications cần **migration mới**, không sửa lại SQL đã áp dụng.
 - `docs/` — API contract, user stories, team workflow, Definition of Done and release evidence.
 - `.github/workflows/ci.yml` — independent Node and Python checks.
 
@@ -38,9 +40,9 @@ Visit `http://localhost:3000`. Next.js proxies `/api/*` to FastAPI using the ser
 
 ### 3. Supabase
 
-For real booking, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in **backend/.env**, apply `supabase/migrations/001_init.sql`, then `supabase/migrations/002_po_mvp_schedule.sql`, then `supabase/seed.sql` through Supabase SQL Editor. Create a staff user in Supabase Auth and insert its ID into `staff_members` as described in the seed file.
+**Kiểm tra DB thật trước khi làm gì:** các migration `001–004` là trạng thái lịch sử, `schema_v2.sql` chỉ bootstrap DB trống và chưa có weekly hours/notifications. **Không chạy lại hoặc sửa đè migrations đã apply, không chạy schema_v2 trên DB có dữ liệu**. BE1 #31 phải audit/backup, tạo migration *additive* mới và phối hợp BE2 #32 ở RPC/booking status. Chỉ xác nhận V2 đã chạy sau DB inspection/test. `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY` chỉ nằm trong **backend/.env**, không commit.
 
-Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` **only** in frontend for staff authentication. The service role key is always backend-only.
+Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` **only** in frontend for Patient/Doctor authentication. The service role key is always backend-only.
 
 If Supabase is not configured, the doctor catalog and slot previews use fictional demo data and booking responds with HTTP 503 (never a fake success). An optional `OPENAI_API_KEY` in the backend enables AI-assisted doctor search; keyword fallback works without it.
 
@@ -57,7 +59,7 @@ python -m pytest -q
 python -m ruff check .
 ```
 
-Live Supabase double-booking, staff Auth, Vercel deployment and OpenAI calls require real credentials and dedicated integration testing before release.
+Live Supabase double-booking, Doctor/Patient Auth, recurring schedule and notifications require real integration testing; Vercel deployment remains optional.
 
 ## Deploy on Vercel
 
@@ -70,14 +72,14 @@ No deployment is performed by the repository refactor itself.
 
 ## Team workflow
 
-One issue per branch/PR. Before work, read `docs/USER_STORIES.md`, `docs/DEFINITION_OF_DONE.md`, `docs/TEAM_WORKFLOW.md`, `docs/API_CONTRACT.md` and GitHub issues. Release readiness and human/PO sign-off are tracked in `docs/RELEASE_CHECKLIST.md`. Never commit API keys or actual patient information. The assistant is a scheduling/search aid, **not a diagnostic service**.
+Sáu issue chính: **#31 BE1, #32 BE2, #33 FE1, #34 FE2, #35 Tester, #36 Lead** (gồm việc US-02 còn thiếu và US-03 mới). Đọc `docs/DOCS_GUIDE.md`, `docs/USER_STORIES.md`, `docs/API_CONTRACT_V2.md`, `docs/DATA_DICTIONARY.md`, `docs/TEAM_WORKFLOW.md`, `docs/DEFINITION_OF_DONE.md`. `docs/legacy/API_CONTRACT.md` là legacy. PR cần review và test; không commit keys hoặc dữ liệu bệnh nhân thật.
 
 ## PO-approved scope (2026-11-04)
 
-**US-01:** symptom chatbot with basic follow-up and specialty suggestion. **US-02:** doctor selection, persistent confirmed booking, double-booking prevention. **US-03:** staff creates slots and sees confirmed patient appointments. Full PO requirements and two-day plan: `docs/USER_STORIES.md`, `docs/SPRINT_PLAN.md`, `docs/ISSUE_MAPPING.md`, `docs/ACCEPTANCE_SCENARIO.md`.
+**US-01:** chatbot follow-up/specialty. **US-02:** Patient đăng nhập, chọn Doctor và auto-derived 30-minute slot, booking atomic `confirmed`, double-book 409, popup đúng. **US-03:** Doctor invitation-register/chọn weekly working hours, dashboard sửa lịch theo effectiveDate (block conflicts), notifications/upcoming/status `confirmed/completed/cancelled`. Không clinic staff manual slot.
 
-**Important:** Apply both SQL migrations in order. Migration 002 makes bookings immediately confirmed for the demo and protects overlapping slots. The optional controlled chatbot prototype is not a medical diagnosis system.
+**Important:** Target API ở `docs/API_CONTRACT_V2.md` **chưa triển khai hết**. `schema_v2.sql` là bootstrap lịch sử; migration mới phải bổ sung recurring schedule, roles, booking+notification. Không coi merged PR/CI là PO sign-off.
 
 ## Issue execution order
 
-See **[Two-day execution order (Vietnamese)](docs/EXECUTION_ORDER.md)** for immediate tasks, prerequisites, and work that FE/BE/QA can do in parallel.
+See [Team workflow — ownership, issue mapping, execution order and sprint handoff](docs/TEAM_WORKFLOW.md).
