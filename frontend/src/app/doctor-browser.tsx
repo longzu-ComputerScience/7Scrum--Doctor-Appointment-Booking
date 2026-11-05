@@ -7,6 +7,7 @@ import { doctorForDisplay, type CatalogDoctor } from "@/lib/doctor-display";
 import { DoctorAvailability } from "./doctor-availability";
 import styles from "./doctor-browser.module.css";
 import { loadDiscoveryCatalog } from "@/lib/doctor-catalog";
+import { loadSpecialtyOptions } from "@/lib/specialty-options";
 import { apiMessage } from "@/lib/contract-api";
 import { canonicalSpecialty, discoveryHref, doctorBookingHref, readDiscoveryContext } from "@/lib/specialty-handoff";
 
@@ -40,7 +41,11 @@ function DoctorDiscovery({ query }: { query: string }) {
   const params = useSearchParams();
   const router = useRouter();
   const { specialty, doctorId } = readDiscoveryContext(params);
-  const filterKey = JSON.stringify([specialty, query]);
+  // A prop-aware override avoids synchronously setting state in an effect.
+  const [keywordOverride, setKeywordOverride] = useState<{ query: string; value: string } | null>(null);
+  const keyword = keywordOverride?.query === query ? keywordOverride.value : query;
+  const [district, setDistrict] = useState("");
+  const filterKey = JSON.stringify([specialty, keyword, district]);
   const [loadedCatalog, setCatalog] = useState<Catalog>(initialCatalog);
   const catalog = loadedCatalog.key === filterKey ? loadedCatalog : initialCatalog;
   const [attempt, setAttempt] = useState(0);
@@ -48,9 +53,17 @@ function DoctorDiscovery({ query }: { query: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    void loadSpecialtyOptions(controller.signal).then(setSpecialties).catch(() => {
+      // Catalog loading below can still supply options.
+    });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     async function load() {
       try {
-        const data = await loadDiscoveryCatalog(specialty, query, controller.signal);
+        const data = await loadDiscoveryCatalog(specialty, keyword, controller.signal, district);
         if (!controller.signal.aborted) {
           setCatalog({ status: "ready", doctors: data.doctors.map(doctorForDisplay), demoMode: data.demoMode, key: filterKey });
           setSpecialties(current => [...new Map([...current, ...data.doctors.map(d => ({ value: canonicalSpecialty(d.specialty)!, label: doctorForDisplay(d).specialty }))].map(item => [item.value, item])).values()]);
@@ -62,9 +75,9 @@ function DoctorDiscovery({ query }: { query: string }) {
       }
     }
     // Search and specialty are filtered by the API before its 100-row cap.
-    const timer = window.setTimeout(() => { setCatalog(initialCatalog); void load(); }, query ? 250 : 0);
+    const timer = window.setTimeout(() => { setCatalog(initialCatalog); void load(); }, keyword || district ? 280 : 0);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [attempt, specialty, query, filterKey]);
+  }, [attempt, specialty, keyword, district, filterKey]);
 
   const doctors = catalog.doctors;
   // Resolve the selection from the visible list so filters never show an unrelated profile.
@@ -116,12 +129,25 @@ function DoctorDiscovery({ query }: { query: string }) {
                 <strong>Specialists</strong>
                 <span role="status">{doctors.length} {doctors.length === 1 ? "doctor" : "doctors"}{doctors.length >= 100 ? " · refine your search" : ""}</span>
               </div>
-              <div className="specialty-filters" role="group" aria-label="Filter by specialty">
-                <button className={specialty === null ? "selected" : ""} aria-pressed={specialty === null} onClick={() => chooseSpecialty(null)}>All specialties</button>
-                {specialty && !specialties.some(item => item.value === specialty) && <button className="selected" aria-pressed="true" onClick={() => chooseSpecialty(specialty)}>{specialty}</button>}
-                {specialties.map((item) => (
-                  <button key={item.value} className={specialty === item.value ? "selected" : ""} aria-pressed={specialty === item.value} onClick={() => chooseSpecialty(item.value)}>{item.label}</button>
-                ))}
+              <div className={styles.filterToolbar} role="group" aria-label="Find and filter doctors">
+                <label className={styles.filterField}>Specialty
+                  <select aria-label="Specialty" value={specialty ?? ""} onChange={event => chooseSpecialty(event.target.value || null)}>
+                    <option value="">All specialties</option>
+                    {specialty && !specialties.some(item => item.value === specialty) &&
+                      <option value={specialty}>{specialty}</option>}
+                    {specialties.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+                <label className={styles.filterField}>Search doctor
+                  <input value={keyword} onChange={event => setKeywordOverride({ query, value: event.target.value })}
+                    placeholder="Name or specialty" maxLength={100} type="search" />
+                </label>
+                <label className={styles.filterField}>District
+                  <input value={district} onChange={event => setDistrict(event.target.value)}
+                    placeholder="Any district" maxLength={80} type="search" />
+                </label>
+                {(keyword || district || specialty) && <button type="button" className={styles.clearFilters}
+                  onClick={() => { setKeywordOverride({ query, value: "" }); setDistrict(""); chooseSpecialty(null); }}>Reset</button>}
               </div>
               <div className="doctor-list">
                 {doctors.map((doctor) => (
@@ -132,7 +158,7 @@ function DoctorDiscovery({ query }: { query: string }) {
 
                   </Link>
                 ))}
-                {!doctors.length && <div className={styles.empty} role="status"><p>{specialty || query ? "No doctors match your search and specialty. Try another search or browse all specialties." : "No doctors are available in the catalog yet. Please check again later."}</p>
+                {!doctors.length && <div className={styles.empty} role="status"><p>{specialty || keyword || district ? "No doctors match your search and specialty. Try another search or browse all specialties." : "No doctors are available in the catalog yet. Please check again later."}</p>
                   <button className="text-button" onClick={() => { setCatalog(initialCatalog); setAttempt(value => value + 1); }}>Try again</button>
                 </div>}
               </div>

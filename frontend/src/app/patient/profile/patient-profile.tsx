@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/auth-provider";
 import { apiMessage } from "@/lib/contract-api";
 import styles from "../../patient-shell.module.css";
+import { AvatarEditor } from "../../profile/avatar-editor";
 
 export function PatientProfileView() {
   const { state, reload } = useAuth();
@@ -12,6 +13,7 @@ export function PatientProfileView() {
     {state.status === "error" && <div role="alert"><p>{apiMessage(state.error)}</p><button className={styles.emptyPrimaryBtn} onClick={reload}>Try again</button></div>}
     {state.status === "signedOut" && <><p className={styles.emptyDescription}>Sign in to see your profile and prefill your appointment details.</p><Link className={styles.emptyPrimaryBtn} href="/patient/login">Sign in</Link><p><Link href="/patient/register">Create a patient account</Link></p></>}
     {state.status === "ready" && (state.identity.role === "patient" ? <>
+      <AvatarEditor userId={state.identity.patient.id} name={state.identity.patient.name} />
       <div className={styles.profileGrid}>{[["Full name", state.identity.patient.name], ["Email", state.identity.patient.email], ["Phone", state.identity.patient.phone], ["Account", "Patient"]].map(([label, value]) =>
         <div className={styles.profileField} key={label}><span className={styles.fieldLabel}>{label}</span><strong className={styles.fieldValue}>{value || "Not provided"}</strong></div>)}</div>
       <div className={styles.emptyActions}><Link className={styles.emptyPrimaryBtn} href="/#book">Find a doctor &amp; schedule a visit</Link><button className={styles.emptySecondaryBtn} onClick={reload}>Refresh profile</button></div>

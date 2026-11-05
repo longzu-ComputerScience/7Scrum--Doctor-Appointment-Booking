@@ -80,6 +80,23 @@ class DoctorProfileResponse(BaseModel):
 AppointmentStatus = Literal["confirmed", "completed", "cancelled"]
 
 
+class PatientAppointment(BaseModel):
+    id: UUID
+    doctorId: UUID
+    doctorName: str
+    specialty: str
+    address: str
+    district: str
+    startAt: UtcDatetime
+    endAt: UtcDatetime
+    status: Literal["confirmed", "completed", "cancelled"]
+    bookingReference: str
+
+
+class PatientAppointmentListResponse(BaseModel):
+    appointments: list[PatientAppointment]
+
+
 class DoctorAppointment(AvailableSlot):
     patientName: str
     patientPhone: str

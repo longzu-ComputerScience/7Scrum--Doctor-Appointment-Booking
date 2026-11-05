@@ -5,6 +5,11 @@ export type PatientProfile = { id: string; name: string; phone: string; email: s
 export type DoctorProfile = { id: string; name: string; specialty: string; active: boolean };
 export type Identity = { role: "patient"; patient: PatientProfile } | { role: "doctor"; doctor: DoctorProfile };
 export type AppointmentStatus = "confirmed" | "completed" | "cancelled";
+export type PatientAppointment = {
+  id: string; doctorId: string; doctorName: string; specialty: string;
+  address: string; district: string; bookingReference: string;
+  startAt: string; endAt: string; status: AppointmentStatus;
+};
 export type DoctorAppointment = {
   id: string; doctorId: string; patientName: string; patientPhone: string;
   startAt: string; endAt: string; status: AppointmentStatus;
@@ -16,7 +21,7 @@ export type DoctorNotification = {
 
 /** Only a response from the authenticated API establishes a role, never user_metadata. */
 export async function fe1Request(path: string, options: {
-  token?: string; method?: "GET" | "POST" | "PATCH"; body?: unknown; expected?: number; signal?: AbortSignal;
+  token?: string; method?: "GET" | "POST" | "PATCH" | "PUT"; body?: unknown; expected?: number; signal?: AbortSignal;
 } = {}): Promise<unknown> {
   let response: Response;
   const multipart = options.body instanceof FormData;
@@ -61,6 +66,17 @@ const validRange = (row: Record<string, unknown>) => isInstant(row.startAt) && i
 const status = (value: unknown): value is AppointmentStatus => value === "confirmed" || value === "completed" || value === "cancelled";
 function unique(rows: { id: string }[]) {
   if (new Set(rows.map(row => row.id)).size !== rows.length) throw new ContractApiError("invalid");
+}
+export function parsePatientAppointments(data: unknown): PatientAppointment[] {
+  if (!isRecord(data) || !Array.isArray(data.appointments)) throw new ContractApiError("invalid");
+  const rows: PatientAppointment[] = data.appointments.map((row: unknown) => {
+    if (!isRecord(row) || !isUuid(row.id) || !isUuid(row.doctorId) ||
+        !["doctorName", "specialty", "address", "district", "bookingReference"].every(k => typeof row[k] === "string") ||
+        !validRange(row) || !status(row.status)) throw new ContractApiError("invalid");
+    return row as PatientAppointment;
+  });
+  unique(rows);
+  return rows;
 }
 export function parseAppointments(data: unknown, doctorId: string): DoctorAppointment[] {
   if (!isRecord(data) || !Array.isArray(data.appointments)) throw new ContractApiError("invalid");

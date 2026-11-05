@@ -336,11 +336,16 @@ def _authorized_doctor(token: str) -> tuple[Any, str, DoctorProfile]:
     doctor = _doctor_identity(client, user_id)
     if doctor is None:
         raise HTTPException(403, "Doctor access denied")
+    if not doctor.active:
+        raise HTTPException(403, "Doctor account pending approval")
     return client, user_id, doctor
 
 
 def get_doctor_profile(token: str) -> dict:
-    _, _, doctor = _authorized_doctor(token)
+    client, user_id, _ = _authenticated_user(token)
+    doctor = _doctor_identity(client, user_id)
+    if doctor is None:
+        raise HTTPException(403, "Doctor access denied")
     return {"doctor": doctor.model_dump(mode="json")}
 
 
@@ -863,3 +868,46 @@ def create_staff_slot(payload: StaffSlotInput, token: str) -> dict:
             "endAt": slot["end_at"], "available": True,
         }
     }
+
+
+def list_specialties() -> dict:
+    """All active catalog specialties, independent of keyword filters and the 100-doctor limit."""
+    if not is_database_configured():
+        return {"specialties": sorted({d["specialty"] for d in DEMO_DOCTORS if d.get("active", True)})}
+    with _database_operation("Specialties unavailable"):
+        client = get_client()
+        options = set()
+        for row in _ordered_pages(
+            lambda: client.table("doctors").select("id,specialty").eq("active", True), "id"
+        ):
+            options.add(row["specialty"])
+    return {"specialties": sorted(options)}
+
+
+def list_patient_appointments(token: str) -> dict:
+    """Read only appointments belonging to the authenticated Patient; never trust a user ID from a client."""
+    client, user_id, email = _authenticated_user(token)
+    _patient_identity(client, user_id, email)
+    with _database_operation("Patient appointments unavailable"):
+        records = (client.table("appointments")
+            .select("id,booking_reference,booking_doctor_id,booking_start_at,booking_end_at,status")
+            .eq("patient_auth_user_id", user_id)
+            .order("booking_start_at", desc=True).limit(100).execute().data)
+        doctor_ids = sorted({str(row["booking_doctor_id"]) for row in records})
+        doctors = (client.table("doctors")
+            .select("id,name,specialty,address,district")
+            .in_("id", doctor_ids).execute().data) if doctor_ids else []
+        profiles = {str(d["id"]): d for d in doctors}
+        appointments = []
+        for row in records:
+            doc = profiles.get(str(row["booking_doctor_id"]))
+            if doc is None:
+                raise HTTPException(503, "Appointment doctor profile unavailable")
+            appointments.append({
+                "id": row["id"], "doctorId": row["booking_doctor_id"],
+                "doctorName": doc["name"], "specialty": doc["specialty"],
+                "address": doc["address"], "district": doc["district"],
+                "startAt": row["booking_start_at"], "endAt": row["booking_end_at"],
+                "status": row["status"], "bookingReference": row["booking_reference"],
+            })
+    return {"appointments": appointments}

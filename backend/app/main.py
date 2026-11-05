@@ -9,12 +9,13 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
 
+from app.admin import router as admin_router
 from app.assistant import search_from_message
 from app.consult import consult
 from app.config import allowed_origins, is_database_configured
 from app.schemas import (
     APIErrorResponse, AssistantInput, AuthIdentityResponse, BookingInput, BookingResponse, CalendarDate, ConsultationInput,
-    ConsultationResponse, DoctorAppointmentListResponse,
+    ConsultationResponse, DoctorAppointmentListResponse, PatientAppointmentListResponse,
     DoctorAppointmentStatusInput, DoctorAppointmentStatusResponse, DoctorDetailResponse, DoctorListResponse,
     DoctorNotificationListResponse, DoctorProfileResponse, DoctorRegistrationInput, DoctorRegistrationResponse,
     DoctorSlotCreateResponse, DoctorSlotInput, DoctorSlotListResponse, NotificationReadInput, NotificationReadResponse,
@@ -27,6 +28,7 @@ from app.service import (
     get_doctor, get_doctor_profile,
     get_doctor_schedule,
     get_patient_profile, get_slots, list_doctor_appointments, list_doctor_notifications, list_doctor_slots,
+    list_patient_appointments, list_specialties,
     list_staff_appointments, list_staff_doctors, list_staff_slots, mark_doctor_notification_read, register_doctor,
     register_patient, search_doctors, update_doctor_appointment_status, update_doctor_schedule, update_status,
 )
@@ -36,6 +38,7 @@ app = FastAPI(
     description="Scheduling and doctor discovery only; not a medical diagnostic service.",
     version="0.2.0",
 )
+app.include_router(admin_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins(),
@@ -73,7 +76,7 @@ INVALID_INPUT = {422: {"model": ValidationErrorResponse, "description": "Invalid
 REGISTRATION_CONFLICT = {409: {"model": APIErrorResponse, "description": "Registration conflicts with existing data"}}
 
 
-@app.get("/api/auth/me", response_model=AuthIdentityResponse, responses=AUTH_ERRORS)
+@app.get("/api/auth/me", response_model=AuthIdentityResponse, response_model_exclude_none=True, responses=AUTH_ERRORS)
 def auth_me(response: Response, token: str = Depends(_session_token)) -> dict:
     response.headers["Cache-Control"] = "no-store"
     return get_auth_identity(token)
@@ -102,13 +105,19 @@ def doctor_registration(details: Annotated[str, Form()], evidence: Annotated[Upl
     return register_doctor(payload, document, evidence.content_type or "")
 
 
-@app.get("/api/patient/me", response_model=PatientProfileResponse, responses=AUTH_ERRORS)
+@app.get("/api/patient/me", response_model=PatientProfileResponse, response_model_exclude_none=True, responses=AUTH_ERRORS)
 def patient_me(response: Response, token: str = Depends(_session_token)) -> dict:
     response.headers["Cache-Control"] = "no-store"
     return get_patient_profile(token)
 
 
-@app.get("/api/doctor/me", response_model=DoctorProfileResponse, responses=AUTH_ERRORS)
+@app.get("/api/patient/appointments", response_model=PatientAppointmentListResponse, responses=AUTH_ERRORS)
+def patient_appointments(response: Response, token: str = Depends(_session_token)) -> dict:
+    response.headers["Cache-Control"] = "no-store"
+    return list_patient_appointments(token)
+
+
+@app.get("/api/doctor/me", response_model=DoctorProfileResponse, response_model_exclude_none=True, responses=AUTH_ERRORS)
 def doctor_me(response: Response, token: str = Depends(_session_token)) -> dict:
     response.headers["Cache-Control"] = "no-store"
     return get_doctor_profile(token)
@@ -198,8 +207,17 @@ def add_doctor_slot(payload: DoctorSlotInput, token: str = Depends(_session_toke
 
 
 @app.get("/api/health")
-def health() -> dict:
+def health(response: Response) -> dict:
+    # Lets a frontend preview distinguish an outdated Render backend from a
+    # failure in Patient data. No credentials or implementation details exposed.
+    response.headers["X-Carely-Backend-Capabilities"] = "patient-appointments-v1"
+    response.headers["Cache-Control"] = "no-store"
     return {"status": "ok", "databaseConfigured": is_database_configured()}
+
+
+@app.get("/api/specialties", responses=UNAVAILABLE)
+def specialties() -> dict:
+    return list_specialties()
 
 
 @app.get("/api/doctors", response_model=DoctorListResponse, responses={**UNAVAILABLE, **INVALID_INPUT})

@@ -22,14 +22,15 @@ export function parseCatalog(data: unknown, requireV2 = false): { doctors: Catal
   return { doctors, demoMode: data.demoMode };
 }
 /** Consultation doctor objects are deliberately never accepted by this loader. */
-export async function loadDiscoveryCatalog(specialty: string | null, keyword: string, signal?: AbortSignal) {
+export async function loadDiscoveryCatalog(specialty: string | null, keyword: string, signal?: AbortSignal, district = "") {
   const selected = canonicalSpecialty(specialty);
-  const data = parseCatalog(await fe1Request(catalogPath(selected, keyword), { signal }), true);
+  const data = parseCatalog(await fe1Request(catalogPath(selected, keyword, district), { signal }), true);
   return { ...data, doctors: data.doctors.filter(doctor => specialtyMatches(doctor.specialty, selected)) };
 }
-export function catalogPath(specialty: string | null, keyword: string) {
+export function catalogPath(specialty: string | null, keyword: string, district = "") {
   const params = new URLSearchParams();
   if (specialty?.trim()) params.set("specialty", specialty.trim());
   if (keyword.trim()) params.set("keyword", keyword.normalize("NFC").trim());
+  if (district.trim()) params.set("district", district.normalize("NFC").trim());
   return `/api/doctors${params.size ? `?${params}` : ""}`;
 }
