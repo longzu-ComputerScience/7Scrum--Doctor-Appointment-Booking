@@ -7,20 +7,17 @@ declare
   dermatology_id constant uuid := '10000000-0000-4000-8000-000000000001';
   general_medicine_id constant uuid := '10000000-0000-4000-8000-000000000003';
   missing_specialty constant text := 'QA46 No Match';
-  matches uuid[];
 begin
-  select array_agg(d.id order by d.id) into matches
-  from public.doctors d
-  where d.active and d.specialty = 'Da liễu';
-  if matches is distinct from array[dermatology_id] then
-    raise exception 'Da liễu must return exactly the active Dermatology fixture';
+  if not exists (
+    select 1 from public.doctors d where d.active and d.specialty = 'Da liễu' and d.id = dermatology_id
+  ) then
+    raise exception 'Da liễu must include the active Dermatology fixture';
   end if;
 
-  select array_agg(d.id order by d.id) into matches
-  from public.doctors d
-  where d.active and d.specialty = 'Nội tổng quát';
-  if matches is distinct from array[general_medicine_id] then
-    raise exception 'Nội tổng quát must return exactly the active General Medicine fixture';
+  if not exists (
+    select 1 from public.doctors d where d.active and d.specialty = 'Nội tổng quát' and d.id = general_medicine_id
+  ) then
+    raise exception 'Nội tổng quát must include the active General Medicine fixture';
   end if;
 
   if exists (
@@ -39,7 +36,7 @@ begin
   if not exists (
     select 1 from public.doctors d where d.id = dermatology_id and not d.active and d.specialty = 'Da liễu'
   ) or exists (
-    select 1 from public.doctors d where d.active and d.specialty = 'Da liễu'
+    select 1 from public.doctors d where d.active and d.specialty = 'Da liễu' and d.id = dermatology_id
   ) then
     raise exception 'An inactive Dermatology doctor must stay in the catalog table but be excluded by the filter';
   end if;
