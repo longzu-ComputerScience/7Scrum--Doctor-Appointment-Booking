@@ -9,6 +9,7 @@ import { useBookingIntegration, type BookingIntegration } from "./booking-sessio
 import { useBookingAvailability } from "./use-booking-availability";
 import { bookingFieldErrors, createBooking, dateKey, formatDay, formatTime, validatePatient, type BookingSlot, type PatientErrors } from "./booking-utils";
 import styles from "./booking.module.css";
+import { discoveryHref, readDiscoveryContext } from "@/lib/specialty-handoff";
 
 type Confirmation = { reference: string; slot: BookingSlot; patientName: string };
 export type BookingClientProps = { doctorId: string; intercepted?: boolean };
@@ -51,7 +52,11 @@ function BookingWorkspace({ doctorId, intercepted = false, integration }: Bookin
   useEffect(() => { if (focusError) errorSummary.current?.focus(); }, [focusError]);
   function close() {
     if (submitLock.current) return;
-    if (intercepted) router.back(); else router.push("/");
+    if (intercepted) router.back();
+    else {
+      const context = readDiscoveryContext(new URLSearchParams(window.location.search));
+      router.push(discoveryHref(context.specialty, doctorId));
+    }
   }
   function retry() { setError(""); setSlotId(""); void availability.refresh(); }
   function reportError(message: string) { setError(message); setFocusError(value => value + 1); }
